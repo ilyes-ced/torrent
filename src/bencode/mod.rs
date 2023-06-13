@@ -1,22 +1,28 @@
-mod encode;
-mod decode;
+//                               _     _               
+//               _ __     ___   | |_  (_)   ___    ___ 
+//              | '_ \   / _ \  | __| | |  / __|  / _ \
+//              | | | | | (_) | | |_  | | | (__  |  __/
+//              |_| |_|  \___/   \__| |_|  \___|  \___|
+//
+// we go on with the encoder/decoder assuming then bencode always starts with the dict            
 
 
-use decode::Decoder;
+pub mod decode;
+pub mod encode;
+
+use decode::{Decoder, DecodeError, DecoderElement};
+use encode::{Encoder, EncodeError, EncoderElement};
 
 
 // set wheter it return string or byte arrays
 // return something idk what yet
-pub fn to_bencode(input: &[u8]) {
+pub fn to_bencode(input: &[u8]) -> Result<DecoderElement, DecodeError> {
     let mut decoder = Decoder::new(input);
-    let _ = decoder.start();
+    decoder.start()
 }
 
-
-
-
-
 // return something idk what yet
-pub fn from_bencode(input: &[u8]) {
-
+pub fn from_bencode(input: &[u8]) -> Result<EncoderElement, EncodeError> {
+    let mut encoder = Encoder::new(input);
+    encoder.start()
 }
