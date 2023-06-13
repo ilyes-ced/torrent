@@ -4,10 +4,12 @@ mod decode;
 
 use decode::Decoder;
 
+
+// set wheter it return string or byte arrays
 // return something idk what yet
 pub fn to_bencode(input: &[u8]) {
     let mut decoder = Decoder::new(input);
-    decoder.start();
+    let _ = decoder.start();
 }
 
 
