@@ -44,7 +44,6 @@ impl<'ser> Decoder<'ser> {
                 message: String::from("hello there"),
             }),
         };
-        println!("started loop, {:#?}", result);
 
         Ok(result?)
     }

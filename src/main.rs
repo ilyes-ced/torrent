@@ -13,25 +13,30 @@ fn main() -> std::io::Result<()> {
     let mut buf = vec![];
     file.read_to_end(&mut buf)?;
 
-    let gg = bencode::to_bencode(&buf).unwrap();
+    //let gg = bencode::to_bencode(&buf).unwrap();
+    //println!("\t{:?}", buf);
+//
+    //// write the content to file
+    ////let mut file = File::create("test.txt")?;
+    ////write!(file, "{:?}", gg);
+//
+    //{
+    //    if let DecoderElement::Dict(ele) = gg {
+    //        println!("annound here: {}", ele[0].name);
+    //        if let DecoderElement::String(string) = &ele[0].value {
+    //            println!("url here: {}", String::from_utf8_lossy(&string).to_string());
+    //        } else {
+    //            println!("error: url not found");
+    //        }
+    //    } else {
+    //        println!("error: invalid file structure");
+    //    }
+    //}
 
-    // write the content to file
-    //let mut file = File::create("test.txt")?;
-    //write!(file, "{:?}", gg);
+    
+    let mut peers = tracker::Peers::new(buf).unwrap();
+    let gg = peers.get_peers();
 
-    {
-        if let DecoderElement::Dict(ele) = gg {
-            println!("annound here: {}", ele[0].name);
-            if let DecoderElement::String(string) = &ele[0].value {
-                println!("url here: {}", String::from_utf8_lossy(&string).to_string());
-            } else {
-                println!("error: url not found");
-            }
-        } else {
-            println!("error: invalid file structure");
-        }
-    }
-    let _ = tracker::get_peers();
 
     Ok(())
 }
