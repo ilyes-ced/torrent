@@ -72,7 +72,7 @@ impl<'ser> Encoder<'ser> {
                 b'e' => {
                     self.cursor += 1;
                     break;
-                },
+                }
                 _ => {
                     return Err(EncodeError {
                         message: String::from(format!(
@@ -96,7 +96,7 @@ impl<'ser> Encoder<'ser> {
                 b'e' => {
                     self.cursor += 1;
                     break;
-                },
+                }
                 _ => self.get_string()?,
             };
             let pair_value: EncoderElement = match self.input[self.cursor] {
@@ -178,10 +178,6 @@ impl<'ser> Encoder<'ser> {
         }
     }
 
-
-
-
-
     // validation needs more work
     pub fn get_number(&mut self) -> Result<EncoderElement, EncodeError> {
         let mut value: Vec<u8> = Vec::new();
@@ -208,15 +204,15 @@ impl<'ser> Encoder<'ser> {
         for char in &value {
             if char == &b'-' {
                 hyphen_counter += 1
-            }else if char == &b'.' {
+            } else if char == &b'.' {
                 point_counter += 1
             }
         }
         if hyphen_counter > 1 || point_counter > 1 {
             //err
-            return Err(EncodeError{
-                message: String::from("invalid float format")
-            })
+            return Err(EncodeError {
+                message: String::from("invalid float format"),
+            });
         }
         Ok(EncoderElement::Number(value))
     }
