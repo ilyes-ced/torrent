@@ -26,11 +26,11 @@ inspired by
 
 ## TODO
 - [x] bencode decoder
-- [ ] bencode encoder
+- [x] bencode encoder
 - [ ] get peers with tracker
     - [x] request udp connection
     - [ ] recieve peers
-    - [ ] info hash
+    - [x] info hash (need more testing)
     - [ ] torretn size
 - [ ] download
     - [ ] tcp connection

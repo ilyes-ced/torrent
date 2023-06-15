@@ -57,9 +57,12 @@ impl<'ser> Decoder<'ser> {
                     message: String::from("error idk"),
                 })
             }
-       
+
             _ => Err(DecodeError {
-                message: String::from(format!("file doesnt start with dict index: {}", self.input[self.cursor])),
+                message: String::from(format!(
+                    "file doesnt start with dict index: {}",
+                    self.input[self.cursor]
+                )),
             }),
         };
 
@@ -148,7 +151,10 @@ impl<'ser> Decoder<'ser> {
                 }),
                 _ => {
                     return Err(DecodeError {
-                        message: String::from(format!("the pair name attribute isnt of type string index: {}", self.cursor)),
+                        message: String::from(format!(
+                            "the pair name attribute isnt of type string index: {}",
+                            self.cursor
+                        )),
                     })
                 }
             }
@@ -202,8 +208,7 @@ impl<'ser> Decoder<'ser> {
                 value.push(self.input[self.cursor]);
                 self.cursor += 1;
             }
-            b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8'
-            | b'9' => {
+            b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => {
                 value.push(self.input[self.cursor]);
                 self.cursor += 1;
             }
@@ -215,8 +220,7 @@ impl<'ser> Decoder<'ser> {
         }
         loop {
             match self.input[self.cursor] {
-                b'.' | b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8'
-                | b'9' => {
+                b'.' | b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => {
                     value.push(self.input[self.cursor]);
                     self.cursor += 1;
                 }
@@ -226,7 +230,10 @@ impl<'ser> Decoder<'ser> {
                 }
                 _ => {
                     return Err(DecodeError {
-                        message: String::from(format!("the pair name attribute isnt of type string index: {}", self.cursor)),
+                        message: String::from(format!(
+                            "the pair name attribute isnt of type string index: {}",
+                            self.cursor
+                        )),
                     })
                 }
             }

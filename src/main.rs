@@ -8,8 +8,8 @@ use bencode::decode::{DecodeError, Decoder, DecoderElement, Pair};
 use bencode::encode::{EncodeError, Encoder};
 
 fn main() -> std::io::Result<()> {
-    //let path = "1669901338-Satisfactory.v0.6.1.5.Early.Access(1).torrent";
-    let path = "simple.torrent";
+    let path = "1669901338-Satisfactory.v0.6.1.5.Early.Access(1).torrent";
+    //let path = "simple.torrent";
     let mut file = File::open(path)?;
     let mut buf = vec![];
     file.read_to_end(&mut buf)?;
@@ -34,40 +34,13 @@ fn main() -> std::io::Result<()> {
     //    }
     //}
 
+    //let gg = bencode::from_bencode(&buf).unwrap();
+    //println!("{:?}", gg);
+    //let gg = bencode::to_bencode(gg).unwrap();
+    //println!("{:?}", gg);
 
-
-
-
-
-
-
-
-
-    let gg = bencode::from_bencode(&buf).unwrap();
-    println!("{:?}", gg);
-
-
-    let gg = bencode::to_bencode(gg).unwrap();
-    println!("{:?}", gg);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-    //let mut peers = tracker::Peers::new(buf, file).unwrap();
-    //let gg = peers.get_peers();
-
+    let mut peers = tracker::Peers::new(buf, file).unwrap();
+    let gg = peers.get_peers();
 
     Ok(())
 }

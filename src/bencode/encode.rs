@@ -2,30 +2,21 @@ use std::fs::File;
 
 use std::io::prelude::*;
 
-
-use crate::bencode::decode;
-
 use super::decode::{DecoderElement, Pair};
 
-
-
 #[derive(Debug)]
-pub struct Encoder{
+pub struct Encoder {
     input: DecoderElement,
     cursor: usize,  // 0
     finished: bool, // 0
     start: Vec<u8>, // arrays to add letter to to combine later
-    end: Vec<u8>, // arrays to add letter to to combine later
+    end: Vec<u8>,   // arrays to add letter to to combine later
 }
 
 #[derive(Debug)]
 pub struct EncodeError {
     message: String,
 }
-
-
-
-
 
 impl Encoder {
     pub fn new(input: DecoderElement) -> Self {
@@ -38,46 +29,28 @@ impl Encoder {
         }
     }
 
-    pub fn start(&mut self) -> Result<Vec<u8>, EncodeError>{
+    pub fn start(&mut self) -> Result<Vec<u8>, EncodeError> {
         let decoded_element = self.input.clone();
         match decoded_element {
             DecoderElement::Dict(element) => {
                 self.write_dict_pairs(element)?;
-            },
+            }
             _ => {
                 //err
-            },
+            }
         }
 
-
-        println!("{:?}", self);
-
-
         self.start.append(&mut self.end);
-        println!("{:?}", self.start);
-        println!("{:?}", String::from_utf8_lossy(&self.start).to_string());
-        
-        let mut file = File::create("output.txt").unwrap();
-        write!(file, "{:?}", self.start);
-        write!(file, "{}", String::from_utf8_lossy(&self.start).to_string());
-
 
         Ok(self.start.clone())
-            
     }
 
-    pub fn write_dict_pairs(&mut self, elements: Vec<Pair>) -> Result<(), EncodeError>  {
+    pub fn write_dict_pairs(&mut self, elements: Vec<Pair>) -> Result<(), EncodeError> {
         self.start.push(b'd');
         for element in elements {
-            let gg = usize::to_be_bytes(element.name.len());
-            for n in gg{
-                if n != 0 {
-                    println!("{:x?}", n);
-                    self.start.push(n);
-                }
-            }
+            let gg = len_to_bytes(element.name.len());
+            self.start.extend(gg);
             self.start.push(b':');
-            // not tested
             match element.value {
                 DecoderElement::Dict(ele) => self.write_dict_pairs(ele)?,
                 DecoderElement::List(ele) => self.write_list(ele)?,
@@ -89,9 +62,7 @@ impl Encoder {
         Ok(())
     }
 
-
-
-    pub fn write_list(&mut self, elements: Vec<DecoderElement>) -> Result<(), EncodeError>  {
+    pub fn write_list(&mut self, elements: Vec<DecoderElement>) -> Result<(), EncodeError> {
         self.start.push(b'l');
         for element in elements {
             match element {
@@ -105,15 +76,55 @@ impl Encoder {
         Ok(())
     }
 
-    pub fn write_string(&mut self, elements: Vec<u8>) -> Result<(), EncodeError>  {
-        self.start.extend_from_slice(elements.as_slice()); 
+    pub fn write_string(&mut self, elements: Vec<u8>) -> Result<(), EncodeError> {
+        self.start.extend_from_slice(elements.as_slice());
         Ok(())
     }
 
     // validation needs more work
-    pub fn write_number(&mut self, elements: Vec<u8>) -> Result<(), EncodeError>  {
-        self.start.extend_from_slice(elements.as_slice()); 
+    pub fn write_number(&mut self, elements: Vec<u8>) -> Result<(), EncodeError> {
+        self.start.extend_from_slice(elements.as_slice());
         Ok(())
     }
 }
 
+fn digits(num: usize) -> impl Iterator<Item = u32> {
+    num.to_string()
+        .chars()
+        .map(|d| d.to_digit(10).unwrap())
+        .collect::<Vec<_>>()
+        .into_iter()
+}
+
+fn len_to_bytes(len: usize) -> Vec<u8> {
+    let mut vec = Vec::new();
+    let digits = digits(len);
+    for digit in digits {
+        match digit {
+            0 => vec.push(48),
+            1 => vec.push(49),
+            2 => vec.push(50),
+            3 => vec.push(51),
+            4 => vec.push(52),
+            5 => vec.push(53),
+            6 => vec.push(54),
+            7 => vec.push(55),
+            8 => vec.push(56),
+            9 => vec.push(57),
+            _ => {}
+        }
+    }
+    vec
+}
+
+//#[cfg(test)]
+//mod tests {
+//    use crate::bencode::encode::len_to_bytes;
+//
+//    #[test]
+//    fn it_works() {
+//        let result: usize = 456;
+//        let vec = len_to_bytes(result);
+//        assert_eq!(vec, [53]);
+//    }
+//}

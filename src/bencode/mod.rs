@@ -19,8 +19,8 @@ pub fn from_bencode(input: &[u8]) -> Result<DecoderElement, DecodeError> {
 }
 
 // return something idk what yet
-pub fn to_bencode(input: DecoderElement) -> Result<(), String> {
+pub fn to_bencode(input: DecoderElement) -> Result<Vec<u8>, String> {
+    // match here
     let result = Encoder::new(input).start().unwrap();
-
-    Ok(())
+    Ok(result)
 }
