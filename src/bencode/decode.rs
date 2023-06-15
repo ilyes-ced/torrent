@@ -11,13 +11,13 @@ pub struct DecodeError {
     message: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Pair {
     pub name: String,
     pub value: DecoderElement,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DecoderElement {
     Dict(Vec<Pair>),
     List(Vec<DecoderElement>),
@@ -40,6 +40,24 @@ impl<'ser> Decoder<'ser> {
                 self.cursor += 1;
                 self.get_dict()
             }
+            b'l' => {
+                self.cursor += 1;
+                self.get_list()
+            }
+            b'i' => {
+                self.cursor += 1;
+                self.get_number()
+            }
+            b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => {
+                self.get_string()
+            }
+            b'e' => {
+                self.cursor += 1;
+                Err(DecodeError {
+                    message: String::from("error idk"),
+                })
+            }
+       
             _ => Err(DecodeError {
                 message: String::from(format!("file doesnt start with dict index: {}", self.input[self.cursor])),
             }),
@@ -152,7 +170,9 @@ impl<'ser> Decoder<'ser> {
                     break;
                 }
                 _ => {
-                    // return error
+                    return Err(DecodeError {
+                        message: String::from("dont know"),
+                    })
                 }
             }
         }
@@ -169,45 +189,56 @@ impl<'ser> Decoder<'ser> {
                     string.push(self.input[self.cursor]);
                     self.cursor += 1;
                 }
-                //self.cursor -= 1;
-                //Ok(DecoderElement::String(string))
                 Ok(DecoderElement::String(string))
             }
             Err(err) => return Err(err),
         }
     }
 
-    // validation needs more work
     pub fn get_number(&mut self) -> Result<DecoderElement, DecodeError> {
         let mut value: Vec<u8> = Vec::new();
+        match self.input[self.cursor] {
+            b'-' => {
+                value.push(self.input[self.cursor]);
+                self.cursor += 1;
+            }
+            b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8'
+            | b'9' => {
+                value.push(self.input[self.cursor]);
+                self.cursor += 1;
+            }
+            _ => {
+                return Err(DecodeError {
+                    message: String::from("invalid at the start"),
+                })
+            }
+        }
         loop {
             match self.input[self.cursor] {
-                b'-' | b'.' | b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8'
+                b'.' | b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8'
                 | b'9' => {
                     value.push(self.input[self.cursor]);
                     self.cursor += 1;
                 }
                 b'e' => {
-                    // jumps e
                     self.cursor += 1;
                     break;
                 }
                 _ => {
-                    // return error
+                    return Err(DecodeError {
+                        message: String::from(format!("the pair name attribute isnt of type string index: {}", self.cursor)),
+                    })
                 }
             }
         }
         // validate
-        let mut hyphen_counter = 0;
         let mut point_counter = 0;
         for char in &value {
-            if char == &b'-' {
-                hyphen_counter += 1
-            } else if char == &b'.' {
+            if char == &b'.' {
                 point_counter += 1
             }
         }
-        if hyphen_counter > 1 || point_counter > 1 {
+        if point_counter > 1 {
             //err
             return Err(DecodeError {
                 message: String::from("invalid float format"),
@@ -233,9 +264,9 @@ fn concat(vec: &Vec<u8>) -> usize {
             b'8' => acc += 8,
             b'9' => acc += 9,
             _ => {
-                //err
+                // impossible i think
             }
         }
     }
-    acc.into()
+    acc
 }

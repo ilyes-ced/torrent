@@ -42,4 +42,4 @@ inspired by
 
 
 ## to fix
-- [ ] decoder number validation
+- [ ] encoder number come out as \u{7}
