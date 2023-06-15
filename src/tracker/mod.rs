@@ -1,4 +1,5 @@
-use std::{net::{ToSocketAddrs, UdpSocket, SocketAddr}, time::Duration, fs::File};
+use std::{net::{ToSocketAddrs, UdpSocket, SocketAddr}, time::Duration, fs::File, io::Read};
+use rand::{Rng, distributions::{Alphanumeric, DistString}};
 use sha1::{Sha1, Digest};
 
 
@@ -12,40 +13,40 @@ const INITIAL_TIMEOUT: u32 = 100000000; // in nanoseconds // set to 100 ms
 #[derive(Debug)]
 pub struct Peers{
     url: String,
-    //file: File,
+    buffer: Vec<u8>,
     socket: UdpSocket,
     socket_addr: SocketAddr,
     retry: bool,
     retry_counter: u32,
     transaction_id: [u8; 4],
     connection_id: [u8; 8],
+    peer_id: [u8; 20],
 }
 
 
 impl Peers {
-    pub fn new(torrent_string: Vec<u8>) -> Result<Self, String>{
-        let gg = bencode::to_bencode(&torrent_string).unwrap();
+    pub fn new(torrent_string: Vec<u8>, file: File) -> Result<Self, String>{
+        let gg = bencode::from_bencode(&torrent_string).unwrap();
         if let DecoderElement::Dict(ele) = gg {
             println!("annound here: {}", ele[0].name);
             if let DecoderElement::String(string) = &ele[0].value {
                 println!("url here: {}", String::from_utf8_lossy(&string).to_string());
                 let url = String::from_utf8_lossy(&string).to_string();
-
-                // get torrent ip address
+                // the original url doesnt work because of the resouce path: /announce and the udp://
                 let mut addrs_iter = "tracker.openbittorrent.com:80".to_socket_addrs().unwrap();
                 let socket_addr = addrs_iter.next().unwrap();
                 println!("{:?}", addrs_iter.next());
                 let socket = UdpSocket::bind("0.0.0.0:34254").unwrap();
-
                 let res = Peers {
                     url,
-                    //file: todo!(),
+                    buffer: torrent_string,
                     socket,
                     socket_addr,
                     retry: true,
                     retry_counter: 0,
                     transaction_id: [0; 4],
                     connection_id: [0; 8],
+                    peer_id: new_peer_id()
                 };
                 Ok(res)
             } else {
@@ -59,15 +60,14 @@ impl Peers {
     }
 
 
-    pub fn get_peers(&mut self) {
-        let fir = transform_u64_to_array_of_u8(0x41727101980);
-        let sec = transform_u32_to_array_of_u8(0x0);
-        let thi = transform_u32_to_array_of_u8(0x3645); // random 4 bytes
-        let mut buffer = [
-            fir[0], fir[1], fir[2], fir[3], fir[4], fir[5], fir[6], fir[7],
-            sec[0], sec[1], sec[2], sec[3],
-            thi[0], thi[1], thi[2], thi[3],
-        ];
+    pub fn get_peers(&mut self) -> Result<String, String> {
+        let mut rng = rand::thread_rng();
+        self.transaction_id = rng.gen::<[u8; 4]>();
+        let mut buffer = [0; 16];
+        buffer[0..8].copy_from_slice(&transform_u64_to_array_of_u8(0x41727101980)); // connection_id
+        buffer[8..12].copy_from_slice(&transform_u32_to_array_of_u8(0x0)); // action: connect 0
+        buffer[12..16].copy_from_slice(&self.transaction_id); // transaction_id
+
 
 
         //let mut transaction_id: [u8; 4] = [0, 0, 0, 0];
@@ -113,37 +113,60 @@ impl Peers {
         //   \__,_|_| |_|_| |_|_| |_|\___/ \__,_|_| |_|\___\___|
 
 
+        let info_hash = {
+            let mut hasher = Sha1::new();
+            hasher.update(&self.buffer);
+            let decoded = bencode::from_bencode(&self.buffer).unwrap();
 
-        let mut hasher = Sha1::new();
-        // torrent file here
-        hasher.update(b"");
-        
-        let result = hasher.finalize();
-        println!("\thash: {:x?}", result);
+            //             __   _            _           _                     _                     _         _            __                             _       _     _                 __   _   _        
+            //            / _| (_) __  __   | |   __ _  | |_    ___   _ __    | |__     __ _   ___  | |__     (_)  _ __    / _|   ___      _ __     ___   | |_    | |_  | |__     ___     / _| (_) | |   ___ 
+            //           | |_  | | \ \/ /   | |  / _` | | __|  / _ \ | '__|   | '_ \   / _` | / __| | '_ \    | | | '_ \  | |_   / _ \    | '_ \   / _ \  | __|   | __| | '_ \   / _ \   | |_  | | | |  / _ \
+            //           |  _| | |  >  <    | | | (_| | | |_  |  __/ | |      | | | | | (_| | \__ \ | | | |   | | | | | | |  _| | (_) |   | | | | | (_) | | |_    | |_  | | | | |  __/   |  _| | | | | |  __/
+            //           |_|   |_| /_/\_\   |_|  \__,_|  \__|  \___| |_|      |_| |_|  \__,_| |___/ |_| |_|   |_| |_| |_| |_|    \___/    |_| |_|  \___/   \__|    \__| |_| |_|  \___|   |_|   |_| |_|  \___|
+            //                           
+            if let DecoderElement::Dict(ele) = decoded {
+                println!("info start here======================> here: {}", ele[4].name);
+                if let DecoderElement::Dict(DecoderElement) = &ele[4].value {
+                    println!("info start here======================> here: {}", DecoderElement[0].name);
+                    println!(".............................: {:?}", DecoderElement[0].value);
+                }else{
+                    println!("error it isnt of list type");
+                }
+            }                                                                                                                                                              
+            let info_hash = hasher.finalize();
+            if info_hash.len() != 20 {
+                Err(String::from("bad hash i think"))
+            }else{
+                Ok(info_hash)
+            }
+        }?;
 
-        if result.len() != 20 {
-            // throw error
-        }
+        self.transaction_id = rng.gen::<[u8; 4]>();
+        let mut buf = [0; 98];
+        buf[0..8].copy_from_slice(&self.connection_id); // connection_id
+        buf[8..12].copy_from_slice(&[0, 0, 0, 1]); // action
+        buf[12..16].copy_from_slice(&self.transaction_id); // transaction_id
+        buf[16..36].copy_from_slice(&info_hash); // info_hash
+        buf[36..56].copy_from_slice(&self.peer_id); // peer_id
+        buf[56..64].copy_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]); // downloaded
+        buf[64..72].copy_from_slice(&rng.gen::<[u8; 8]>()); // left
+        buf[72..80].copy_from_slice(&rng.gen::<[u8; 8]>()); // uploaded
+        buf[80..84].copy_from_slice(&rng.gen::<[u8; 4]>()); // event
+        buf[84..88].copy_from_slice(&rng.gen::<[u8; 4]>()); // IP
+        buf[88..92].copy_from_slice(&rng.gen::<[u8; 4]>()); // key
+        buf[92..96].copy_from_slice(&rng.gen::<[u8; 4]>()); // num_want
+        buf[96..98].copy_from_slice(&rng.gen::<[u8; 2]>()); // port
+        /*
+            let arr = [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
+            let sub_arr1 = &arr[0][0..2];
+            let sub_arr2 = &arr[1][1..3];
+            let new_arr = [0; 4];
+            new_arr[0..2].copy_from_slice(sub_arr1);
+            new_arr[2..4].copy_from_slice(sub_arr2);
+            println!("{:?}", new_arr);
+        */
 
-        let conn = [self.connection_id[0], self.connection_id[1], self.connection_id[2], self.connection_id[3], self.connection_id[4], self.connection_id[5], self.connection_id[6], self.connection_id[7]];
-        let mut buf: [u8; 98] = [
-            conn[0], conn[1], conn[2], conn[3], conn[4], conn[5], conn[6], conn[7],  //connection_id
-            0, 0, 0, 0,  //action
-            165, 0xf6, 0xb5, 30,  //transaction_id
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  //info_hash
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  //peer_id
-            0, 0, 0, 0, 0, 0, 0, 0,  //downloaded
-            0, 0, 0, 0, 0, 0, 0, 0,  //left
-            0, 0, 0, 0, 0, 0, 0, 0,  //uploaded
-            0, 0, 0, 0,  //event
-            0, 0, 0, 0,  //IP
-            0, 0, 0, 0,  //key
-            0, 0, 0, 0,  //num_want
-            0, 0  //port
-        ];
-        println!("               \t{:x?}", &buf);
-
-
+        Ok(String::new())
     }
 }
 
@@ -167,3 +190,14 @@ fn transform_u64_to_array_of_u8(x: u64) -> [u8; 8] {
     let b8: u8 = (x & 0xff) as u8;
     [b1, b2, b3, b4, b5, b6, b7, b8]
 }
+
+fn new_peer_id() -> [u8; 20] {
+    //"-IT0001-"+12 random chars
+    let mut res = [0; 20];
+    res[0..8].copy_from_slice("-IT0001-".as_bytes());
+    let mut string = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+    res[8..20].copy_from_slice(string.as_bytes());
+    //println!("{:?}", res);
+    res
+}
+

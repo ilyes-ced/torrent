@@ -28,7 +28,7 @@ inspired by
 - [x] bencode decoder
 - [ ] bencode encoder
 - [ ] get peers with tracker
-    - [ ] request udp connection
+    - [x] request udp connection
     - [ ] recieve peers
     - [ ] info hash
     - [ ] torretn size
@@ -39,3 +39,7 @@ inspired by
     - [ ] managing connections and pieces
     - [ ] torretn size
 
+
+
+## to fix
+- [ ] decoder number validation

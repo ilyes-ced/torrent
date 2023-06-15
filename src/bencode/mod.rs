@@ -10,17 +10,17 @@ pub mod decode;
 pub mod encode;
 
 use decode::{DecodeError, Decoder, DecoderElement};
-use encode::{EncodeError, Encoder, EncoderElement};
+use encode::{EncodeError, Encoder};
 
 // set wheter it return string or byte arrays
 // return something idk what yet
-pub fn to_bencode(input: &[u8]) -> Result<DecoderElement, DecodeError> {
-    let mut decoder = Decoder::new(input);
-    decoder.start()
+pub fn from_bencode(input: &[u8]) -> Result<DecoderElement, DecodeError> {
+    Decoder::new(input).start()
 }
 
 // return something idk what yet
-pub fn from_bencode(input: &[u8]) -> Result<EncoderElement, EncodeError> {
-    let mut encoder = Encoder::new(input);
-    encoder.start()
+pub fn to_bencode(input: DecoderElement) -> Result<(), String> {
+    let result = Encoder::new(input).start().unwrap();
+
+    Ok(())
 }

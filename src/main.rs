@@ -5,7 +5,7 @@ mod bencode;
 mod tracker;
 
 use bencode::decode::{DecodeError, Decoder, DecoderElement, Pair};
-use bencode::encode::{EncodeError, Encoder, EncoderElement};
+use bencode::encode::{EncodeError, Encoder};
 
 fn main() -> std::io::Result<()> {
     let path = "1669901338-Satisfactory.v0.6.1.5.Early.Access(1).torrent";
@@ -14,12 +14,12 @@ fn main() -> std::io::Result<()> {
     file.read_to_end(&mut buf)?;
 
     //let gg = bencode::to_bencode(&buf).unwrap();
-    //println!("\t{:?}", buf);
-//
+    //println!("\t{:#?}", gg);
+
     //// write the content to file
-    ////let mut file = File::create("test.txt")?;
-    ////write!(file, "{:?}", gg);
-//
+    //let mut file = File::create("test.txt")?;
+    //write!(file, "{:?}", buf);
+
     //{
     //    if let DecoderElement::Dict(ele) = gg {
     //        println!("annound here: {}", ele[0].name);
@@ -33,9 +33,39 @@ fn main() -> std::io::Result<()> {
     //    }
     //}
 
+
+
+
+
+
+
+
+
+
+    let gg = bencode::from_bencode(&buf).unwrap();
+    println!("{:?}", gg);
+
+
+    let gg = bencode::to_bencode(gg).unwrap();
+    println!("{:?}", gg);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
-    let mut peers = tracker::Peers::new(buf).unwrap();
-    let gg = peers.get_peers();
+    //let mut peers = tracker::Peers::new(buf, file).unwrap();
+    //let gg = peers.get_peers();
 
 
     Ok(())

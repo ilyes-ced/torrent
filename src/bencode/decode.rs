@@ -41,7 +41,7 @@ impl<'ser> Decoder<'ser> {
                 self.get_dict()
             }
             _ => Err(DecodeError {
-                message: String::from("hello there"),
+                message: String::from(format!("file doesnt start with dict index: {}", self.input[self.cursor])),
             }),
         };
 
@@ -130,7 +130,7 @@ impl<'ser> Decoder<'ser> {
                 }),
                 _ => {
                     return Err(DecodeError {
-                        message: String::from("hello there"),
+                        message: String::from(format!("the pair name attribute isnt of type string index: {}", self.cursor)),
                     })
                 }
             }
