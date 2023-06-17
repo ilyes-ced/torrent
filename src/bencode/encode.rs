@@ -51,6 +51,7 @@ impl Encoder {
             let gg = len_to_bytes(element.name.len());
             self.start.extend(gg);
             self.start.push(b':');
+            self.start.extend(element.name.as_bytes());
             match element.value {
                 DecoderElement::Dict(ele) => self.write_dict_pairs(ele)?,
                 DecoderElement::List(ele) => self.write_list(ele)?,
@@ -58,7 +59,7 @@ impl Encoder {
                 DecoderElement::Number(ele) => self.write_number(ele)?,
             };
         }
-        self.end.push(b'e');
+        self.start.push(b'e');
         Ok(())
     }
 
@@ -72,18 +73,23 @@ impl Encoder {
                 DecoderElement::Number(ele) => self.write_number(ele)?,
             };
         }
-        self.end.push(b'e');
+        self.start.push(b'e');
         Ok(())
     }
 
     pub fn write_string(&mut self, elements: Vec<u8>) -> Result<(), EncodeError> {
+        let gg: Vec<u8> = len_to_bytes(elements.len());
+        self.start.extend(gg);
+        self.start.push(b':');
         self.start.extend_from_slice(elements.as_slice());
         Ok(())
     }
 
     // validation needs more work
     pub fn write_number(&mut self, elements: Vec<u8>) -> Result<(), EncodeError> {
+        self.start.push(b'i');
         self.start.extend_from_slice(elements.as_slice());
+        self.start.push(b'e');
         Ok(())
     }
 }

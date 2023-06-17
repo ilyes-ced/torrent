@@ -15,6 +15,9 @@ const MAX_RETRIES: u32 = 8;
 const INITIAL_TIMEOUT: u32 = 100000000; // in nanoseconds // set to 100 ms
 const IP_ADDR: &str = "0.0.0.0";
 const PORT: u16 = 6881;
+// tempo
+const TRACKER_URL: &str = "tracker.openbittorrent.com:80";
+
 
 #[derive(Debug)]
 pub struct Peers {
@@ -31,6 +34,33 @@ pub struct Peers {
     size: [u8; 8],
 }
 
+
+
+
+// deconstruct file into 
+//      url
+//      info
+//      info hash
+//      size
+//      
+//      
+//      
+//      
+//      
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 impl Peers {
     pub fn new(torrent_string: Vec<u8>, file: File) -> Result<Self, String> {
         let gg = bencode::from_bencode(&torrent_string).unwrap();
@@ -40,7 +70,7 @@ impl Peers {
                 println!("url here: {}", String::from_utf8_lossy(&string).to_string());
                 let url = String::from_utf8_lossy(&string).to_string();
                 // the original url doesnt work because of the resouce path: /announce and the udp://
-                let mut addrs_iter = "tracker.openbittorrent.com:80".to_socket_addrs().unwrap();
+                let mut addrs_iter = TRACKER_URL.to_socket_addrs().unwrap();
                 let socket_addr = addrs_iter.next().unwrap();
                 println!("{:?}", addrs_iter.next());
                 let socket = UdpSocket::bind(format!("{}:{}", IP_ADDR, PORT)).unwrap();
@@ -118,11 +148,9 @@ impl Peers {
         //  | (_| | | | | | | | | | | (_) | |_| | | | | (_|  __/
         //   \__,_|_| |_|_| |_|_| |_|\___/ \__,_|_| |_|\___\___|
 
-        let mut info_bytes: Vec<u8> = Vec::new();
-        let mut files_size: usize = 0;
         let decoded_file = bencode::from_bencode(&self.buffer).unwrap();
         self.info_hash(decoded_file.clone())?;
-        //println!("----------------------- {:?}", self);
+        
         self.size(decoded_file)?;
 
         //self.transaction_id = rng.gen::<[u8; 4]>();
@@ -151,8 +179,7 @@ impl Peers {
             self.retry_counter += 1;
             self.socket.send_to(&announce_request_buffer, self.socket_addr).unwrap();
             match self.socket.recv_from(&mut announce_request_buffer) {
-                Ok(result) => {
-                    
+                Ok(_) => {
                     self.retry = false;
                     println!("announce request response:");
                     println!("\ttransiction id is : {:?}", &self.transaction_id);
@@ -160,12 +187,34 @@ impl Peers {
                     println!("\taction {:?}", (&announce_request_buffer[0..4].to_vec()));
                     println!("\ttransaction_id {:?}", (&announce_request_buffer[4..8].to_vec()));
                     println!("\tinterval {:?}", (&announce_request_buffer[8..12].to_vec()));
-                    println!("\tleechers {:?}", (&announce_request_buffer[12..16].to_vec()));
+                    
+                    println!("\tinterval {:?}", u32::from_be_bytes(
+                        [
+                            announce_request_buffer[8],
+                            announce_request_buffer[9],
+                            announce_request_buffer[10],
+                            announce_request_buffer[11],
+                        ]
+                    ));
+                    
+                    println!("\tinterval {:?}", (transform_u32_to_array_of_u8(
+                        u32::from_be_bytes(
+                            [
+                                announce_request_buffer[8],
+                                announce_request_buffer[9],
+                                announce_request_buffer[10],
+                                announce_request_buffer[11],
+                            ]
+                        )
+                    )));
 
+
+                    println!("\tleechers {:?}", (&announce_request_buffer[12..16].to_vec()));
                     let extra_bytes = {
                         let mut extra_bytes = 0;
                         for i in 0..98 {
                             if &announce_request_buffer[i..] == &clone[i..] {
+                                println!("************************************************************************************************************************************************ {}", i);
                                 println!("\tthe rest {:?}", &announce_request_buffer[16..i].to_vec());
                                 extra_bytes = i;
                                 break
@@ -177,7 +226,6 @@ impl Peers {
                         println!("error no extra bytes here requyest failure");
                         return Err(String::from("no extra bytes"));
                     }
-
                     let mut seeders: Vec<[u8; 4]> = Vec::new();
                     let num_seeder = (extra_bytes - 6)/4;
                     for i in 0..num_seeder {
@@ -189,7 +237,6 @@ impl Peers {
                         ]);
                     }
                     println!("\tseeders {:?}", seeders);
-
                     let ip: [u8; 4] = [
                         announce_request_buffer[16 + num_seeder*4],
                         announce_request_buffer[16 + num_seeder*4 + 1],
@@ -202,6 +249,9 @@ impl Peers {
                     ];
                     println!("\tip {:?}", ip);
                     println!("\tport {:?}", port);
+                    println!("\tport {:?}", u16::from_be_bytes(port));
+                    
+                    println!("{:x?}", self.info_hash);
                 }
                 Err(..) => {
                     println!("doubled the timeout to {:?}", timeout);
@@ -253,12 +303,14 @@ impl Peers {
     fn info_hash(&mut self, decoded_file: DecoderElement) -> Result<(), String> {
         let mut info_bytes: Vec<u8> = Vec::new();
         // decoded again here might need a work around
-        let info: Result<Vec<u8>, String> = {
+        let _: Result<Vec<u8>, String> = {
             if let DecoderElement::Dict(pairs) = decoded_file {
                 for pair in pairs {
                     if pair.name == String::from("info") {
                         info_bytes = match bencode::to_bencode(pair.value) {
-                            Ok(result) => Ok(result),
+                            Ok(result) => {
+                                Ok(result)
+                            },
                             Err(_) => Err(String::from("idk")),
                         }?
                     }
@@ -310,7 +362,7 @@ fn new_peer_id() -> [u8; 20] {
     //"-IT0001-"+12 random chars
     let mut res = [0; 20];
     res[0..8].copy_from_slice("-IT0001-".as_bytes());
-    let mut string = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+    let string = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
     res[8..20].copy_from_slice(string.as_bytes());
     res
 }
