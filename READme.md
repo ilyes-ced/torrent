@@ -42,4 +42,4 @@ inspired by
 
 
 ## to fix
-- [ ] encoder number come out as \u{7}
+- [ ] the doubling of the timeout duration doesnt effect the actual timeout

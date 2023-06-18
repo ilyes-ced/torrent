@@ -2,14 +2,16 @@ use std::fs::File;
 use std::io::prelude::*;
 
 mod bencode;
+mod download;
 mod tracker;
 
 use bencode::decode::{DecodeError, Decoder, DecoderElement, Pair};
 use bencode::encode::{EncodeError, Encoder};
 
+
+
 fn main() -> std::io::Result<()> {
     let path = "1669901338-Satisfactory.v0.6.1.5.Early.Access(1).torrent";
-    //let path = "simple.torrent";
     let mut file = File::open(path)?;
     let mut buf = vec![];
     file.read_to_end(&mut buf)?;
@@ -40,11 +42,14 @@ fn main() -> std::io::Result<()> {
     //println!("{:?}", gg);
 
     let mut peers = tracker::Peers::new(buf, file).unwrap();
-    let gg = peers.get_peers();
+    // match here
+    let peers = peers.get_peers().unwrap();
+
+    println!("list of peers {:#?}", peers);
+    
+
+    let _ = download::download(peers);
+
 
     Ok(())
 }
-
-fn connect() {}
-
-fn get_peers() {}

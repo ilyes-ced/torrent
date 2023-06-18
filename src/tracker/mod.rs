@@ -47,9 +47,13 @@ pub struct Peers {
 //      
 //      
 //      
+#[derive(Debug)]
 
-
-
+pub struct PeersResult{
+    pub ips: Vec<String>,
+    pub peer_id: [u8; 20],
+    pub info_hash: [u8; 20],
+}
 
 
 
@@ -98,7 +102,7 @@ impl Peers {
         }
     }
 
-    pub fn get_peers(&mut self) -> Result<String, String> {
+    pub fn get_peers(&mut self) -> Result<PeersResult, String> {
         let mut rng = rand::thread_rng();
         self.transaction_id = rng.gen::<[u8; 4]>();
         let mut connection_reques_buffer = [0; 16];
@@ -187,7 +191,6 @@ impl Peers {
                     println!("\taction {:?}", (&announce_request_buffer[0..4].to_vec()));
                     println!("\ttransaction_id {:?}", (&announce_request_buffer[4..8].to_vec()));
                     println!("\tinterval {:?}", (&announce_request_buffer[8..12].to_vec()));
-                    
                     println!("\tinterval {:?}", u32::from_be_bytes(
                         [
                             announce_request_buffer[8],
@@ -196,20 +199,8 @@ impl Peers {
                             announce_request_buffer[11],
                         ]
                     ));
-                    
-                    println!("\tinterval {:?}", (transform_u32_to_array_of_u8(
-                        u32::from_be_bytes(
-                            [
-                                announce_request_buffer[8],
-                                announce_request_buffer[9],
-                                announce_request_buffer[10],
-                                announce_request_buffer[11],
-                            ]
-                        )
-                    )));
-
-
                     println!("\tleechers {:?}", (&announce_request_buffer[12..16].to_vec()));
+
                     let extra_bytes = {
                         let mut extra_bytes = 0;
                         for i in 0..98 {
@@ -226,32 +217,92 @@ impl Peers {
                         println!("error no extra bytes here requyest failure");
                         return Err(String::from("no extra bytes"));
                     }
-                    let mut seeders: Vec<[u8; 4]> = Vec::new();
-                    let num_seeder = (extra_bytes - 6)/4;
-                    for i in 0..num_seeder {
-                        seeders.push([
-                            announce_request_buffer[16 + i*4],
-                            announce_request_buffer[16 + i*4 + 1],
-                            announce_request_buffer[16 + i*4 + 2],
-                            announce_request_buffer[16 + i*4 + 3],
-                        ]);
+                    // for the case where the seeders is an array of 4bytes and 1 ip of 4bytes and 1port with 2bytes
+
+                    //let mut seeders: Vec<[u8; 4]> = Vec::new();
+                    //println!("\tseeders number {:?}", (extra_bytes - 6));
+                    //let num_seeder = (extra_bytes - 6)/4;
+                    //println!("\tseeders number {:?}", num_seeder);
+                    //for i in 0..num_seeder {
+                    //    seeders.push([
+                    //        announce_request_buffer[16 + i*4],
+                    //        announce_request_buffer[16 + i*4 + 1],
+                    //        announce_request_buffer[16 + i*4 + 2],
+                    //        announce_request_buffer[16 + i*4 + 3],
+                    //    ]);
+                    //}
+                    //println!("\tseeders {:?}", seeders);
+                    //let ip: [u8; 4] = [
+                    //    announce_request_buffer[16 + num_seeder*4],
+                    //    announce_request_buffer[16 + num_seeder*4 + 1],
+                    //    announce_request_buffer[16 + num_seeder*4 + 2],
+                    //    announce_request_buffer[16 + num_seeder*4 + 3],
+                    //];
+                    //let port: [u8; 2] = [
+                    //    announce_request_buffer[16 + num_seeder*4 + 4],
+                    //    announce_request_buffer[16 + num_seeder*4 + 5],
+                    //];
+                    //println!("\tip {:?}", ip);
+                    //println!("\tport {:?}", port);
+                    //println!("\tport {:?}", u16::from_be_bytes(port));
+
+
+
+                    // this takes ips
+                    // idk if by the number of the first 4byte u32
+                    // or take all ips 
+
+                    let mut peers_ids: Vec<String> = Vec::new();
+                    let seeders_num = u32::from_be_bytes(
+                        [
+                            announce_request_buffer[16],
+                            announce_request_buffer[17],
+                            announce_request_buffer[18],
+                            announce_request_buffer[19],
+                        ]
+                    );
+                    let num_ips = (extra_bytes - 4)/6;
+
+
+                    for i in 0..num_ips {
+                        peers_ids.push(format!("{}.{}.{}.{}:{}",
+                            announce_request_buffer[20 + i*6 + 0],
+                            announce_request_buffer[20 + i*6 + 1],
+                            announce_request_buffer[20 + i*6 + 2],
+                            announce_request_buffer[20 + i*6 + 3],
+                            u16::from_be_bytes([
+                                announce_request_buffer[20 + i*6 + 4],
+                                announce_request_buffer[20 + i*6 + 5]
+                            ])
+                        ))
+                        //peers_ids.push(
+                        //    PeerIp{
+                        //        ip: String::from(format!(
+                        //            "{}.{}.{}.{}",
+                        //            announce_request_buffer[20 + i*6 + 0],
+                        //            announce_request_buffer[20 + i*6 + 1],
+                        //            announce_request_buffer[20 + i*6 + 2],
+                        //            announce_request_buffer[20 + i*6 + 3]
+                        //        ))
+                        //        ,
+                        //        port: u16::from_be_bytes([
+                        //            announce_request_buffer[20 + i*6 + 4],
+                        //            announce_request_buffer[20 + i*6 + 5]
+                        //        ]),
+                        //    }
+                        //);
                     }
-                    println!("\tseeders {:?}", seeders);
-                    let ip: [u8; 4] = [
-                        announce_request_buffer[16 + num_seeder*4],
-                        announce_request_buffer[16 + num_seeder*4 + 1],
-                        announce_request_buffer[16 + num_seeder*4 + 2],
-                        announce_request_buffer[16 + num_seeder*4 + 3],
-                    ];
-                    let port: [u8; 2] = [
-                        announce_request_buffer[16 + num_seeder*4 + 4],
-                        announce_request_buffer[16 + num_seeder*4 + 5],
-                    ];
-                    println!("\tip {:?}", ip);
-                    println!("\tport {:?}", port);
-                    println!("\tport {:?}", u16::from_be_bytes(port));
+
+                    println!("\tips {:?}", peers_ids);
+                    return Ok(
+                        PeersResult{
+                            ips: peers_ids,
+                            peer_id: self.peer_id,
+                            info_hash: self.info_hash,
+                        }
+                    )
                     
-                    println!("{:x?}", self.info_hash);
+
                 }
                 Err(..) => {
                     println!("doubled the timeout to {:?}", timeout);
@@ -260,7 +311,7 @@ impl Peers {
             }
         }
 
-        Ok(String::new())
+        Err(String::from("hello there"))
     }
 
     fn size(&mut self, element: DecoderElement) -> Result<(), String> {
