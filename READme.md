@@ -9,10 +9,6 @@ inspired by
 - bencode decoder
 
 
-<img height='200' src='./logos/logo.svg'>
-<img height='200' src='./logos/logo1.svg'>
-<img height='200' src='./logos/logo2.svg'>
-<img height='200' src='./logos/logo3.svg'>
 <img height='200' src='./logos/logo4.svg'>
 
 
@@ -28,17 +24,16 @@ inspired by
 ## TODO
 - [x] bencode decoder
 - [x] bencode encoder
-- [ ] get peers with tracker
+- [x] get peers with tracker
     - [x] request udp connection
-    - [ ] recieve peers
-    - [x] info hash (need more testing)
-    - [ ] torretn size
+    - [x] recieve peers
 - [ ] download
-    - [ ] tcp connection
+    - [x] tcp connection
     - [ ] grouping
     - [ ] handshakes
+    - [ ] pieces
+    - [ ] handling messages
     - [ ] managing connections and pieces
-    - [ ] torretn size
 
 
 
