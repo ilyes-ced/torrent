@@ -1,4 +1,4 @@
-use crate::bencode::decode;
+use crate::utils::concat;
 
 pub struct Decoder<'a> {
     input: &'a [u8],
@@ -177,7 +177,7 @@ impl<'ser> Decoder<'ser> {
                 }
                 _ => {
                     return Err(DecodeError {
-                        message: String::from("dont know"),
+                        message: String::from(format!("dont know {}", self.cursor)),
                     })
                 }
             }
@@ -253,27 +253,4 @@ impl<'ser> Decoder<'ser> {
         }
         Ok(DecoderElement::Number(value))
     }
-}
-
-fn concat(vec: &Vec<u8>) -> usize {
-    let mut acc: usize = 0;
-    for elem in vec {
-        acc *= 10;
-        match elem {
-            b'0' => acc += 0,
-            b'1' => acc += 1,
-            b'2' => acc += 2,
-            b'3' => acc += 3,
-            b'4' => acc += 4,
-            b'5' => acc += 5,
-            b'6' => acc += 6,
-            b'7' => acc += 7,
-            b'8' => acc += 8,
-            b'9' => acc += 9,
-            _ => {
-                // impossible i think
-            }
-        }
-    }
-    acc
 }

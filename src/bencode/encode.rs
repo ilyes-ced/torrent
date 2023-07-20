@@ -1,8 +1,5 @@
-use std::fs::File;
-
-use std::io::prelude::*;
-
 use super::decode::{DecoderElement, Pair};
+use crate::utils::len_to_bytes;
 
 #[derive(Debug)]
 pub struct Encoder {
@@ -93,44 +90,3 @@ impl Encoder {
         Ok(())
     }
 }
-
-fn digits(num: usize) -> impl Iterator<Item = u32> {
-    num.to_string()
-        .chars()
-        .map(|d| d.to_digit(10).unwrap())
-        .collect::<Vec<_>>()
-        .into_iter()
-}
-
-fn len_to_bytes(len: usize) -> Vec<u8> {
-    let mut vec = Vec::new();
-    let digits = digits(len);
-    for digit in digits {
-        match digit {
-            0 => vec.push(48),
-            1 => vec.push(49),
-            2 => vec.push(50),
-            3 => vec.push(51),
-            4 => vec.push(52),
-            5 => vec.push(53),
-            6 => vec.push(54),
-            7 => vec.push(55),
-            8 => vec.push(56),
-            9 => vec.push(57),
-            _ => {}
-        }
-    }
-    vec
-}
-
-//#[cfg(test)]
-//mod tests {
-//    use crate::bencode::encode::len_to_bytes;
-//
-//    #[test]
-//    fn it_works() {
-//        let result: usize = 456;
-//        let vec = len_to_bytes(result);
-//        assert_eq!(vec, [53]);
-//    }
-//}

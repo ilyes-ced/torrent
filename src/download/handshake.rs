@@ -1,10 +1,10 @@
-use crate::tracker::PeersResult;
+use crate::{tracker::PeersResult, utils::transform_u32_to_array_of_u8};
 
-pub const keepalive_message: [u8; 4] = [0, 0, 0, 0];
-pub const choke_message: [u8; 5] = [0, 0, 0, 1, 0];
-pub const unchoke_message: [u8; 5] = [0, 0, 0, 1, 1];
-pub const intrested_message: [u8; 5] = [0, 0, 0, 1, 2];
-pub const unintrested_message: [u8; 5] = [0, 0, 0, 1, 3];
+pub const KEEPALIVE_MESSAGE: [u8; 4] = [0, 0, 0, 0];
+pub const CHOKE_MESSAGE: [u8; 5] = [0, 0, 0, 1, 0];
+pub const UNCHOKE_MESSAGE: [u8; 5] = [0, 0, 0, 1, 1];
+pub const INTERESTED_MESSAGE: [u8; 5] = [0, 0, 0, 1, 2];
+pub const UNINTERESTED_MESSAGE: [u8; 5] = [0, 0, 0, 1, 3];
 
 pub fn build_handshake(peers: &PeersResult) -> Result<[u8; 68], String> {
     let mut buffer: [u8; 68] = [0; 68];
@@ -78,12 +78,4 @@ fn cancel(index: [u8; 4], begin: [u8; 4], length: [u8; 4]) -> [u8; 17] {
 fn port(port: [u8; 2]) -> [u8; 7] {
     let bytes = transform_u32_to_array_of_u8(3);
     [bytes[0], bytes[1], bytes[2], bytes[3], 9, port[0], port[1]]
-}
-
-fn transform_u32_to_array_of_u8(x: u32) -> [u8; 4] {
-    let b1: u8 = ((x >> 24) & 0xff) as u8;
-    let b2: u8 = ((x >> 16) & 0xff) as u8;
-    let b3: u8 = ((x >> 8) & 0xff) as u8;
-    let b4: u8 = (x & 0xff) as u8;
-    [b1, b2, b3, b4]
 }

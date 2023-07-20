@@ -4,12 +4,23 @@ inspired by
 [tutorial](https://allenkim67.github.io/programming/2016/05/04/how-to-make-your-own-bittorrent-client.html)
 
 
+<div align='center' styl>
+    <img height='200' src='./logos/logo.svg'>
+    <kbd>
+        <img height='200' src='./logos/logo.svg'>
+    </kbd>
+</div>
+
+## notes
+- copying the contents of a .torrent file doesn't work (idk why)
+- copying the entire file then changing it's name is ok
+
+
 ## features
 - bencode encoder
 - bencode decoder
 
 
-<img height='200' src='./logos/logo4.svg'>
 
 
 

@@ -1,5 +1,5 @@
 mod handshake;
-use handshake::{build_handshake, intrested_message};
+use handshake::{build_handshake, INTERESTED_MESSAGE};
 
 use std::io::prelude::*;
 use std::net::TcpStream;
@@ -76,7 +76,7 @@ fn whole_msg(stream: &mut TcpStream) {
 
 fn handle_message(param: &[u8], stream: &mut TcpStream) {
     if is_handshake(param) {
-        stream.write(&intrested_message).unwrap();
+        stream.write(&INTERESTED_MESSAGE).unwrap();
     } else {
         let gg = parse(param);
         println!("ggggggggggg {:?}", gg);

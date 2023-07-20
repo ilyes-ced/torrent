@@ -1,7 +1,4 @@
-use rand::{
-    distributions::{Alphanumeric, DistString},
-    Rng,
-};
+use rand::Rng;
 use sha1::{Digest, Sha1};
 use std::{
     fs::File,
@@ -9,7 +6,13 @@ use std::{
     time::Duration,
 };
 
-use crate::bencode::{self, decode::DecoderElement};
+use crate::{
+    bencode::{self, decode::DecoderElement},
+    utils::{
+        concat, new_peer_id, transform_u16_to_array_of_u8, transform_u32_to_array_of_u8,
+        transform_u64_to_array_of_u8,
+    },
+};
 
 const MAX_RETRIES: u32 = 8;
 const INITIAL_TIMEOUT: u32 = 100000000; // in nanoseconds // set to 100 ms
@@ -33,18 +36,8 @@ pub struct Peers {
     size: [u8; 8],
 }
 
-// deconstruct file into
-//      url
-//      info
-//      info hash
-//      size
-//
-//
-//
-//
-//
-#[derive(Debug)]
 
+#[derive(Debug)]
 pub struct PeersResult {
     pub ips: Vec<String>,
     pub peer_id: [u8; 20],
@@ -55,14 +48,11 @@ impl Peers {
     pub fn new(torrent_string: Vec<u8>, file: File) -> Result<Self, String> {
         let gg = bencode::from_bencode(&torrent_string).unwrap();
         if let DecoderElement::Dict(ele) = gg {
-            println!("annound here: {}", ele[0].name);
             if let DecoderElement::String(string) = &ele[0].value {
-                println!("url here: {}", String::from_utf8_lossy(&string).to_string());
                 let url = String::from_utf8_lossy(&string).to_string();
                 // the original url doesnt work because of the resouce path: /announce and the udp://
                 let mut addrs_iter = TRACKER_URL.to_socket_addrs().unwrap();
                 let socket_addr = addrs_iter.next().unwrap();
-                println!("{:?}", addrs_iter.next());
                 let socket = UdpSocket::bind(format!("{}:{}", IP_ADDR, PORT)).unwrap();
                 let res = Peers {
                     url,
@@ -96,11 +86,6 @@ impl Peers {
             .copy_from_slice(&transform_u64_to_array_of_u8(0x41727101980)); // connection_id
         connection_reques_buffer[8..12].copy_from_slice(&transform_u32_to_array_of_u8(0x0)); // action: connect 0
         connection_reques_buffer[12..16].copy_from_slice(&self.transaction_id); // transaction_id
-
-        //let mut transaction_id: [u8; 4] = [0, 0, 0, 0];
-        //let mut connection_id: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
-        //let mut retry: bool = true;
-        //let mut retry_counter = 0;
         let mut timeout: Duration = Duration::new(0, INITIAL_TIMEOUT);
         self.socket
             .set_read_timeout(Some(timeout))
@@ -115,17 +100,12 @@ impl Peers {
                 .send_to(&connection_reques_buffer, self.socket_addr)
                 .unwrap();
             match self.socket.recv_from(&mut connection_reques_buffer) {
-                Ok(result) => {
+                Ok(..) => {
                     self.retry = false;
                     self.transaction_id
                         .copy_from_slice(&connection_reques_buffer[4..8]);
                     self.connection_id
                         .copy_from_slice(&connection_reques_buffer[8..16]);
-                    println!("response:");
-                    println!("\t{:x?}", &connection_reques_buffer);
-                    println!("\t{:?}", result);
-                    println!("\tset transaction_id: {:x?}", self.transaction_id);
-                    println!("\tset connection_id: {:x?}", self.connection_id);
                 }
                 Err(..) => {
                     println!("doubled the timeout to {:?}", timeout);
@@ -164,10 +144,6 @@ impl Peers {
         announce_request_buffer[92..96].copy_from_slice(&[255, 255, 255, 255]); // num_want -1
         announce_request_buffer[96..98].copy_from_slice(&transform_u16_to_array_of_u8(PORT)); // port
         let clone = announce_request_buffer.clone();
-        println!(
-            "\tbuffer before sending:::::::::::::::::\n \t {:?}",
-            &announce_request_buffer
-        );
 
         while self.retry {
             if self.retry_counter == MAX_RETRIES {
@@ -181,44 +157,10 @@ impl Peers {
             match self.socket.recv_from(&mut announce_request_buffer) {
                 Ok(_) => {
                     self.retry = false;
-                    println!("announce request response:");
-                    println!("\ttransiction id is : {:?}", &self.transaction_id);
-                    println!(
-                        "\tbuffer after recieving:::::::::::::::::\n \t{:?}",
-                        &announce_request_buffer
-                    );
-                    println!("\taction {:?}", (&announce_request_buffer[0..4].to_vec()));
-                    println!(
-                        "\ttransaction_id {:?}",
-                        (&announce_request_buffer[4..8].to_vec())
-                    );
-                    println!(
-                        "\tinterval {:?}",
-                        (&announce_request_buffer[8..12].to_vec())
-                    );
-                    println!(
-                        "\tinterval {:?}",
-                        u32::from_be_bytes([
-                            announce_request_buffer[8],
-                            announce_request_buffer[9],
-                            announce_request_buffer[10],
-                            announce_request_buffer[11],
-                        ])
-                    );
-                    println!(
-                        "\tleechers {:?}",
-                        (&announce_request_buffer[12..16].to_vec())
-                    );
-
                     let extra_bytes = {
                         let mut extra_bytes = 0;
                         for i in 0..98 {
                             if &announce_request_buffer[i..] == &clone[i..] {
-                                println!("************************************************************************************************************************************************ {}", i);
-                                println!(
-                                    "\tthe rest {:?}",
-                                    &announce_request_buffer[16..i].to_vec()
-                                );
                                 extra_bytes = i;
                                 break;
                             }
@@ -226,17 +168,10 @@ impl Peers {
                         extra_bytes - 16
                     };
                     if extra_bytes == 0 {
-                        println!("error no extra bytes here requyest failure");
                         return Err(String::from("no extra bytes"));
                     }
 
                     let mut peers_ids: Vec<String> = Vec::new();
-                    let seeders_num = u32::from_be_bytes([
-                        announce_request_buffer[16],
-                        announce_request_buffer[17],
-                        announce_request_buffer[18],
-                        announce_request_buffer[19],
-                    ]);
                     let num_ips = (extra_bytes - 4) / 6;
 
                     for i in 0..num_ips {
@@ -272,7 +207,7 @@ impl Peers {
 
     fn size(&mut self, element: DecoderElement) -> Result<(), String> {
         let mut total: u64 = 0;
-
+        // idk
         if let DecoderElement::Dict(pairs) = element {
             for pair in pairs {
                 if pair.name == String::from("info") {
@@ -337,60 +272,4 @@ impl Peers {
             Ok(())
         }
     }
-}
-
-fn transform_u16_to_array_of_u8(x: u16) -> [u8; 2] {
-    let b1: u8 = ((x >> 8) & 0xff) as u8;
-    let b2: u8 = (x & 0xff) as u8;
-    [b1, b2]
-}
-fn transform_u32_to_array_of_u8(x: u32) -> [u8; 4] {
-    let b1: u8 = ((x >> 24) & 0xff) as u8;
-    let b2: u8 = ((x >> 16) & 0xff) as u8;
-    let b3: u8 = ((x >> 8) & 0xff) as u8;
-    let b4: u8 = (x & 0xff) as u8;
-    [b1, b2, b3, b4]
-}
-fn transform_u64_to_array_of_u8(x: u64) -> [u8; 8] {
-    let b1: u8 = ((x >> 56) & 0xff) as u8;
-    let b2: u8 = ((x >> 48) & 0xff) as u8;
-    let b3: u8 = ((x >> 40) & 0xff) as u8;
-    let b4: u8 = ((x >> 32) & 0xff) as u8;
-    let b5: u8 = ((x >> 24) & 0xff) as u8;
-    let b6: u8 = ((x >> 16) & 0xff) as u8;
-    let b7: u8 = ((x >> 8) & 0xff) as u8;
-    let b8: u8 = (x & 0xff) as u8;
-    [b1, b2, b3, b4, b5, b6, b7, b8]
-}
-
-fn new_peer_id() -> [u8; 20] {
-    //"-IT0001-"+12 random chars
-    let mut res = [0; 20];
-    res[0..8].copy_from_slice("-IT0001-".as_bytes());
-    let string = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
-    res[8..20].copy_from_slice(string.as_bytes());
-    res
-}
-
-fn concat(vec: &Vec<u8>) -> usize {
-    let mut acc: usize = 0;
-    for elem in vec {
-        acc *= 10;
-        match elem {
-            b'0' => acc += 0,
-            b'1' => acc += 1,
-            b'2' => acc += 2,
-            b'3' => acc += 3,
-            b'4' => acc += 4,
-            b'5' => acc += 5,
-            b'6' => acc += 6,
-            b'7' => acc += 7,
-            b'8' => acc += 8,
-            b'9' => acc += 9,
-            _ => {
-                // impossible i think
-            }
-        }
-    }
-    acc
 }
