@@ -6,10 +6,8 @@ inspired by
 
 <div align='center' styl>
     <img height='200' src='./logos/logo.svg'>
-    <kbd>
-        <img height='200' src='./logos/logo.svg'>
-    </kbd>
 </div>
+
 
 ## notes
 - copying the contents of a .torrent file doesn't work (idk why)
@@ -49,4 +47,4 @@ inspired by
 
 
 ## to fix
-- [ ] the doubling of the timeout duration doesnt effect the actual timeout
+- [ ] the doubling of the timeout duration doesn't effect the actual timeout

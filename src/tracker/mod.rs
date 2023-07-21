@@ -45,12 +45,12 @@ pub struct PeersResult {
 }
 
 impl Peers {
-    pub fn new(torrent_string: Vec<u8>, file: File) -> Result<Self, String> {
-        let gg = bencode::from_bencode(&torrent_string).unwrap();
-        if let DecoderElement::Dict(ele) = gg {
+    pub fn new(torrent_string: Vec<u8>) -> Result<Self, String> {
+        let decoded_torrent_file = bencode::from_bencode(&torrent_string).unwrap();
+        if let DecoderElement::Dict(ele) = decoded_torrent_file {
             if let DecoderElement::String(string) = &ele[0].value {
                 let url = String::from_utf8_lossy(&string).to_string();
-                // the original url doesnt work because of the resouce path: /announce and the udp://
+                // the original url doesn't work because of the resource path: </announce> and the <udp://>
                 let mut addrs_iter = TRACKER_URL.to_socket_addrs().unwrap();
                 let socket_addr = addrs_iter.next().unwrap();
                 let socket = UdpSocket::bind(format!("{}:{}", IP_ADDR, PORT)).unwrap();
@@ -81,11 +81,12 @@ impl Peers {
     pub fn get_peers(&mut self) -> Result<PeersResult, String> {
         let mut rng = rand::thread_rng();
         self.transaction_id = rng.gen::<[u8; 4]>();
-        let mut connection_reques_buffer = [0; 16];
-        connection_reques_buffer[0..8]
+        // crb = connection_request_buffer
+        let mut crb = [0; 16];
+        crb[0..8]
             .copy_from_slice(&transform_u64_to_array_of_u8(0x41727101980)); // connection_id
-        connection_reques_buffer[8..12].copy_from_slice(&transform_u32_to_array_of_u8(0x0)); // action: connect 0
-        connection_reques_buffer[12..16].copy_from_slice(&self.transaction_id); // transaction_id
+        crb[8..12].copy_from_slice(&transform_u32_to_array_of_u8(0x0)); // action: connect 0
+        crb[12..16].copy_from_slice(&self.transaction_id); // transaction_id
         let mut timeout: Duration = Duration::new(0, INITIAL_TIMEOUT);
         self.socket
             .set_read_timeout(Some(timeout))
@@ -97,23 +98,27 @@ impl Peers {
             }
             self.retry_counter += 1;
             self.socket
-                .send_to(&connection_reques_buffer, self.socket_addr)
+                .send_to(&crb, self.socket_addr)
                 .unwrap();
-            match self.socket.recv_from(&mut connection_reques_buffer) {
+            match self.socket.recv_from(&mut crb) {
                 Ok(..) => {
                     self.retry = false;
                     self.transaction_id
-                        .copy_from_slice(&connection_reques_buffer[4..8]);
+                        .copy_from_slice(&crb[4..8]);
                     self.connection_id
-                        .copy_from_slice(&connection_reques_buffer[8..16]);
+                        .copy_from_slice(&crb[8..16]);
                 }
                 Err(..) => {
                     println!("doubled the timeout to {:?}", timeout);
                     timeout = timeout * 2;
+                    self.socket
+                        .set_read_timeout(Some(timeout))
+                        .expect("set_read_timeout call failed");
                 }
             }
         }
 
+        // reinit timeout
         self.retry = true;
         self.retry_counter = 0;
         timeout = Duration::new(0, INITIAL_TIMEOUT);
@@ -125,25 +130,24 @@ impl Peers {
 
         let decoded_file = bencode::from_bencode(&self.buffer).unwrap();
         self.info_hash(decoded_file.clone())?;
-
         self.size(decoded_file)?;
 
-        //self.transaction_id = rng.gen::<[u8; 4]>();
-        let mut announce_request_buffer = [0; 98];
-        announce_request_buffer[0..8].copy_from_slice(&self.connection_id); // connection_id
-        announce_request_buffer[8..12].copy_from_slice(&[0, 0, 0, 1]); // action
-        announce_request_buffer[12..16].copy_from_slice(&self.transaction_id); // transaction_id
-        announce_request_buffer[16..36].copy_from_slice(&self.info_hash); // info_hash
-        announce_request_buffer[36..56].copy_from_slice(&self.peer_id); // peer_id
-        announce_request_buffer[56..64].copy_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]); // downloaded
-        announce_request_buffer[64..72].copy_from_slice(&self.size); // left
-        announce_request_buffer[72..80].copy_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]); // uploaded
-        announce_request_buffer[80..84].copy_from_slice(&[0, 0, 0, 0]); // event
-        announce_request_buffer[84..88].copy_from_slice(&[0, 0, 0, 0]); // IP
-        announce_request_buffer[88..92].copy_from_slice(&rng.gen::<[u8; 4]>()); // key
-        announce_request_buffer[92..96].copy_from_slice(&[255, 255, 255, 255]); // num_want -1
-        announce_request_buffer[96..98].copy_from_slice(&transform_u16_to_array_of_u8(PORT)); // port
-        let clone = announce_request_buffer.clone();
+        // arb = announce_request_buffer
+        let mut arb = [0; 98];
+        arb[0..8].copy_from_slice(&self.connection_id); // connection_id
+        arb[8..12].copy_from_slice(&[0, 0, 0, 1]); // action
+        arb[12..16].copy_from_slice(&self.transaction_id); // transaction_id
+        arb[16..36].copy_from_slice(&self.info_hash); // info_hash
+        arb[36..56].copy_from_slice(&self.peer_id); // peer_id
+        arb[56..64].copy_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]); // downloaded
+        arb[64..72].copy_from_slice(&self.size); // left
+        arb[72..80].copy_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]); // uploaded
+        arb[80..84].copy_from_slice(&[0, 0, 0, 0]); // event
+        arb[84..88].copy_from_slice(&[0, 0, 0, 0]); // IP
+        arb[88..92].copy_from_slice(&rng.gen::<[u8; 4]>()); // key
+        arb[92..96].copy_from_slice(&[255, 255, 255, 255]); // num_want = -1
+        arb[96..98].copy_from_slice(&transform_u16_to_array_of_u8(PORT)); // port
+        let clone = arb.clone();
 
         while self.retry {
             if self.retry_counter == MAX_RETRIES {
@@ -152,15 +156,15 @@ impl Peers {
             }
             self.retry_counter += 1;
             self.socket
-                .send_to(&announce_request_buffer, self.socket_addr)
+                .send_to(&arb, self.socket_addr)
                 .unwrap();
-            match self.socket.recv_from(&mut announce_request_buffer) {
+            match self.socket.recv_from(&mut arb) {
                 Ok(_) => {
                     self.retry = false;
                     let extra_bytes = {
                         let mut extra_bytes = 0;
                         for i in 0..98 {
-                            if &announce_request_buffer[i..] == &clone[i..] {
+                            if &arb[i..] == &clone[i..] {
                                 extra_bytes = i;
                                 break;
                             }
@@ -177,13 +181,13 @@ impl Peers {
                     for i in 0..num_ips {
                         peers_ids.push(format!(
                             "{}.{}.{}.{}:{}",
-                            announce_request_buffer[20 + i * 6 + 0],
-                            announce_request_buffer[20 + i * 6 + 1],
-                            announce_request_buffer[20 + i * 6 + 2],
-                            announce_request_buffer[20 + i * 6 + 3],
+                            arb[20 + i * 6 + 0],
+                            arb[20 + i * 6 + 1],
+                            arb[20 + i * 6 + 2],
+                            arb[20 + i * 6 + 3],
                             u16::from_be_bytes([
-                                announce_request_buffer[20 + i * 6 + 4],
-                                announce_request_buffer[20 + i * 6 + 5]
+                                arb[20 + i * 6 + 4],
+                                arb[20 + i * 6 + 5]
                             ])
                         ))
                     }
@@ -198,6 +202,9 @@ impl Peers {
                 Err(..) => {
                     println!("doubled the timeout to {:?}", timeout);
                     timeout = timeout * 2;
+                    self.socket
+                        .set_read_timeout(Some(timeout))
+                        .expect("set_read_timeout call failed");
                 }
             }
         }
