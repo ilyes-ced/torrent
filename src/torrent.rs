@@ -33,7 +33,7 @@ impl Torrent {
         let result = extract_torrent(&object).unwrap();
 
         //println!("{}", object["info"]);
-        //println!("{}", result);
+        println!("{}", result);
 
         result
     }

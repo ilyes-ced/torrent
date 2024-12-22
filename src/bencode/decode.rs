@@ -3,6 +3,7 @@ use crate::utils::concat;
 pub struct Decoder {
     input: Vec<u8>,
     result: String,
+    info_binary: Vec<u8>,
     cursor: usize,
     finished: bool,
 }
@@ -12,6 +13,7 @@ impl Decoder {
         Decoder {
             input: input.to_vec(),
             result: String::new(),
+            info_binary: Vec::new(),
             cursor: 0,
             finished: false,
         }
@@ -65,9 +67,6 @@ impl Decoder {
         let mut info_bin: Vec<u8> = Vec::new();
         let mut e_counter = 0;
         'outer: loop {
-            //println!("\n\n\n {:?}", info_bin);
-            std::fs::write("output.txt", &info_bin);
-
             match self.input[self.cursor] {
                 b'd' | b'l' => {
                     info_bin.push(self.input[self.cursor]);
@@ -88,10 +87,6 @@ impl Decoder {
                     self.cursor -= 1;
                 }
                 b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => {
-                    println!(
-                        ".................................... {}, {}",
-                        self.cursor, self.input[self.cursor]
-                    );
                     let str_len = self.get_string_len().unwrap();
                     let str_len_string = str_len.to_string();
                     let str_len_bytes = str_len_string.as_bytes();
@@ -108,12 +103,11 @@ impl Decoder {
                     }
                 }
                 b'e' => {
-                    println!("99999999999999999999 {}", e_counter);
                     info_bin.push(self.input[self.cursor]);
                     self.cursor += 1;
                     e_counter -= 1;
                     if e_counter == 0 {
-                        info_bin.push(b'e');
+                        let _ = std::fs::write("output.txt", &info_bin);
                         break 'outer;
                     }
                 }
@@ -137,20 +131,11 @@ impl Decoder {
                 _ => self.get_string().unwrap(),
             };
 
-            let info_bin: Option<Vec<u8>> = if name == "info" {
-                let original_cursor = self.cursor;
-                let s = Some(self.info_binary().unwrap());
-                self.cursor = original_cursor;
-                s
-            } else {
-                None
-            };
-
             if name == "info" {
-                println!("****************");
-                println!("{:?}", String::from_utf8(info_bin.clone().unwrap()));
-                println!("{:?}", info_bin.unwrap());
-            };
+                let original_cursor = self.cursor;
+                self.info_binary = self.info_binary().unwrap();
+                self.cursor = original_cursor;
+            }
 
             let value = self.next().unwrap();
 
