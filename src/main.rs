@@ -1,11 +1,10 @@
-use std::fs::File;
-use std::io::prelude::*;
-use std::io::Write;
-
 mod bencode;
-mod download;
-mod tracker;
+mod torrent;
 mod utils;
+
+use std::{fs::File, io::Read};
+
+use torrent::Torrent;
 
 fn main() -> std::io::Result<()> {
     let path = "debian.torrent";
@@ -15,7 +14,11 @@ fn main() -> std::io::Result<()> {
 
     // decode file and get result here
     // put results in another object (torrent data)
-    let decoded = bencode::from_bencode(&buf).unwrap();
+
+    let bencode2 = "li42e5:hellol3:foo3:bared4:name4:John3:agei30eee".as_bytes();
+    let bencode_data = bencode::decode(&buf).unwrap();
+    let torrent_data = Torrent::new(bencode_data);
+    //println!("{}", torrent_data);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
