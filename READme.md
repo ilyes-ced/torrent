@@ -32,7 +32,6 @@ inspired by
 
 ## TODO
 - [x] bencode decoder
-- [x] bencode encoder
 - [x] get peers with tracker
     - [x] request udp connection
     - [x] recieve peers

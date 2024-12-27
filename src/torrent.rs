@@ -1,5 +1,5 @@
 use serde_json::Value;
-use std::{error::Error, fmt};
+use std::{error::Error, fmt, io::Bytes};
 
 pub struct Torrent {
     announce: String,
@@ -12,7 +12,7 @@ pub struct Torrent {
 
 pub struct TorrentInfo {
     name: String,
-    pieces: String,
+    pieces: Vec<[u8; 20]>,
     piece_length: u64,
     //only if there is 1 file
     length: Option<u64>,
@@ -66,15 +66,29 @@ fn extract_torrent(value: &Value) -> Result<Torrent, String> {
     // Extracting info
     let info_value = &value["info"];
 
+    let pieces: Vec<u8> = info_value["pieces"]
+        .as_str()
+        .ok_or("Missing or invalid pieces in info")?
+        .split_whitespace()
+        .map(|hex| u8::from_str_radix(hex, 16))
+        .collect::<Result<_, _>>()
+        .unwrap();
+
+    let piece_hashes: Vec<[u8; 20]> = pieces
+        .chunks(20)
+        .map(|chunk| {
+            let mut array = [0; 20];
+            array[..chunk.len()].copy_from_slice(chunk);
+            array
+        })
+        .collect();
+
     let info = TorrentInfo {
         name: info_value["name"]
             .as_str()
             .ok_or("Missing or invalid name in info")?
             .to_string(),
-        pieces: info_value["pieces"]
-            .as_str()
-            .ok_or("Missing or invalid pieces in info")?
-            .to_string(),
+        pieces: piece_hashes,
         piece_length: info_value["piece length"]
             .as_u64()
             .ok_or("Missing or invalid piece_length in info")?,
@@ -115,8 +129,6 @@ fn extract_torrent(value: &Value) -> Result<Torrent, String> {
         info,
     })
 }
-//
-// Implement Display for Torrent
 
 impl fmt::Display for Torrent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -145,12 +157,17 @@ impl fmt::Display for TorrentInfo {
         };
         write!(
             f,
-            "Name: {}\n\
-                     Pieces: {}\n\
-                     Piece length: {}\n\
-                     length: {:?}\n\
-                     Files: {:?}",
-            self.name, self.pieces, self.piece_length, self.length, files_info
+            "\tName: {}\n\
+                     \tPieces: [{:?} . . . . {:?}] \n\
+                     \tPiece length: {}\n\
+                     \tlength: {:?}\n\
+                     \tFiles: {:?}",
+            self.name,
+            self.pieces[0],
+            self.pieces[self.pieces.len() - 1],
+            self.piece_length,
+            self.length,
+            files_info
         )
     }
 }

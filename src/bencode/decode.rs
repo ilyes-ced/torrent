@@ -1,9 +1,10 @@
 use crate::utils::concat;
+use sha1::{Digest, Sha1};
 
 pub struct Decoder {
     input: Vec<u8>,
     result: String,
-    info_binary: Vec<u8>,
+    info_hash: [u8; 20],
     cursor: usize,
     finished: bool,
 }
@@ -13,7 +14,7 @@ impl Decoder {
         Decoder {
             input: input.to_vec(),
             result: String::new(),
-            info_binary: Vec::new(),
+            info_hash: [0; 20],
             cursor: 0,
             finished: false,
         }
@@ -107,7 +108,6 @@ impl Decoder {
                     self.cursor += 1;
                     e_counter -= 1;
                     if e_counter == 0 {
-                        let _ = std::fs::write("output.txt", &info_bin);
                         break 'outer;
                     }
                 }
@@ -117,6 +117,9 @@ impl Decoder {
             self.cursor += 1;
         }
         // return cursor to orginal place
+        // remove start d and end e
+        info_bin.remove(0);
+        info_bin.pop();
         Ok(info_bin)
     }
 
@@ -133,7 +136,14 @@ impl Decoder {
 
             if name == "info" {
                 let original_cursor = self.cursor;
-                self.info_binary = self.info_binary().unwrap();
+                let info_binary = self.info_binary().unwrap();
+                // hashing
+                let mut hasher = Sha1::new();
+                hasher.update(info_binary);
+                let result = hasher.finalize();
+                self.info_hash = result.into();
+
+                //let _ = std::fs::write("output.txt", info_binary);
                 self.cursor = original_cursor;
             }
 
