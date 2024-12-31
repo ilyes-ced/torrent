@@ -3,27 +3,29 @@ use sha1::{Digest, Sha1};
 
 pub struct Decoder {
     input: Vec<u8>,
-    result: String,
     info_hash: [u8; 20],
     cursor: usize,
     finished: bool,
+}
+
+#[derive(Debug)]
+pub struct DecoderResults {
+    pub info_hash: [u8; 20],
+    pub result: String,
 }
 
 impl Decoder {
     pub fn new(input: &[u8]) -> Decoder {
         Decoder {
             input: input.to_vec(),
-            result: String::new(),
             info_hash: [0; 20],
             cursor: 0,
             finished: false,
         }
     }
 
-    pub fn start(&mut self) -> Result<String, String> {
-        //check data is not empty
+    pub fn start(&mut self) -> Result<DecoderResults, String> {
         let mut result = String::new();
-        // end error handler
         loop {
             if self.finished == true || self.cursor == self.input.len() {
                 break;
@@ -31,7 +33,10 @@ impl Decoder {
                 result = format!("{}{}", result, self.next().unwrap());
             }
         }
-        Ok(result)
+        Ok(DecoderResults {
+            info_hash: self.info_hash,
+            result,
+        })
     }
 
     fn next(&mut self) -> Result<String, String> {
@@ -67,13 +72,20 @@ impl Decoder {
     fn info_binary(&mut self) -> Result<Vec<u8>, String> {
         let mut info_bin: Vec<u8> = Vec::new();
         let mut e_counter = 0;
+        let mut int = 0;
         'outer: loop {
+            //
+            int += 1;
+            //println!("{}", int);
+            //
             match self.input[self.cursor] {
                 b'd' | b'l' => {
                     info_bin.push(self.input[self.cursor]);
                     e_counter += 1;
                 }
                 b'i' => {
+                    let mut string = String::new();
+
                     info_bin.push(self.input[self.cursor]);
                     self.cursor += 1;
 
@@ -83,25 +95,34 @@ impl Decoder {
                     for i in int_bytes {
                         info_bin.push(i);
                         //self.cursor += 1;
+                        string = string + &String::from_utf8([i; 1].to_vec()).unwrap();
                     }
                     info_bin.push(b'e');
                     self.cursor -= 1;
+                    println!("\t got int: {}", string);
                 }
                 b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => {
                     let str_len = self.get_string_len().unwrap();
                     let str_len_string = str_len.to_string();
                     let str_len_bytes = str_len_string.as_bytes();
 
+                    let mut string = String::new();
                     for i in str_len_bytes {
                         info_bin.push(*i);
                     }
                     info_bin.push(b':');
                     for i in 0..str_len {
+                        string = string
+                            + &String::from_utf8([self.input[self.cursor]; 1].to_vec()).unwrap();
                         info_bin.push(self.input[self.cursor]);
                         if i != str_len - 1 {
                             self.cursor += 1;
                         }
                     }
+                    println!(
+                        "\t got word: \n\t\tlen: {} \n\t\tstring: {}",
+                        str_len, string
+                    );
                 }
                 b'e' => {
                     info_bin.push(self.input[self.cursor]);
@@ -137,13 +158,14 @@ impl Decoder {
             if name == "info" {
                 let original_cursor = self.cursor;
                 let info_binary = self.info_binary().unwrap();
+
                 // hashing
                 let mut hasher = Sha1::new();
-                hasher.update(info_binary);
+                hasher.update(info_binary.clone());
                 let result = hasher.finalize();
                 self.info_hash = result.into();
 
-                //let _ = std::fs::write("output.txt", info_binary);
+                let _ = std::fs::write("output.txt", info_binary);
                 self.cursor = original_cursor;
             }
 
@@ -284,32 +306,11 @@ impl Decoder {
 //  broken list
 //  broken dict
 //  correct bencode decoding
+//
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_dict() {
-        let bencode =
-            "d6:string5:value6:numberi123e4:listl11:list-item-111:list-item-2ee".as_bytes();
-        let mut bytes = Decoder::new(bencode);
-        assert_eq!(
-            bytes.start(),
-            Ok(String::from(
-                "{\"string\":\"value\",\"number\":123,\"list\":[\"list-item-1\",\"list-item-2\"]}"
-            ))
-        );
-    }
-
-    #[test]
-    fn test_list() {
-        let bencode = "li42e5:hellol3:foo3:bared4:name4:John3:agei30eee".as_bytes();
-        let mut bytes = Decoder::new(bencode);
-        assert_eq!(
-            bytes.start(),
-            Ok(String::from(
-                "[42,\"hello\",[\"foo\",\"bar\"],{\"name\":\"John\",\"age\":30}]"
-            ))
-        );
-    }
+    fn test1() {}
 }

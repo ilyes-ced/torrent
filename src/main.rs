@@ -1,4 +1,5 @@
 mod bencode;
+mod constants;
 mod torrent;
 mod tracker;
 mod utils;
@@ -7,18 +8,15 @@ use std::{fs::File, io::Read};
 use torrent::Torrent;
 
 fn main() -> std::io::Result<()> {
-    let path = "debian.torrent";
+    let path = "op.torrent";
     let mut file = File::open(path)?;
     let mut buf = vec![];
     file.read_to_end(&mut buf)?;
 
-    // decode file and get result here
-    // put results in another object (torrent data)
-
     let bencode_data = bencode::decode(&buf).unwrap();
-    let torrent_data = Torrent::new(bencode_data);
-    let peers = tracker::get_peers(torrent_data);
-    println!("{}", peers);
+    let torrent_data = Torrent::new(bencode_data).unwrap();
+    let peers = tracker::get_peers(torrent_data).unwrap();
+    //println!("{}", bencode_data);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
