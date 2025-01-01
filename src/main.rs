@@ -8,7 +8,7 @@ use std::{fs::File, io::Read};
 use torrent::Torrent;
 
 fn main() -> std::io::Result<()> {
-    let path = "op.torrent";
+    let path = "debian.torrent";
     let mut file = File::open(path)?;
     let mut buf = vec![];
     file.read_to_end(&mut buf)?;

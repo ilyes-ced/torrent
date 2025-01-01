@@ -15,6 +15,7 @@ inspired by
 
 
 ## features
+- NOTICE: this client only works with torrent files that have an announce url in them
 - bencode encoder
 - bencode decoder
 

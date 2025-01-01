@@ -38,6 +38,9 @@ fn send_request(url: String) -> Result<String, Error> {
 fn build_http_url(torrent_data: Torrent) -> Result<String, String> {
     let url = torrent_data.announce
         + "?info_hash="
+        //f0,38,41,b6,b2,45,85,b1,57,1d,f6,b0,c9,30,d9,94,60,47,05,8f
+        //[240, 56, 65, 182, 178, 69, 133, 177, 87, 29, 246, 176, 201, 48, 217, 148, 96, 71, 5, 143]
+        //+ &encode_bin([240, 56, 65, 182, 178, 69, 133, 177, 87, 29, 246, 176, 201, 48, 217, 148, 96, 71, 5, 143])
         + &encode_bin(torrent_data.info_hash)
         + "&peer_id="
         + &encode_bin(new_peer_id())

@@ -163,7 +163,7 @@ impl fmt::Display for TorrentInfo {
                 .iter()
                 .map(|file| file.to_string()) // Call Display on each TorrentFile
                 .collect::<Vec<String>>()
-                .join("\n"), // Join with new line
+                .join("\n\t\t"), // Join with new line
             None => "No files available".to_string(),
         };
         write!(
@@ -172,7 +172,7 @@ impl fmt::Display for TorrentInfo {
                      \tPieces: [{:?} . . . . {:?}] \n\
                      \tPiece length: {}\n\
                      \tlength: {:?}\n\
-                     \tFiles: {:?}",
+                     \tFiles: \n\t\t{}",
             self.name,
             self.pieces[0],
             self.pieces[self.pieces.len() - 1],

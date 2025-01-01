@@ -72,20 +72,17 @@ impl Decoder {
     fn info_binary(&mut self) -> Result<Vec<u8>, String> {
         let mut info_bin: Vec<u8> = Vec::new();
         let mut e_counter = 0;
-        let mut int = 0;
         'outer: loop {
-            //
-            int += 1;
-            //println!("{}", int);
-            //
             match self.input[self.cursor] {
-                b'd' | b'l' => {
+                b'd' => {
+                    info_bin.push(self.input[self.cursor]);
+                    e_counter += 1;
+                }
+                b'l' => {
                     info_bin.push(self.input[self.cursor]);
                     e_counter += 1;
                 }
                 b'i' => {
-                    let mut string = String::new();
-
                     info_bin.push(self.input[self.cursor]);
                     self.cursor += 1;
 
@@ -94,39 +91,28 @@ impl Decoder {
 
                     for i in int_bytes {
                         info_bin.push(i);
-                        //self.cursor += 1;
-                        string = string + &String::from_utf8([i; 1].to_vec()).unwrap();
                     }
                     info_bin.push(b'e');
                     self.cursor -= 1;
-                    println!("\t got int: {}", string);
                 }
                 b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => {
                     let str_len = self.get_string_len().unwrap();
                     let str_len_string = str_len.to_string();
                     let str_len_bytes = str_len_string.as_bytes();
 
-                    let mut string = String::new();
                     for i in str_len_bytes {
                         info_bin.push(*i);
                     }
                     info_bin.push(b':');
                     for i in 0..str_len {
-                        string = string
-                            + &String::from_utf8([self.input[self.cursor]; 1].to_vec()).unwrap();
                         info_bin.push(self.input[self.cursor]);
                         if i != str_len - 1 {
                             self.cursor += 1;
                         }
                     }
-                    println!(
-                        "\t got word: \n\t\tlen: {} \n\t\tstring: {}",
-                        str_len, string
-                    );
                 }
                 b'e' => {
                     info_bin.push(self.input[self.cursor]);
-                    self.cursor += 1;
                     e_counter -= 1;
                     if e_counter == 0 {
                         break 'outer;
@@ -139,8 +125,8 @@ impl Decoder {
         }
         // return cursor to orginal place
         // remove start d and end e
-        info_bin.remove(0);
-        info_bin.pop();
+        //info_bin.remove(0);
+        //info_bin.pop();
         Ok(info_bin)
     }
 
