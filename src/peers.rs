@@ -1,7 +1,7 @@
 use std::net::Ipv4Addr;
 
 use crate::torrent::Torrent;
-use crate::{bencode::decode::Decoder, constants};
+use crate::{bencode::Decoder, constants};
 use rand::distributions::{Alphanumeric, DistString};
 use reqwest::blocking::Client;
 use serde_json::Value;
@@ -18,20 +18,26 @@ pub struct PeersResult {
     interval: u64,
 }
 
+pub fn get_peers(torrent_data: Torrent) -> Result<PeersResult, String> {
+    Peer::get_peers(torrent_data)
+}
+
 impl Peer {
     pub fn get_peers(torrent_data: Torrent) -> Result<PeersResult, String> {
         let url = build_http_url(torrent_data).unwrap();
+        // todo: add error handling for in case disconnected
         let result = send_request(url).unwrap();
         let decoded_response = Decoder::new(result.as_bytes()).start().unwrap();
 
         let json_response: Value = serde_json::from_str(&decoded_response.result).unwrap();
         let mut peers: Vec<Peer> = Vec::new();
+        //extract peers ip adresses from the serde json object and insert them into the list of peers
         if let Some(array) = json_response["peers"].as_array() {
             for item in array {
                 if let (Some(ip), Some(port)) = (item["ip"].as_str(), item["port"].as_u64()) {
                     peers.push(Peer {
                         ip: ip.parse().expect("Invalid IP address format"),
-                        port: 10,
+                        port: port.try_into().unwrap(),
                     })
                 }
             }

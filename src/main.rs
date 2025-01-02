@@ -1,7 +1,8 @@
 mod bencode;
 mod constants;
+mod handshake;
+mod peers;
 mod torrent;
-mod tracker;
 mod utils;
 
 use std::{fs::File, io::Read};
@@ -15,8 +16,9 @@ fn main() -> std::io::Result<()> {
 
     let bencode_data = bencode::decode(&buf).unwrap();
     let torrent_data = Torrent::new(bencode_data).unwrap();
-    let peers = tracker::get_peers(torrent_data).unwrap();
-    let tcp_connection = println!("{:?}", peers);
+    let peers = peers::get_peers(torrent_data).unwrap();
+    println!("{:?}", peers);
+    let tcp_connection = handshake::new();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

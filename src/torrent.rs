@@ -1,7 +1,7 @@
 use serde_json::Value;
-use std::{error::Error, fmt, io::Bytes};
+use std::fmt;
 
-use crate::bencode::decode::DecoderResults;
+use crate::bencode::DecoderResults;
 
 pub struct Torrent {
     pub announce: String,
