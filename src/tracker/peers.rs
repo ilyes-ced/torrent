@@ -1,46 +1,72 @@
-use crate::constants;
+use std::net::Ipv4Addr;
+
 use crate::torrent::Torrent;
+use crate::{bencode::decode::Decoder, constants};
 use rand::distributions::{Alphanumeric, DistString};
-use reqwest::{blocking::Client, Error};
+use reqwest::blocking::Client;
+use serde_json::Value;
 
-pub struct Peers {}
+#[derive(Debug)]
+pub struct Peer {
+    ip: Ipv4Addr,
+    port: u16,
+}
 
-impl Peers {
-    pub fn get_peers(torrent_data: Torrent) -> Result<Peers, String> {
-        println!("---------------------");
-        println!("---------------------");
-        println!("---------------------");
-        println!("---------------------");
+#[derive(Debug)]
+pub struct PeersResult {
+    peers: Vec<Peer>,
+    interval: u64,
+}
+
+impl Peer {
+    pub fn get_peers(torrent_data: Torrent) -> Result<PeersResult, String> {
         let url = build_http_url(torrent_data).unwrap();
-        println!("{}", url);
-        let result = send_request(url);
-        println!("{}", result.unwrap());
+        let result = send_request(url).unwrap();
+        let decoded_response = Decoder::new(result.as_bytes()).start().unwrap();
 
-        Ok(Peers {})
+        let json_response: Value = serde_json::from_str(&decoded_response.result).unwrap();
+        let mut peers: Vec<Peer> = Vec::new();
+        if let Some(array) = json_response["peers"].as_array() {
+            for item in array {
+                if let (Some(ip), Some(port)) = (item["ip"].as_str(), item["port"].as_u64()) {
+                    peers.push(Peer {
+                        ip: ip.parse().expect("Invalid IP address format"),
+                        port: 10,
+                    })
+                }
+            }
+        } else {
+            panic!("we couldnt find peers in the tracker response");
+        }
+
+        let interval = json_response["interval"].as_u64().unwrap_or(900);
+
+        Ok(PeersResult { peers, interval })
     }
 }
 
-fn send_request(url: String) -> Result<String, Error> {
+fn send_request(url: String) -> Result<String, String> {
     let client = Client::new();
 
-    let response = client.get(url).send()?;
+    let response = match client.get(url).send() {
+        Ok(res) => res,
+        Err(err) => return Err(format!("Failed to fetch data: {}", err)),
+    };
 
     if response.status().is_success() {
-        let body = response.text()?;
-        println!("Response Body:\n{}", body);
+        let body = match response.text() {
+            Ok(res) => res,
+            Err(err) => return Err(format!("Failed to fetch data: {}", err)),
+        };
+        Ok(body)
     } else {
-        println!("Failed to fetch data: {}", response.status());
+        Err(format!("Failed to fetch data: {}", response.status()))
     }
-
-    Ok(String::new())
 }
 
 fn build_http_url(torrent_data: Torrent) -> Result<String, String> {
     let url = torrent_data.announce
         + "?info_hash="
-        //f0,38,41,b6,b2,45,85,b1,57,1d,f6,b0,c9,30,d9,94,60,47,05,8f
-        //[240, 56, 65, 182, 178, 69, 133, 177, 87, 29, 246, 176, 201, 48, 217, 148, 96, 71, 5, 143]
-        //+ &encode_bin([240, 56, 65, 182, 178, 69, 133, 177, 87, 29, 246, 176, 201, 48, 217, 148, 96, 71, 5, 143])
         + &encode_bin(torrent_data.info_hash)
         + "&peer_id="
         + &encode_bin(new_peer_id())
