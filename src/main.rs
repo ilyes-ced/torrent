@@ -5,20 +5,24 @@ mod peers;
 mod torrent;
 mod utils;
 
+use bencode::Decoder;
+use handshake::Handshake;
 use std::{fs::File, io::Read};
 use torrent::Torrent;
 
 fn main() -> std::io::Result<()> {
+    let peer_id = utils::new_peer_id();
     let path = "debian.torrent";
     let mut file = File::open(path)?;
     let mut buf = vec![];
     file.read_to_end(&mut buf)?;
 
-    let bencode_data = bencode::decode(&buf).unwrap();
+    let bencode_data = Decoder::new(&buf).start().unwrap();
     let torrent_data = Torrent::new(bencode_data).unwrap();
-    let peers = peers::get_peers(torrent_data).unwrap();
+    let handshake = Handshake::new(torrent_data.info_hash, peer_id).create_handshake();
+    let peers = peers::get_peers(torrent_data, peer_id).unwrap();
     println!("{:?}", peers);
-    let tcp_connection = handshake::new();
+    println!("{:?}", handshake);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

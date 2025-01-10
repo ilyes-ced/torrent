@@ -1,36 +1,57 @@
 use rand::distributions::{Alphanumeric, DistString};
 
-pub fn transform_u16_to_array_of_u8(x: u16) -> [u8; 2] {
-    let b1: u8 = ((x >> 8) & 0xff) as u8;
-    let b2: u8 = (x & 0xff) as u8;
-    [b1, b2]
-}
-pub fn transform_u32_to_array_of_u8(x: u32) -> [u8; 4] {
-    let b1: u8 = ((x >> 24) & 0xff) as u8;
-    let b2: u8 = ((x >> 16) & 0xff) as u8;
-    let b3: u8 = ((x >> 8) & 0xff) as u8;
-    let b4: u8 = (x & 0xff) as u8;
-    [b1, b2, b3, b4]
-}
-pub fn transform_u64_to_array_of_u8(x: u64) -> [u8; 8] {
-    let b1: u8 = ((x >> 56) & 0xff) as u8;
-    let b2: u8 = ((x >> 48) & 0xff) as u8;
-    let b3: u8 = ((x >> 40) & 0xff) as u8;
-    let b4: u8 = ((x >> 32) & 0xff) as u8;
-    let b5: u8 = ((x >> 24) & 0xff) as u8;
-    let b6: u8 = ((x >> 16) & 0xff) as u8;
-    let b7: u8 = ((x >> 8) & 0xff) as u8;
-    let b8: u8 = (x & 0xff) as u8;
-    [b1, b2, b3, b4, b5, b6, b7, b8]
-}
-
 pub fn new_peer_id() -> [u8; 20] {
     //"-IT0001-"+12 random chars
-    let mut res = [0; 20];
-    res[0..8].copy_from_slice("-IT0001-".as_bytes());
+    let mut id = [0; 20];
+    id[0..8].copy_from_slice("-IT0001-".as_bytes());
     let string = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
-    res[8..20].copy_from_slice(string.as_bytes());
-    res
+    id[8..20].copy_from_slice(string.as_bytes());
+    id
+}
+
+pub fn encode_binnary_to_http_chars(input: [u8; 20]) -> String {
+    let mut return_string = String::new();
+    for byte in input {
+        return_string.push_str("%");
+        return_string.push_str(&format!("{:02x}", byte));
+    }
+    return_string
+}
+
+////////
+////////
+////////
+////////
+////////
+////////
+////////
+////////
+////////
+////////
+////////
+
+pub fn transform_u16_to_array_of_u8(x: u16) -> [u8; 2] {
+    [((x >> 8) & 0xff) as u8, (x & 0xff) as u8]
+}
+pub fn transform_u32_to_array_of_u8(x: u32) -> [u8; 4] {
+    [
+        ((x >> 24) & 0xff) as u8,
+        ((x >> 16) & 0xff) as u8,
+        ((x >> 8) & 0xff) as u8,
+        (x & 0xff) as u8,
+    ]
+}
+pub fn transform_u64_to_array_of_u8(x: u64) -> [u8; 8] {
+    [
+        ((x >> 56) & 0xff) as u8,
+        ((x >> 48) & 0xff) as u8,
+        ((x >> 40) & 0xff) as u8,
+        ((x >> 32) & 0xff) as u8,
+        ((x >> 24) & 0xff) as u8,
+        ((x >> 16) & 0xff) as u8,
+        ((x >> 8) & 0xff) as u8,
+        (x & 0xff) as u8,
+    ]
 }
 
 pub fn concat(vec: &Vec<u8>) -> usize {

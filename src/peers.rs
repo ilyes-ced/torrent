@@ -1,6 +1,7 @@
 use std::net::Ipv4Addr;
 
 use crate::torrent::Torrent;
+use crate::utils::encode_binnary_to_http_chars;
 use crate::{bencode::Decoder, constants};
 use rand::distributions::{Alphanumeric, DistString};
 use reqwest::blocking::Client;
@@ -18,13 +19,13 @@ pub struct PeersResult {
     interval: u64,
 }
 
-pub fn get_peers(torrent_data: Torrent) -> Result<PeersResult, String> {
-    Peer::get_peers(torrent_data)
+pub fn get_peers(torrent_data: Torrent, peer_id: [u8; 20]) -> Result<PeersResult, String> {
+    Peer::get_peers(torrent_data, peer_id)
 }
 
 impl Peer {
-    pub fn get_peers(torrent_data: Torrent) -> Result<PeersResult, String> {
-        let url = build_http_url(torrent_data).unwrap();
+    pub fn get_peers(torrent_data: Torrent, peer_id: [u8; 20]) -> Result<PeersResult, String> {
+        let url = build_http_url(torrent_data, peer_id).unwrap();
         // todo: add error handling for in case disconnected
         let result = send_request(url).unwrap();
         let decoded_response = Decoder::new(result.as_bytes()).start().unwrap();
@@ -70,12 +71,12 @@ fn send_request(url: String) -> Result<String, String> {
     }
 }
 
-fn build_http_url(torrent_data: Torrent) -> Result<String, String> {
+fn build_http_url(torrent_data: Torrent, peer_id: [u8; 20]) -> Result<String, String> {
     let url = torrent_data.announce
         + "?info_hash="
-        + &encode_bin(torrent_data.info_hash)
+        + &encode_binnary_to_http_chars(torrent_data.info_hash)
         + "&peer_id="
-        + &encode_bin(new_peer_id())
+        + &encode_binnary_to_http_chars(peer_id)
         + "&port="
         + &constants::PORT.to_string()
         + "&uploaded="
@@ -86,22 +87,4 @@ fn build_http_url(torrent_data: Torrent) -> Result<String, String> {
         + "0"; //left calculate it later
 
     Ok(url)
-}
-
-fn new_peer_id() -> [u8; 20] {
-    //"-IT0001-"+12 random chars
-    let mut id = [0; 20];
-    id[0..8].copy_from_slice("-IT0001-".as_bytes());
-    let string = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
-    id[8..20].copy_from_slice(string.as_bytes());
-    id
-}
-
-fn encode_bin(input: [u8; 20]) -> String {
-    let mut return_string = String::new();
-    for byte in input {
-        return_string.push_str("%");
-        return_string.push_str(&format!("{:02x}", byte));
-    }
-    return_string
 }

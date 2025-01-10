@@ -14,11 +14,6 @@ pub struct DecoderResults {
     pub result: String,
 }
 
-pub fn decode(input: &[u8]) -> Result<DecoderResults, String> {
-    let result = Decoder::new(input).start().unwrap();
-    Ok(result)
-}
-
 impl Decoder {
     pub fn new(input: &[u8]) -> Decoder {
         Decoder {
