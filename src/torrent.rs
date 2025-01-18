@@ -1,7 +1,7 @@
 use serde_json::Value;
 use std::fmt;
 
-use crate::bencode::DecoderResults;
+use crate::{bencode::DecoderResults, peers::Peer};
 
 pub struct Torrent {
     pub announce: String,
@@ -11,6 +11,8 @@ pub struct Torrent {
     pub created_by: Option<String>,
     pub info: TorrentInfo,
     pub info_hash: [u8; 20],
+    pub peer_id: [u8; 20],
+    pub peers: Vec<Peer>,
 }
 
 pub struct TorrentInfo {
@@ -28,9 +30,9 @@ pub struct TorrentFile {
 }
 
 impl Torrent {
-    pub fn new(data: DecoderResults) -> Result<Torrent, String> {
+    pub fn new(data: DecoderResults, peer_id: [u8; 20]) -> Result<Torrent, String> {
         let json_object: Value = serde_json::from_str(&data.result).unwrap();
-        let result = extract_torrent(&json_object, data.info_hash).unwrap();
+        let result = extract_torrent(&json_object, data.info_hash, peer_id).unwrap();
 
         //println!("{}", object["info"]);
         println!("{}", result);
@@ -39,7 +41,11 @@ impl Torrent {
     }
 }
 
-fn extract_torrent(json_object: &Value, info_hash: [u8; 20]) -> Result<Torrent, String> {
+fn extract_torrent(
+    json_object: &Value,
+    info_hash: [u8; 20],
+    peer_id: [u8; 20],
+) -> Result<Torrent, String> {
     // Extracting fields from the JSON Value
     let announce = json_object["announce"]
         .as_str()
@@ -128,6 +134,8 @@ fn extract_torrent(json_object: &Value, info_hash: [u8; 20]) -> Result<Torrent, 
         created_by,
         info,
         info_hash,
+        peer_id,
+        peers: Vec::new(),
     })
 }
 

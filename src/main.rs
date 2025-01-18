@@ -1,6 +1,6 @@
 mod bencode;
-mod connection;
 mod constants;
+mod download;
 mod peers;
 mod torrent;
 mod utils;
@@ -10,6 +10,7 @@ use std::{fs::File, io::Read};
 use torrent::Torrent;
 
 fn main() -> std::io::Result<()> {
+    // maybe we need a static PeerId
     let peer_id = utils::new_peer_id();
     let path = "debian.torrent";
     let mut file = File::open(path)?;
@@ -18,11 +19,11 @@ fn main() -> std::io::Result<()> {
 
     // add error handling here maybe for all of those function calls
     let bencode_data = Decoder::new(&buf).start().unwrap();
-    let torrent_data = Torrent::new(bencode_data).unwrap();
-    let info_hash = torrent_data.info_hash;
-    let peers = peers::get_peers(torrent_data, peer_id).unwrap();
-    println!("{:?}", peers);
-    let connection = connection::start(peers, info_hash, peer_id).unwrap();
+    let mut torrent_data = Torrent::new(bencode_data, peer_id).unwrap();
+    let peers = peers::get_peers(&torrent_data, peer_id).unwrap();
+    torrent_data.peers = peers.peers;
+    println!("{:?}", torrent_data.peers);
+    let download = download::start(torrent_data).unwrap();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

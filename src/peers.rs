@@ -19,12 +19,12 @@ pub struct PeersResult {
     pub interval: u64,
 }
 
-pub fn get_peers(torrent_data: Torrent, peer_id: [u8; 20]) -> Result<PeersResult, String> {
+pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResult, String> {
     Peer::get_peers(torrent_data, peer_id)
 }
 
 impl Peer {
-    pub fn get_peers(torrent_data: Torrent, peer_id: [u8; 20]) -> Result<PeersResult, String> {
+    pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResult, String> {
         let url = build_http_url(torrent_data, peer_id).unwrap();
         // todo: add error handling for in case disconnected
         let result = send_request(url).unwrap();
@@ -71,8 +71,8 @@ fn send_request(url: String) -> Result<String, String> {
     }
 }
 
-fn build_http_url(torrent_data: Torrent, peer_id: [u8; 20]) -> Result<String, String> {
-    let url = torrent_data.announce
+fn build_http_url(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<String, String> {
+    let url = torrent_data.announce.clone()
         + "?info_hash="
         + &encode_binnary_to_http_chars(torrent_data.info_hash)
         + "&peer_id="
