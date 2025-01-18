@@ -23,15 +23,15 @@ impl Handshake {
         buffer[20..28].copy_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]);
         buffer[28..48].copy_from_slice(&self.info_hash);
         buffer[48..68].copy_from_slice(&self.peer_id);
-        println!("handshake built ** {:?}", buffer);
         Ok(buffer)
     }
-    // to be implemented
-    pub fn read_handshake(handshake: [u8; 68]) -> Result<Handshake, String> {
-        Ok(Handshake {
-            protocol_id: todo!(),
-            info_hash: todo!(),
-            peer_id: todo!(),
-        })
-    }
+}
+
+// to be implemented
+pub fn read_handshake(handshake: [u8; 68]) -> Result<Handshake, String> {
+    Ok(Handshake {
+        protocol_id: String::from_utf8_lossy(&handshake[1..20]).to_string(),
+        info_hash: handshake[28..48].try_into().unwrap(),
+        peer_id: handshake[48..68].try_into().unwrap(),
+    })
 }

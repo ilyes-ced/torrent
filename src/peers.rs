@@ -9,14 +9,14 @@ use serde_json::Value;
 
 #[derive(Debug)]
 pub struct Peer {
-    ip: Ipv4Addr,
-    port: u16,
+    pub ip: Ipv4Addr,
+    pub port: u16,
 }
 
 #[derive(Debug)]
 pub struct PeersResult {
-    peers: Vec<Peer>,
-    interval: u64,
+    pub peers: Vec<Peer>,
+    pub interval: u64,
 }
 
 pub fn get_peers(torrent_data: Torrent, peer_id: [u8; 20]) -> Result<PeersResult, String> {

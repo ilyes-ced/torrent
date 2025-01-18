@@ -1,12 +1,11 @@
 mod bencode;
+mod connection;
 mod constants;
-mod handshake;
 mod peers;
 mod torrent;
 mod utils;
 
 use bencode::Decoder;
-use handshake::Handshake;
 use std::{fs::File, io::Read};
 use torrent::Torrent;
 
@@ -17,12 +16,13 @@ fn main() -> std::io::Result<()> {
     let mut buf = vec![];
     file.read_to_end(&mut buf)?;
 
+    // add error handling here maybe for all of those function calls
     let bencode_data = Decoder::new(&buf).start().unwrap();
     let torrent_data = Torrent::new(bencode_data).unwrap();
-    let handshake = Handshake::new(torrent_data.info_hash, peer_id).create_handshake();
+    let info_hash = torrent_data.info_hash;
     let peers = peers::get_peers(torrent_data, peer_id).unwrap();
     println!("{:?}", peers);
-    println!("{:?}", handshake);
+    let connection = connection::start(peers, info_hash, peer_id).unwrap();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

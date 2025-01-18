@@ -140,7 +140,7 @@ impl fmt::Display for Torrent {
                      Comment: {:?}\n\
                      Creation Date: {:?}\n\
                      Created By: {:?}\n\
-                     info hash: {:?}\n\
+                     info hash: {:?}--{:?}\n\
                      Info:\n{}",
             self.announce,
             self.comment,
@@ -149,6 +149,11 @@ impl fmt::Display for Torrent {
             self.info_hash
                 .iter()
                 .map(|b| format!("{:02x}", b)) // Format each byte as two-digit hex
+                .collect::<Vec<String>>() // Collect into a vector of strings
+                .join(" "),
+            self.info_hash
+                .iter()
+                .map(|b| format!("{}", b)) // Format each byte as two-digit hex
                 .collect::<Vec<String>>() // Collect into a vector of strings
                 .join(" "),
             self.info,
