@@ -1,0 +1,126 @@
+use std::{
+    io::{self, Read},
+    net::TcpStream,
+};
+
+#[derive(Debug, PartialEq)]
+pub struct Message {
+    pub id: u8,
+    pub payload: Vec<u8>,
+}
+
+pub fn to_buf(msg: Option<Message>) -> Vec<u8> {
+    match msg {
+        Some(msg) => {
+            let length = (msg.payload.len() + 1) as u32;
+            let mut buf = vec![0; 4 + length as usize];
+            buf[0..4].copy_from_slice(&length.to_be_bytes());
+            buf[4] = msg.id;
+            buf[5..].copy_from_slice(&msg.payload);
+            buf
+        }
+        None => vec![0; 4],
+    }
+}
+
+// reads bitfield from the connection with a peer
+pub fn from_buf(mut con: &TcpStream) -> Result<Option<Message>, String> {
+    // reads first 4 bytes = lenght of msg
+    let mut len_buf = [0; 4];
+    match con.read(&mut len_buf) {
+        Ok(_) => {}
+        Err(e) => {
+            if e.kind() == io::ErrorKind::TimedOut {
+                return Err(String::from("read operation timed out!"));
+            } else {
+                return Err(String::from(format!("An error occurred: {}", e)));
+            }
+        }
+    };
+
+    let len = u32::from_be_bytes(len_buf);
+    if len == 0 {
+        return Ok(None);
+    }
+
+    // reads the rest of the message: id + payload
+    let mut msg_buf: Vec<u8> = vec![0; len as usize];
+    if len != msg_buf.len() as u32 {
+        return Err(String::from(format!(
+            "payload lenght and message Length does no match, len: {}, payload+4: {}",
+            len,
+            msg_buf.len() + 4,
+        )));
+    }
+    match con.read(&mut msg_buf) {
+        Ok(_) => {}
+        Err(e) => {
+            if e.kind() == io::ErrorKind::TimedOut {
+                return Err(String::from("read operation timed out!"));
+            } else {
+                return Err(String::from(format!("An error occurred: {}", e)));
+            }
+        }
+    };
+
+    Ok(Some(Message {
+        id: msg_buf[0],
+        payload: msg_buf[1..].to_vec(),
+    }))
+}
+
+//
+//
+//
+// tests
+// idk how to test for stuff with connections
+//
+//
+
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
+//
+//    #[test]
+//    fn to_buffer() {
+//        let result = to_buf(Some(Message {
+//            id: 5,
+//            payload: [90, 90, 90].to_vec(),
+//        }));
+//        assert_eq!(result, Vec::from([0, 0, 0, 4, 5, 90, 90, 90]));
+//    }
+//
+//    #[test]
+//    fn to_buffer_none() {
+//        let result = to_buf(None);
+//        assert_eq!(result, Vec::from([0, 0, 0, 0]));
+//    }
+//
+//    #[test]
+//    fn from_buffer() {
+//        let result = from_buf(Vec::from([
+//            0, 0, 0, 10, 5, 90, 90, 90, 25, 69, 7, 45, 55, 2,
+//        ]))
+//        .unwrap();
+//        assert_eq!(
+//            result,
+//            Some(Message {
+//                id: 5,
+//                payload: Vec::from([90, 90, 90, 25, 69, 7, 45, 55, 2,])
+//            })
+//        );
+//    }
+//
+//    #[test]
+//    fn from_buffer_none() {
+//        let result = from_buf(Vec::from([0, 0, 0, 0])).unwrap();
+//        assert_eq!(
+//            result,
+//            Some(Message {
+//                id: 5,
+//                payload: Vec::from([90, 90, 90, 25, 69, 7, 45, 55, 2,])
+//            })
+//        );
+//    }
+//}
+//

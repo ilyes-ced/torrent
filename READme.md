@@ -34,17 +34,15 @@ inspired by
 ## TODO
 - [x] bencode decoder
 - [x] get peers with tracker
-    - [x] request udp connection
-    - [x] recieve peers
 - [ ] download
     - [x] tcp connection
-    - [ ] grouping
-    - [ ] handshakes
+    - [x] handshakes
+    - [ ] messages
     - [ ] pieces
-    - [ ] handling messages
     - [ ] managing connections and pieces
 
 
 
 ## to fix
-- [ ] the doubling of the timeout duration doesn't effect the actual timeout
+- [ ] add tests
+- [ ] add documentation

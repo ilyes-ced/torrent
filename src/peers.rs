@@ -3,11 +3,10 @@ use std::net::Ipv4Addr;
 use crate::torrent::Torrent;
 use crate::utils::encode_binnary_to_http_chars;
 use crate::{bencode::Decoder, constants};
-use rand::distributions::{Alphanumeric, DistString};
 use reqwest::blocking::Client;
 use serde_json::Value;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Peer {
     pub ip: Ipv4Addr,
     pub port: u16,
