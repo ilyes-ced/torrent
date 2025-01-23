@@ -1,44 +1,44 @@
-use std::io::{self, Read};
 use std::sync::{Arc, Mutex};
 use std::{net::TcpStream, thread};
 
+use client::Client;
+
 use crate::torrent::Torrent;
 
+mod bitfield;
+mod client;
 mod connection;
 mod download;
 mod handshake;
 mod message;
 
 pub fn start(torrent: Torrent) -> Result<String, String> {
-    println!("\nstarting download\n");
+    println!("starting download\n");
 
-    let connections: Arc<Mutex<Vec<TcpStream>>> = Arc::new(Mutex::new(Vec::new()));
+    let clients: Arc<Mutex<Vec<Client>>> = Arc::new(Mutex::new(Vec::new()));
     let torrent_arc: Arc<Torrent> = Arc::new(torrent.clone());
     let mut handles = vec![];
 
     for i in 0..torrent_arc.peers.len() {
-        let connections_clone = Arc::clone(&connections);
+        let clients_clone = Arc::clone(&clients);
         let torrent_clone = Arc::clone(&torrent_arc);
         let index_clone = i;
         println!(
-            "starting handshake with peer {index_clone}: {:?}\n",
+            "starting handshake with peer {index_clone}: {:?}",
             torrent_clone.peers[index_clone]
         );
-        let handle = thread::spawn(
-            move || match connection::start(&torrent_clone, index_clone) {
-                Ok(con) => {
-                    let mut num: std::sync::MutexGuard<'_, Vec<TcpStream>> =
-                        connections_clone.lock().unwrap();
-                    num.push(con);
-                    // not sure
-                    //drop(num)
-                }
-                Err(err) => println!(
-                    "connection with peer was dropped: index:{index_clone}, {:?}\ncause: {}",
-                    torrent_clone.peers[index_clone], err
-                ),
-            },
-        );
+        let handle = thread::spawn(move || match Client::new(&torrent_clone, index_clone) {
+            Ok(client) => {
+                let mut guard = clients_clone.lock().unwrap();
+                guard.push(client);
+                // not sure
+                //drop(guard)
+            }
+            Err(err) => println!(
+                "connection with peer was dropped: index:{index_clone}, {:?} | cause: {}",
+                torrent_clone.peers[index_clone], err
+            ),
+        });
         handles.push(handle);
     }
 
@@ -48,16 +48,24 @@ pub fn start(torrent: Torrent) -> Result<String, String> {
         }
     }
 
-    let cons = connections.lock().unwrap();
-    // recieving bitfields
-    for i in 0..cons.len() {
-        println!("con ip: {:?}", cons[i].peer_addr().unwrap());
-        let response = message::from_buf(&cons[i]).unwrap();
-        println!("second read :::::::::: {:?}", response)
-    }
-    drop(cons);
+    let guard = clients.lock().unwrap();
+    println!("second read: recieving bitfields:  {:?}", guard);
 
-    let f = download::start(torrent).unwrap();
+    // recieving bitfields
+    //for i in 0..cons.len() {
+    //    println!("con ip: {:?}", cons[i].peer_addr().unwrap());
+    //    let response = match message::from_buf(&cons[i]) {
+    //        Ok(msg) => msg.unwrap(),
+    //        Err(err) => {
+    //            return Err(String::from(format!(
+    //                "error occured when getting bitfields message: {err}",
+    //            )))
+    //        }
+    //    };
+    //    println!("second read: recieving bitfields:  {:?}", response)
+    //}
+
+    let download = download::start(torrent).unwrap();
 
     Ok(String::new())
 }

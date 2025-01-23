@@ -1,24 +1,56 @@
-use crate::constants::TIMEOUT_DURATION;
-use crate::download::handshake;
-use crate::torrent::Torrent;
+use crate::{constants::TIMEOUT_DURATION, peers::Peer, torrent::Torrent};
+use std::{
+    io::{self, Read, Write},
+    net::{SocketAddr, TcpStream},
+    time::Duration,
+};
 
-use handshake::Handshake;
-use std::io::{self, prelude::*};
-use std::net::{SocketAddr, TcpStream};
-use std::time::Duration;
+use super::{
+    bitfield::Bitfield,
+    handshake::{self, Handshake},
+    message::{from_buf, Message},
+};
+#[derive(Debug)]
 
-pub fn start(torrent: &Torrent, peer_index: usize) -> Result<TcpStream, String> {
-    let handshake = Handshake::new(torrent.info_hash, torrent.peer_id).create_handshake();
-    //println!("handshake: {:?}", handshake);
-    match connect(torrent, handshake, peer_index) {
-        Ok(tcp_stream) => Ok(tcp_stream),
-        Err(err) => Err(err),
+pub(crate) struct Client {
+    con: TcpStream,
+    choked: bool,
+    bitfield: Bitfield,
+    peer: Peer,
+    infoHash: [u8; 20],
+    peerID: [u8; 20],
+}
+
+impl Client {
+    pub fn new(torrent: &Torrent, peer_index: usize) -> Result<Self, String> {
+        let handshake = Handshake::new(torrent.info_hash, torrent.peer_id).create_handshake();
+        let con = match connect(torrent, peer_index) {
+            Ok(tcp_stream) => tcp_stream,
+            Err(err) => return Err(err),
+        };
+        let con = match complete_handshake(con, torrent, handshake, peer_index) {
+            Ok(tcp_stream) => tcp_stream,
+            Err(err) => return Err(err),
+        };
+        let bitfield = match bitfield(&con) {
+            Ok(msg) => msg,
+            Err(err) => return Err(err),
+        };
+
+        Ok(Client {
+            con,
+            choked: true,
+            bitfield: Bitfield::new(bitfield.payload),
+            peer: torrent.peers[peer_index].clone(),
+            infoHash: torrent.info_hash,
+            peerID: torrent.peer_id,
+        })
     }
 }
 
-fn connect(torrent: &Torrent, handshake: [u8; 68], peer_index: usize) -> Result<TcpStream, String> {
+pub fn connect(torrent: &Torrent, peer_index: usize) -> Result<TcpStream, String> {
     //connect to tcp and send handshake
-    let mut stream = match TcpStream::connect_timeout(
+    let stream = match TcpStream::connect_timeout(
         &SocketAddr::new(
             std::net::IpAddr::V4(torrent.peers[peer_index].ip),
             torrent.peers[peer_index].port,
@@ -45,6 +77,16 @@ fn connect(torrent: &Torrent, handshake: [u8; 68], peer_index: usize) -> Result<
         Err(err) => return Err(err.to_string()),
     };
 
+    // return the connection
+    Ok(stream)
+}
+
+pub fn complete_handshake(
+    mut stream: TcpStream,
+    torrent: &Torrent,
+    handshake: [u8; 68],
+    peer_index: usize,
+) -> Result<TcpStream, String> {
     // send/write handshake
     match stream.write(&handshake) {
         Ok(_) => {}
@@ -78,15 +120,15 @@ fn connect(torrent: &Torrent, handshake: [u8; 68], peer_index: usize) -> Result<
 
     println!("-----------------------------------------");
     println!(
-        "recieved handshake: from peer: {:?} \n\tprotocol id:{:?} \n\tinfo hash:{:?} \n\tpeer id:{:?}",
-        format!(
-            "{}:{}",
-            torrent.peers[peer_index].ip, torrent.peers[peer_index].port
-        ),
-        rec_handshake.protocol_id,
-        rec_handshake.info_hash,
-        String::from_utf8_lossy(&rec_handshake.peer_id).to_string()
-    );
+    "recieved handshake: from peer: {:?} \n\tprotocol id:{:?} \n\tinfo hash:{:?} \n\tpeer id:{:?}",
+    format!(
+        "{}:{}",
+        torrent.peers[peer_index].ip, torrent.peers[peer_index].port
+    ),
+    rec_handshake.protocol_id,
+    rec_handshake.info_hash,
+    String::from_utf8_lossy(&rec_handshake.peer_id).to_string()
+);
     println!("-----------------------------------------");
 
     if rec_handshake.info_hash == torrent.info_hash {
@@ -99,4 +141,17 @@ fn connect(torrent: &Torrent, handshake: [u8; 68], peer_index: usize) -> Result<
             "info hash recieved does not match your info hash",
         ))
     }
+}
+
+pub fn bitfield(con: &TcpStream) -> Result<Message, String> {
+    let response = match from_buf(con) {
+        Ok(msg) => msg.unwrap(),
+        Err(err) => {
+            return Err(String::from(format!(
+                "error occured when getting bitfields message: {err}",
+            )))
+        }
+    };
+    println!("second read: recieving bitfields:  {:?}", response);
+    Ok(response)
 }
