@@ -7,7 +7,6 @@ use crate::torrent::Torrent;
 
 mod bitfield;
 mod client;
-mod connection;
 mod download;
 mod handshake;
 mod message;
@@ -48,24 +47,16 @@ pub fn start(torrent: Torrent) -> Result<String, String> {
         }
     }
 
-    let guard = clients.lock().unwrap();
-    println!("second read: recieving bitfields:  {:?}", guard);
+    // get the clients list
+    let lock = Arc::try_unwrap(clients).expect("Lock still has multiple owners");
+    let clients = lock.into_inner().expect("Mutex cannot be locked");
 
-    // recieving bitfields
-    //for i in 0..cons.len() {
-    //    println!("con ip: {:?}", cons[i].peer_addr().unwrap());
-    //    let response = match message::from_buf(&cons[i]) {
-    //        Ok(msg) => msg.unwrap(),
-    //        Err(err) => {
-    //            return Err(String::from(format!(
-    //                "error occured when getting bitfields message: {err}",
-    //            )))
-    //        }
-    //    };
-    //    println!("second read: recieving bitfields:  {:?}", response)
+    println!("number of clients:  {:?}", clients.len());
+    //for client in clients {
+    //    println!("ip of client:  {:?}", client.peer);
     //}
 
-    let download = download::start(torrent).unwrap();
+    let download = download::start(torrent, clients).unwrap();
 
     Ok(String::new())
 }

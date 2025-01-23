@@ -1,4 +1,8 @@
-use crate::{constants::TIMEOUT_DURATION, peers::Peer, torrent::Torrent};
+use crate::{
+    constants::{MsgId, TIMEOUT_DURATION},
+    peers::Peer,
+    torrent::Torrent,
+};
 use std::{
     io::{self, Read, Write},
     net::{SocketAddr, TcpStream},
@@ -8,30 +12,32 @@ use std::{
 use super::{
     bitfield::Bitfield,
     handshake::{self, Handshake},
-    message::{from_buf, Message},
+    message::{from_buf, to_buf, Message},
 };
-#[derive(Debug)]
 
+#[derive(Debug)]
 pub(crate) struct Client {
-    con: TcpStream,
-    choked: bool,
-    bitfield: Bitfield,
-    peer: Peer,
-    infoHash: [u8; 20],
-    peerID: [u8; 20],
+    pub con: TcpStream,
+    pub choked: bool,
+    pub bitfield: Bitfield,
+    pub peer: Peer,
+    pub info_hash: [u8; 20],
+    pub peer_id: [u8; 20],
 }
 
 impl Client {
     pub fn new(torrent: &Torrent, peer_index: usize) -> Result<Self, String> {
         let handshake = Handshake::new(torrent.info_hash, torrent.peer_id).create_handshake();
         let con = match connect(torrent, peer_index) {
-            Ok(tcp_stream) => tcp_stream,
+            Ok(tcp_stream) => {
+                match complete_handshake(tcp_stream, torrent, handshake, peer_index) {
+                    Ok(tcp_stream) => tcp_stream,
+                    Err(err) => return Err(err),
+                }
+            }
             Err(err) => return Err(err),
         };
-        let con = match complete_handshake(con, torrent, handshake, peer_index) {
-            Ok(tcp_stream) => tcp_stream,
-            Err(err) => return Err(err),
-        };
+
         let bitfield = match bitfield(&con) {
             Ok(msg) => msg,
             Err(err) => return Err(err),
@@ -42,9 +48,29 @@ impl Client {
             choked: true,
             bitfield: Bitfield::new(bitfield.payload),
             peer: torrent.peers[peer_index].clone(),
-            infoHash: torrent.info_hash,
-            peerID: torrent.peer_id,
+            info_hash: torrent.info_hash,
+            peer_id: torrent.peer_id,
         })
+    }
+
+    // sends Messages of CHOKE/INTRESTED/.../.../...
+    pub fn send_msg_id(&mut self, signal: MsgId, payload: Option<Vec<u8>>) -> Result<(), String> {
+        // signal is one of the constants in MsgId
+        let msg = Some(Message {
+            id: signal.to_u8(),
+            payload: payload.unwrap_or_else(Vec::new),
+        });
+        match self.con.write(&to_buf(msg)) {
+            Ok(_) => {}
+            Err(e) => {
+                if e.kind() == io::ErrorKind::TimedOut {
+                    return Err(String::from("Write operation timed out!"));
+                } else {
+                    return Err(String::from(format!("An error occurred: {}", e)));
+                }
+            }
+        };
+        Ok(())
     }
 }
 

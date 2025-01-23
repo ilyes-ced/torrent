@@ -1,8 +1,7 @@
-use std::{io, io::Write, net::TcpStream};
-
 use crate::{constants::MsgId, torrent::Torrent};
 
-use super::message::{to_buf, Message};
+use super::Client;
+use std::sync::{Arc, Mutex};
 
 struct PieceResult {
     index: usize,
@@ -18,19 +17,35 @@ struct PieceWork {
 // here we make threads to download each piece
 // number of threads ios the number of pieces
 
-pub fn start(torrent: Torrent) -> Result<(), String> {
-    // for loop and threads here to download each piece
-    let workers = pieces_workers(&torrent);
+pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
+    let workers: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces_workers(&torrent)));
+    let results: Arc<Mutex<Vec<PieceResult>>> = Arc::new(Mutex::new(Vec::new()));
 
-    // pieces_workers and pieces_results should be accessible from many threads
+    let test_works = pieces_workers(&torrent);
+    for mut client in clients {
+        println!("test");
+        let _ = match client.send_msg_id(MsgId::UNCHOKE, None) {
+            Ok(_) => {}
+            Err(err) => return Err(String::from(err)),
+        };
+        let _ = match client.send_msg_id(MsgId::INTRESTED, None) {
+            Ok(_) => {}
+            Err(err) => return Err(String::from(err)),
+        };
 
-    for peer in torrent.peers {}
+        for piece in test_works {
+            println!("test::::::: {}", client.bitfield.has_piece(piece.index));
+        }
+        println!("end program");
+
+        break;
+    }
 
     Ok(())
 }
 
 fn pieces_workers(torrent: &Torrent) -> Vec<PieceWork> {
-    //println!("number of pieces: {}", torrent.info.pieces.len());
+    // gets all the pieces from the torrent file: (index, hash, lenght)
     let mut pieces_workers: Vec<PieceWork> = Vec::new();
     for (ind, piece_hash) in torrent.info.pieces.iter().enumerate() {
         let piece_len = calc_piece_len(&torrent, ind);
@@ -52,24 +67,4 @@ fn calc_piece_len(torrent: &Torrent, ind: usize) -> usize {
     let res = end - begin;
     //println!("{} ===> {:?} ===> {}", ind, piece_hash, res);
     res
-}
-
-// sends Messages of CHOKE/INTRESTED/..........
-fn send_msg_id(mut con: TcpStream, signal: MsgId, payload: Vec<u8>) -> Result<(), String> {
-    // signal is one of the constants
-    let msg = Some(Message {
-        id: signal.to_u8(),
-        payload: payload,
-    });
-    match con.write(&to_buf(msg)) {
-        Ok(_) => {}
-        Err(e) => {
-            if e.kind() == io::ErrorKind::TimedOut {
-                return Err(String::from("Write operation timed out!"));
-            } else {
-                return Err(String::from(format!("An error occurred: {}", e)));
-            }
-        }
-    };
-    Ok(())
 }
