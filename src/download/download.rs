@@ -1,47 +1,135 @@
 use crate::{constants::MsgId, torrent::Torrent};
 
 use super::Client;
-use std::sync::{Arc, Mutex};
-
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+};
+#[derive(Debug)]
 struct PieceResult {
     index: usize,
     buf: Vec<u8>,
 }
-
+#[derive(Debug)]
 struct PieceWork {
     index: usize,
     hash: [u8; 20],
     length: usize,
 }
+#[derive(Debug)]
 
-// here we make threads to download each piece
-// number of threads ios the number of pieces
+struct pieceProgress {
+    index: usize,
+    buf: Vec<u8>,
+    downloaded: usize,
+    requested: usize,
+    backlog: usize,
+}
 
 pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
-    let workers: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces_workers(&torrent)));
-    let results: Arc<Mutex<Vec<PieceResult>>> = Arc::new(Mutex::new(Vec::new()));
+    let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces_workers(&torrent)));
+    let results_arc: Arc<Mutex<Vec<PieceResult>>> = Arc::new(Mutex::new(Vec::new()));
+    let mut handles = vec![];
 
-    let test_works = pieces_workers(&torrent);
     for mut client in clients {
-        println!("test");
         let _ = match client.send_msg_id(MsgId::UNCHOKE, None) {
-            Ok(_) => {}
             Err(err) => return Err(String::from(err)),
+            _ => {}
         };
         let _ = match client.send_msg_id(MsgId::INTRESTED, None) {
-            Ok(_) => {}
             Err(err) => return Err(String::from(err)),
+            _ => {}
         };
 
-        for piece in test_works {
-            println!("test::::::: {}", client.bitfield.has_piece(piece.index));
-        }
-        println!("end program");
+        let workers_clone = Arc::clone(&workers_arc);
+        let results_clone = Arc::clone(&results_arc);
 
-        break;
+        let handle = thread::spawn(move || {
+            // get element and process it
+            loop {
+                // break if all workers are finished
+                let mut workers_lock = workers_clone.lock().unwrap();
+                if workers_lock.is_empty() {
+                    break;
+                }
+                // get a worker from the workers list
+                let piece = workers_lock.remove(0);
+                drop(workers_lock);
+
+                // download pieces
+                // processing here
+                // summon download_piece(if
+                //      it is Ok(resultPiece)) push into results
+                //      if is Err(pieceWork) push it back into workers at the start
+                println!(
+                    "Client {:?} is using piece index: {}",
+                    client.peer, piece.index
+                );
+                match download_piece(&client, piece) {
+                    Ok(piece) => {
+                        let mut results_lock = results_clone.lock().unwrap();
+                        results_lock.push(PieceResult {
+                            index: piece.index,
+                            buf: Vec::new(),
+                        });
+                        drop(results_lock);
+                    }
+                    Err(piece) => {
+                        let mut workers_lock = workers_clone.lock().unwrap();
+                        workers_lock.insert(0, piece);
+                        drop(workers_lock);
+                    }
+                };
+            }
+        });
+        handles.push(handle);
     }
 
+    for handle in handles {
+        if let Err(e) = handle.join() {
+            eprintln!("Thread encountered an error: {:?}", e);
+        }
+    }
+
+    // Display results
+    let results_lock = results_arc.lock().unwrap();
+    println!("Results len(): {}", results_lock.len());
+    let workers_lock = workers_arc.lock().unwrap();
+    println!("workers len(): {}", workers_lock.len());
+
     Ok(())
+}
+
+fn download_piece(client: &Client, piece: PieceWork) -> Result<PieceResult, PieceWork> {
+    let mut progress = pieceProgress {
+        index: piece.index,
+        buf: Vec::new(),
+        downloaded: 0,
+        requested: 0,
+        backlog: 0,
+    };
+
+    // check availability on bitfield
+    if !client.bitfield.has_piece(piece.index) {
+        return Err(piece);
+    }
+    // downlaod
+    let buf = if progress.downloaded < piece.length {
+        [0];
+    };
+
+    // check integrity
+
+    if piece.index < 2700 {
+        Ok(PieceResult {
+            index: 0,
+            buf: vec![],
+        })
+    } else {
+        Err(piece)
+    }
+
+    // client.bitfield.has_piece(piece.index)
 }
 
 fn pieces_workers(torrent: &Torrent) -> Vec<PieceWork> {

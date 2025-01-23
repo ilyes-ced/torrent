@@ -72,6 +72,23 @@ impl Client {
         };
         Ok(())
     }
+
+    pub fn read_msg(&mut self) -> Result<Message, String> {
+        let response = match from_buf(&self.con) {
+            Ok(msg) => msg.unwrap(),
+            Err(err) => {
+                return Err(String::from(format!(
+                    "error occured when reading message: {err}",
+                )))
+            }
+        };
+        println!("second read: recieving message:  {:?}", response);
+        Ok(response)
+    }
+
+    pub fn choking(&mut self, choke: bool) {
+        self.choked = choke;
+    }
 }
 
 pub fn connect(torrent: &Torrent, peer_index: usize) -> Result<TcpStream, String> {
