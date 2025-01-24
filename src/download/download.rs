@@ -1,29 +1,34 @@
-use crate::{constants::MsgId, torrent::Torrent};
-
 use super::Client;
+use crate::{
+    constants::{MsgId, MAX_BACKLOG, MAX_BLOCK_SIZE},
+    torrent::Torrent,
+};
+use sha1::{Digest, Sha1};
 use std::{
     sync::{Arc, Mutex},
     thread,
 };
+
 #[derive(Debug)]
 struct PieceResult {
-    index: usize,
+    index: u32,
     buf: Vec<u8>,
 }
 #[derive(Debug)]
 struct PieceWork {
-    index: usize,
+    index: u32,
     hash: [u8; 20],
     length: usize,
 }
 #[derive(Debug)]
 
-struct pieceProgress {
-    index: usize,
-    buf: Vec<u8>,
-    downloaded: usize,
-    requested: usize,
-    backlog: usize,
+pub struct pieceProgress<'a> {
+    pub index: u32,
+    pub buf: Vec<u8>,
+    pub client: &'a mut Client,
+    pub downloaded: usize,
+    pub requested: usize,
+    pub backlog: usize,
 }
 
 pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
@@ -58,14 +63,18 @@ pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
 
                 // download pieces
                 // processing here
-                // summon download_piece(if
+                // summon prepare_download(if
                 //      it is Ok(resultPiece)) push into results
                 //      if is Err(pieceWork) push it back into workers at the start
                 println!(
                     "Client {:?} is using piece index: {}",
                     client.peer, piece.index
                 );
-                match download_piece(&client, piece) {
+                //println!("--- client {:?} is  unchoked", client.peer);
+                //thread::sleep(std::time::Duration::from_secs(1));
+
+                //
+                match prepare_download(&mut client, piece) {
                     Ok(piece) => {
                         let mut results_lock = results_clone.lock().unwrap();
                         results_lock.push(PieceResult {
@@ -75,6 +84,7 @@ pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
                         drop(results_lock);
                     }
                     Err(piece) => {
+                        println!("**");
                         let mut workers_lock = workers_clone.lock().unwrap();
                         workers_lock.insert(0, piece);
                         drop(workers_lock);
@@ -100,25 +110,43 @@ pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
     Ok(())
 }
 
-fn download_piece(client: &Client, piece: PieceWork) -> Result<PieceResult, PieceWork> {
-    let mut progress = pieceProgress {
+fn prepare_download(client: &mut Client, piece: PieceWork) -> Result<PieceResult, PieceWork> {
+    let progress = pieceProgress {
         index: piece.index,
         buf: Vec::new(),
+        client,
         downloaded: 0,
         requested: 0,
         backlog: 0,
     };
 
     // check availability on bitfield
-    if !client.bitfield.has_piece(piece.index) {
+    if !progress.client.bitfield.has_piece(piece.index as usize) {
         return Err(piece);
     }
-    // downlaod
-    let buf = if progress.downloaded < piece.length {
-        [0];
+
+    // download
+    let piece_result = match download(progress, &piece) {
+        Ok(piece) => piece,
+        Err(_) => return Err(piece),
     };
 
     // check integrity
+    let mut hasher = Sha1::new();
+    hasher.update(piece_result.buf);
+    let hash = hasher.finalize();
+
+    println!("---------------------");
+    println!("{:?}", hash);
+    println!("{:?}", piece.hash);
+    println!("---------------------");
+
+    if !(hash == piece.hash.into()) {
+        return Err(piece);
+    }
+
+    // hasher.update(info_binary.clone());
+    // let result = hasher.finalize();
 
     if piece.index < 2700 {
         Ok(PieceResult {
@@ -132,13 +160,78 @@ fn download_piece(client: &Client, piece: PieceWork) -> Result<PieceResult, Piec
     // client.bitfield.has_piece(piece.index)
 }
 
+fn download<'a>(
+    mut progress: pieceProgress<'a>,
+    piece: &'a PieceWork,
+) -> Result<pieceProgress<'a>, String> {
+    while progress.downloaded < piece.length {
+        // * if client is unchoked
+        // *       send request for the piece
+        // * else
+        // *       attempt unchoke request
+        if !progress.client.choked {
+            //downlaod logic here
+            while progress.backlog < MAX_BACKLOG as usize || progress.requested < piece.length {
+                let mut block_size = MAX_BLOCK_SIZE as usize;
+                //* last block could be smalle than the rest so we change block size
+                if piece.length - progress.requested < block_size {
+                    block_size = piece.length - progress.requested
+                }
+                // this one to be fixed
+                // sed request Msg
+                let mut payload: [u8; 12] = [0; 12];
+                // add index
+                payload[0..4].copy_from_slice(&piece.index.to_be_bytes());
+                payload[4..8].copy_from_slice(&progress.requested.to_be_bytes());
+                payload[8..12].copy_from_slice(&block_size.to_be_bytes());
+                // ! error handling
+                let _ = progress
+                    .client
+                    .send_msg_id(MsgId::HAVE, Some(payload.to_vec()))
+                    .map_err(|e| e.to_string())?;
+                progress.backlog += 1;
+                progress.requested += block_size;
+            }
+        }
+
+        //let _ = progress.client.send_msg_id(MsgId::UNCHOKE, None);
+
+        let msg = match progress.client.read_msg() {
+            Ok(msg) => match msg.id {
+                0 => progress.client.choked = true,
+                1 => progress.client.choked = false,
+                4 => {
+                    let piece_index = match msg.have() {
+                        Ok(ind) => ind,
+                        Err(err) => return Err(err),
+                    };
+                    progress.client.bitfield.set_piece(piece_index as usize);
+                }
+                7 => {
+                    let vec = match msg.parse_piece(&progress) {
+                        Ok(res) => res,
+                        Err(err) => return Err(err),
+                    };
+                    progress.buf.extend_from_slice(&vec);
+                    progress.downloaded += vec.len();
+                    progress.backlog -= 1;
+                }
+                _ => {}
+            },
+            Err(err) => println!("------ {}", err),
+        };
+    }
+    Ok(progress)
+}
+
 fn pieces_workers(torrent: &Torrent) -> Vec<PieceWork> {
     // gets all the pieces from the torrent file: (index, hash, lenght)
     let mut pieces_workers: Vec<PieceWork> = Vec::new();
     for (ind, piece_hash) in torrent.info.pieces.iter().enumerate() {
         let piece_len = calc_piece_len(&torrent, ind);
         pieces_workers.push(PieceWork {
-            index: ind,
+            // would only error if torrent has more than 2³²-1=4,294,967,296 pieces // kind of impossible
+            index: ind.try_into().unwrap(),
             hash: *piece_hash,
             length: piece_len,
         })

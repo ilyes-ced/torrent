@@ -53,7 +53,7 @@ impl Client {
         })
     }
 
-    // sends Messages of CHOKE/INTRESTED/.../.../...
+    // sends Messages of CHOKE/INTRESTED/REQUEST/.../...
     pub fn send_msg_id(&mut self, signal: MsgId, payload: Option<Vec<u8>>) -> Result<(), String> {
         // signal is one of the constants in MsgId
         let msg = Some(Message {
@@ -84,10 +84,6 @@ impl Client {
         };
         println!("second read: recieving message:  {:?}", response);
         Ok(response)
-    }
-
-    pub fn choking(&mut self, choke: bool) {
-        self.choked = choke;
     }
 }
 

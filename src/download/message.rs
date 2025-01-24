@@ -3,10 +3,86 @@ use std::{
     net::TcpStream,
 };
 
+use crate::constants::MsgId;
+
+use super::download::pieceProgress;
+
 #[derive(Debug, PartialEq)]
 pub struct Message {
     pub id: u8,
     pub payload: Vec<u8>,
+}
+
+impl Message {
+    pub fn have(self) -> Result<u32, String> {
+        if self.id != MsgId::HAVE.to_u8() {
+            return Err(String::from(format!(
+                "Expected HAVE: {}, got id: {}",
+                MsgId::HAVE.to_u8(),
+                self.id
+            )));
+        }
+        if self.payload.len() != 4 {
+            return Err(String::from(format!(
+                "Expected length to be 4 got: {}",
+                self.payload.len()
+            )));
+        }
+
+        let bytes: [u8; 4] = match self.payload.try_into() {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                return Err(String::from(format!(
+                    "Payload conversion failed; expected 4 bytes but got {}",
+                    err.len()
+                )))
+            }
+        };
+
+        Ok(u32::from_be_bytes(bytes))
+    }
+
+    pub fn parse_piece(self, progress: &pieceProgress) -> Result<Vec<u8>, String> {
+        if self.id != MsgId::PIECE.to_u8() {
+            return Err(String::from(format!(
+                "Expected HAVE: {}, got id: {}",
+                MsgId::PIECE.to_u8(),
+                self.id
+            )));
+        }
+        if self.payload.len() < 8 {
+            return Err(String::from(format!(
+                "Expected length to be more than 8 got: {}",
+                self.payload.len()
+            )));
+        }
+        let index = u32::from_be_bytes(self.payload[0..4].try_into().unwrap());
+        if progress.index != index {
+            return Err(String::from(format!(
+                "Expected indew: {}, got: {}",
+                progress.index, index
+            )));
+        }
+        let begin = u32::from_be_bytes(self.payload[4..8].try_into().unwrap());
+        if begin >= progress.buf.len().try_into().unwrap() {
+            return Err(String::from(format!(
+                "begin offset beyond whats available {} >= {}",
+                progress.buf.len(),
+                begin
+            )));
+        }
+        let block = self.payload[8..].to_vec();
+        if begin as usize + block.len() > progress.buf.len() {
+            return Err(String::from(format!(
+                "data too long {} for offset {} with length {}",
+                block.len(),
+                begin,
+                progress.buf.len()
+            )));
+        }
+
+        Ok(block)
+    }
 }
 
 pub fn to_buf(msg: Option<Message>) -> Vec<u8> {
@@ -77,7 +153,68 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Option<Message>, String> {
 //
 //
 
-//#[cfg(test)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    // have tests
+    #[test]
+    fn test_have_success() {
+        let message = Message {
+            id: MsgId::HAVE.to_u8(),
+            payload: vec![0, 0, 0, 1],
+        };
+
+        let result = message.have();
+        assert_eq!(result, Ok(1));
+    }
+    #[test]
+    fn test_have_wrong_id() {
+        let message = Message {
+            id: MsgId::INTRESTED.to_u8(),
+            payload: vec![0, 0, 0, 1],
+        };
+
+        let result = message.have();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Expected HAVE: 4, got id: 2");
+    }
+    #[test]
+    fn test_have_wrong_payload_length() {
+        let message = Message {
+            id: MsgId::HAVE.to_u8(),
+            payload: vec![0, 0],
+        };
+
+        let result = message.have();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Expected length to be 4 got: 2");
+    }
+    #[test]
+    fn test_have_payload_conversion_failure() {
+        let message = Message {
+            id: MsgId::HAVE.to_u8(),
+            payload: vec![0; 5],
+        };
+
+        let result = message.have();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Expected length to be 4 got: 5");
+    }
+
+    // parse_piece tests
+    #[test]
+    fn request() {
+        let message = Message {
+            id: MsgId::HAVE.to_u8(),
+            payload: vec![0, 0, 0, 1],
+        };
+
+        let result = message.have();
+        assert_eq!(result, Ok(1));
+    }
+}
+
+//
 //mod tests {
 //    use super::*;
 //

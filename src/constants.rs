@@ -23,13 +23,9 @@ pub(crate) const TIMEOUT_DURATION: u64 = 3; // in secods
 
 pub(crate) const PORT: u16 = 6881;
 
-//// messages IDs
-//pub(crate) const CHOKE: u8 = 0;
-//pub(crate) const UNCHOKE: u8 = 1;
-//pub(crate) const INTRESTED: u8 = 2;
-//pub(crate) const NOTINTRESTED: u8 = 3;
-//pub(crate) const HAVE: u8 = 4;
-//pub(crate) const BITFIELD: u8 = 5;
-//pub(crate) const REQUEST: u8 = 6;
-//pub(crate) const PIECE: u8 = 7;
-//pub(crate) const CANCEL: u8 = 8;
+// max number of pieces requested from one client
+pub(crate) const MAX_BACKLOG: u8 = 5;
+
+// 16384 // 65535
+//{https://wiki.theory.org/BitTorrentSpecification#request:_.3Clen.3D0013.3E.3Cid.3D6.3E.3Cindex.3E.3Cbegin.3E.3Clength.3E}
+pub(crate) const MAX_BLOCK_SIZE: u16 = 16384;
