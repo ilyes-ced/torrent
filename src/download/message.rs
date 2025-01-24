@@ -99,8 +99,8 @@ pub fn to_buf(msg: Option<Message>) -> Vec<u8> {
     }
 }
 
-// reads bitfield from the connection with a peer
-pub fn from_buf(mut con: &TcpStream) -> Result<Option<Message>, String> {
+// reads message from the connection with a peer
+pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
     // reads first 4 bytes = lenght of msg
     let mut len_buf = [0; 4];
     match con.read(&mut len_buf) {
@@ -109,14 +109,14 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Option<Message>, String> {
             if e.kind() == io::ErrorKind::TimedOut {
                 return Err(String::from("read operation timed out!"));
             } else {
-                return Err(String::from(format!("An error occurred: {}", e)));
+                return Err(e.to_string());
             }
         }
     };
 
     let len = u32::from_be_bytes(len_buf);
     if len == 0 {
-        return Ok(None);
+        return Err(String::from("keep alive signal"));
     }
 
     // reads the rest of the message: id + payload
@@ -134,15 +134,15 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Option<Message>, String> {
             if e.kind() == io::ErrorKind::TimedOut {
                 return Err(String::from("read operation timed out!"));
             } else {
-                return Err(String::from(format!("An error occurred: {}", e)));
+                return Err(e.to_string());
             }
         }
     };
 
-    Ok(Some(Message {
+    Ok(Message {
         id: msg_buf[0],
         payload: msg_buf[1..].to_vec(),
-    }))
+    })
 }
 
 //

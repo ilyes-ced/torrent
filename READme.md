@@ -17,7 +17,7 @@ inspired by
 ## features
 - NOTICE: this client only works with torrent files that have an announce url in them
 - bencode encoder
-- bencode decoder
+
 
 
 
@@ -37,12 +37,13 @@ inspired by
 - [ ] download
     - [x] tcp connection
     - [x] handshakes
-    - [ ] messages
-    - [ ] pieces
-    - [ ] managing connections and pieces
+    - [x] messages
+    - [x] pieces
+    - [x] managing connections and pieces
 
 
 
 ## to fix
+- [ ] sometimes clients work in sequence instead of in paralllel (needs to be fixed) 
 - [ ] add tests
 - [ ] add documentation

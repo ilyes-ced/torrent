@@ -74,6 +74,11 @@ pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
                 //thread::sleep(std::time::Duration::from_secs(1));
 
                 //
+
+                //println!("--********////////////////");
+                //println!("{:?}", client);
+                //println!("--********////////////////");
+                //std::process::exit(0);
                 match prepare_download(&mut client, piece) {
                     Ok(piece) => {
                         let mut results_lock = results_clone.lock().unwrap();
@@ -83,10 +88,12 @@ pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
                         });
                         drop(results_lock);
                     }
-                    Err(piece) => {
-                        println!("**");
+                    Err(err) => {
+                        println!("/** {}", err.1);
                         let mut workers_lock = workers_clone.lock().unwrap();
-                        workers_lock.insert(0, piece);
+                        // return this later
+                        // workers_lock.insert(0, err.0);
+                        workers_lock.push(err.0);
                         drop(workers_lock);
                     }
                 };
@@ -110,7 +117,10 @@ pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
     Ok(())
 }
 
-fn prepare_download(client: &mut Client, piece: PieceWork) -> Result<PieceResult, PieceWork> {
+fn prepare_download(
+    client: &mut Client,
+    piece: PieceWork,
+) -> Result<PieceResult, (PieceWork, String)> {
     let progress = pieceProgress {
         index: piece.index,
         buf: Vec::new(),
@@ -121,19 +131,28 @@ fn prepare_download(client: &mut Client, piece: PieceWork) -> Result<PieceResult
     };
 
     // check availability on bitfield
+
+    //println!("{:?}", progress);
+    //println!("******************");
+    //println!(
+    //    "{} \n {}",
+    //    progress.client.bitfield,
+    //    progress.client.bitfield.has_piece(piece.index as usize)
+    //);
+    //println!("******************");
     if !progress.client.bitfield.has_piece(piece.index as usize) {
-        return Err(piece);
+        return Err((piece, String::from("client does not have this piece")));
     }
 
     // download
     let piece_result = match download(progress, &piece) {
         Ok(piece) => piece,
-        Err(_) => return Err(piece),
+        Err(err) => return Err((piece, err)),
     };
 
     // check integrity
     let mut hasher = Sha1::new();
-    hasher.update(piece_result.buf);
+    hasher.update(&piece_result.buf);
     let hash = hasher.finalize();
 
     println!("---------------------");
@@ -142,20 +161,20 @@ fn prepare_download(client: &mut Client, piece: PieceWork) -> Result<PieceResult
     println!("---------------------");
 
     if !(hash == piece.hash.into()) {
-        return Err(piece);
+        return Err((piece, String::from("integrity check failed")));
     }
 
     // hasher.update(info_binary.clone());
     // let result = hasher.finalize();
 
-    if piece.index < 2700 {
-        Ok(PieceResult {
-            index: 0,
-            buf: vec![],
-        })
-    } else {
-        Err(piece)
-    }
+    println!(
+        "--------------------- completed download of piece {} ---------------------",
+        piece.index
+    );
+    Ok(PieceResult {
+        index: piece.index,
+        buf: piece_result.buf,
+    })
 
     // client.bitfield.has_piece(piece.index)
 }
@@ -181,9 +200,10 @@ fn download<'a>(
                 // sed request Msg
                 let mut payload: [u8; 12] = [0; 12];
                 // add index
+                println!("--------------------{}", progress.requested);
                 payload[0..4].copy_from_slice(&piece.index.to_be_bytes());
-                payload[4..8].copy_from_slice(&progress.requested.to_be_bytes());
-                payload[8..12].copy_from_slice(&block_size.to_be_bytes());
+                payload[4..8].copy_from_slice(&(progress.requested as u32).to_be_bytes());
+                payload[8..12].copy_from_slice(&(block_size as u32).to_be_bytes());
                 // ! error handling
                 let _ = progress
                     .client
@@ -191,6 +211,7 @@ fn download<'a>(
                     .map_err(|e| e.to_string())?;
                 progress.backlog += 1;
                 progress.requested += block_size;
+                println!("--------------------{}", progress.requested);
             }
         }
 
@@ -205,6 +226,7 @@ fn download<'a>(
                         Ok(ind) => ind,
                         Err(err) => return Err(err),
                     };
+                    println!("***************************************************** bitfield is being set at {}", piece_index);
                     progress.client.bitfield.set_piece(piece_index as usize);
                 }
                 7 => {
@@ -218,7 +240,11 @@ fn download<'a>(
                 }
                 _ => {}
             },
-            Err(err) => println!("------ {}", err),
+            Err(err) => {
+                if err != "keep alive signal" {
+                    println!("{}", err)
+                }
+            }
         };
     }
     Ok(progress)

@@ -66,7 +66,7 @@ impl Client {
                 if e.kind() == io::ErrorKind::TimedOut {
                     return Err(String::from("Write operation timed out!"));
                 } else {
-                    return Err(String::from(format!("An error occurred: {}", e)));
+                    return Err(e.to_string());
                 }
             }
         };
@@ -75,12 +75,8 @@ impl Client {
 
     pub fn read_msg(&mut self) -> Result<Message, String> {
         let response = match from_buf(&self.con) {
-            Ok(msg) => msg.unwrap(),
-            Err(err) => {
-                return Err(String::from(format!(
-                    "error occured when reading message: {err}",
-                )))
-            }
+            Ok(msg) => msg,
+            Err(err) => return Err(err),
         };
         println!("second read: recieving message:  {:?}", response);
         Ok(response)
@@ -133,7 +129,7 @@ pub fn complete_handshake(
             if e.kind() == io::ErrorKind::TimedOut {
                 return Err(String::from("Write operation timed out!"));
             } else {
-                return Err(String::from(format!("An error occurred: {}", e)));
+                return Err(e.to_string());
             }
         }
     };
@@ -147,7 +143,7 @@ pub fn complete_handshake(
             if e.kind() == io::ErrorKind::TimedOut {
                 return Err(String::from("read operation timed out!"));
             } else {
-                return Err(String::from(format!("An error occurred: {}", e)));
+                return Err(e.to_string());
             }
         }
     };
@@ -184,7 +180,7 @@ pub fn complete_handshake(
 
 pub fn bitfield(con: &TcpStream) -> Result<Message, String> {
     let response = match from_buf(con) {
-        Ok(msg) => msg.unwrap(),
+        Ok(msg) => msg,
         Err(err) => {
             return Err(String::from(format!(
                 "error occured when getting bitfields message: {err}",
