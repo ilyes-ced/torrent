@@ -78,7 +78,6 @@ impl Client {
             Ok(msg) => msg,
             Err(err) => return Err(err),
         };
-        println!("second read: recieving message:  {:?}", response);
         Ok(response)
     }
 }
@@ -187,6 +186,5 @@ pub fn bitfield(con: &TcpStream) -> Result<Message, String> {
             )))
         }
     };
-    println!("second read: recieving bitfields:  {:?}", response);
     Ok(response)
 }

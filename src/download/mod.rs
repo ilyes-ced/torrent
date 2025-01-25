@@ -56,7 +56,7 @@ pub fn start(torrent: Torrent) -> Result<String, String> {
     //    println!("ip of client:  {:?}", client.peer);
     //}
 
-    let download = download::start(torrent, clients).unwrap();
+    let download = download::start(torrent, clients);
 
     Ok(String::new())
 }

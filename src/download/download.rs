@@ -5,6 +5,7 @@ use crate::{
 };
 use sha1::{Digest, Sha1};
 use std::{
+    collections::HashMap,
     sync::{Arc, Mutex},
     thread,
 };
@@ -36,24 +37,24 @@ pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
     let results_arc: Arc<Mutex<Vec<PieceResult>>> = Arc::new(Mutex::new(Vec::new()));
     let mut handles = vec![];
 
+    //for mut client in &clients {
+    //    println!("{:?} => {:?}", client.peer, client.bitfield)
+    //}
+    //std::process::exit(0);
+
     for mut client in clients {
-        let _ = match client.send_msg_id(MsgId::UNCHOKE, None) {
-            Err(err) => return Err(String::from(err)),
-            _ => {}
-        };
-        let _ = match client.send_msg_id(MsgId::INTRESTED, None) {
-            Err(err) => return Err(String::from(err)),
-            _ => {}
-        };
+        client.send_msg_id(MsgId::UNCHOKE, None)?;
+        client.send_msg_id(MsgId::INTRESTED, None)?;
 
         let workers_clone = Arc::clone(&workers_arc);
         let results_clone = Arc::clone(&results_arc);
 
         let handle = thread::spawn(move || {
-            // get element and process it
+            println!("----- client {:?} thread starts", client.peer);
+            // take a piece and process it
             loop {
                 // break if all workers are finished
-                let mut workers_lock = workers_clone.lock().unwrap();
+                let mut workers_lock = workers_clone.lock().expect("Failed to lock workers");
                 if workers_lock.is_empty() {
                     break;
                 }
@@ -70,6 +71,11 @@ pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
                     "Client {:?} is using piece index: {}",
                     client.peer, piece.index
                 );
+
+                let results_lock = results_clone.lock().expect("Failed to lock results");
+                // get a worker from the results list
+                println!("--********////////////////{}", results_lock.len());
+                drop(results_lock);
                 //println!("--- client {:?} is  unchoked", client.peer);
                 //thread::sleep(std::time::Duration::from_secs(1));
 
@@ -79,24 +85,36 @@ pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
                 //println!("{:?}", client);
                 //println!("--********////////////////");
                 //std::process::exit(0);
-                match prepare_download(&mut client, piece) {
-                    Ok(piece) => {
-                        let mut results_lock = results_clone.lock().unwrap();
-                        results_lock.push(PieceResult {
-                            index: piece.index,
-                            buf: Vec::new(),
-                        });
-                        drop(results_lock);
-                    }
-                    Err(err) => {
-                        println!("/** {}", err.1);
-                        let mut workers_lock = workers_clone.lock().unwrap();
-                        // return this later
-                        // workers_lock.insert(0, err.0);
-                        workers_lock.push(err.0);
-                        drop(workers_lock);
-                    }
-                };
+
+                // maybe we should check piece here
+                if client.bitfield.has_piece(piece.index as usize) {
+                    match prepare_download(&mut client, piece) {
+                        Ok(piece) => {
+                            let mut results_lock =
+                                results_clone.lock().expect("Failed to lock results");
+                            results_lock.push(PieceResult {
+                                index: piece.index,
+                                buf: Vec::new(),
+                            });
+                            drop(results_lock);
+                        }
+                        Err(err) => {
+                            println!("/** {}", err.1);
+                            let mut workers_lock =
+                                workers_clone.lock().expect("Failed to lock workers");
+                            // return this later
+                            // workers_lock.insert(0, err.0);
+                            workers_lock.push(err.0);
+                            drop(workers_lock);
+                        }
+                    };
+                } else {
+                    // put piece back in queue
+                    //println!("/** client does not have piece\n {:?}", client.bitfield);
+                    let mut workers_lock = workers_clone.lock().expect("Failed to lock workers");
+                    workers_lock.push(piece);
+                    drop(workers_lock);
+                }
             }
         });
         handles.push(handle);
@@ -140,11 +158,12 @@ fn prepare_download(
     //    progress.client.bitfield.has_piece(piece.index as usize)
     //);
     //println!("******************");
-    if !progress.client.bitfield.has_piece(piece.index as usize) {
-        return Err((piece, String::from("client does not have this piece")));
-    }
+    // bad/needs change because when a client doesnt have a piece we keep asking him for it
+    //if !progress.client.bitfield.has_piece(piece.index as usize) {
+    //    return Err((piece, String::from("client does not have this piece")));
+    //}
 
-    // download
+    //// download
     let piece_result = match download(progress, &piece) {
         Ok(piece) => piece,
         Err(err) => return Err((piece, err)),
@@ -171,9 +190,10 @@ fn prepare_download(
         "--------------------- completed download of piece {} ---------------------",
         piece.index
     );
+
     Ok(PieceResult {
         index: piece.index,
-        buf: piece_result.buf,
+        buf: [].to_vec(),
     })
 
     // client.bitfield.has_piece(piece.index)
@@ -200,7 +220,6 @@ fn download<'a>(
                 // sed request Msg
                 let mut payload: [u8; 12] = [0; 12];
                 // add index
-                println!("--------------------{}", progress.requested);
                 payload[0..4].copy_from_slice(&piece.index.to_be_bytes());
                 payload[4..8].copy_from_slice(&(progress.requested as u32).to_be_bytes());
                 payload[8..12].copy_from_slice(&(block_size as u32).to_be_bytes());
@@ -211,7 +230,6 @@ fn download<'a>(
                     .map_err(|e| e.to_string())?;
                 progress.backlog += 1;
                 progress.requested += block_size;
-                println!("--------------------{}", progress.requested);
             }
         }
 
