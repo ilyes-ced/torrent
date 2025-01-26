@@ -17,7 +17,7 @@ impl Message {
     pub fn have(self) -> Result<u32, String> {
         if self.id != MsgId::HAVE.to_u8() {
             return Err(format!(
-                "Expected HAVE: {}, got id: {}",
+                "expected HAVE: {}, got id: {}",
                 MsgId::HAVE.to_u8(),
                 self.id
             ));
@@ -25,7 +25,7 @@ impl Message {
         println!("+++++++++++++++++++++ {}", self.payload.len());
         if self.payload.len() != 4 {
             return Err(format!(
-                "Expected length to be 4 got: {}",
+                "expected length to be 4 got: {}",
                 self.payload.len()
             ));
         }
@@ -46,21 +46,21 @@ impl Message {
     pub fn parse_piece(self, progress: &PieceProgress) -> Result<(Vec<u8>, u32), String> {
         if self.id != MsgId::PIECE.to_u8() {
             return Err(format!(
-                "Expected HAVE: {}, got id: {}",
+                "expected HAVE: {}, got id: {}",
                 MsgId::PIECE.to_u8(),
                 self.id
             ));
         }
         if self.payload.len() < 8 {
             return Err(format!(
-                "Expected length to be more than 8 got: {}",
+                "expected length to be more than 8 got: {}",
                 self.payload.len()
             ));
         }
         let index = u32::from_be_bytes(self.payload[0..4].try_into().unwrap());
         if progress.index != index {
             return Err(format!(
-                "Expected index: {}, got: {}",
+                "expected index: {}, got: {}",
                 progress.index, index
             ));
         }
@@ -81,6 +81,16 @@ impl Message {
                 progress.buf.len()
             ));
         }
+        std::fs::write("parsed_piece.txt", format!("{:?}", block));
+
+        let mut file = std::fs::OpenOptions::new()
+            .write(true) // Enable writing
+            .append(true) // Enable appending
+            .open("parsed_piece.txt")
+            .unwrap(); // Specify your file name
+
+        // Write data to the file
+        io::Write::write_all(&mut file, block.as_slice()).unwrap(); // Convert string to bytes
 
         Ok((block, begin))
     }
@@ -177,7 +187,7 @@ mod tests {
 
         let result = message.have();
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "Expected HAVE: 4, got id: 2");
+        assert_eq!(result.unwrap_err(), "expected HAVE: 4, got id: 2");
     }
     #[test]
     fn test_have_wrong_payload_length() {
@@ -188,7 +198,7 @@ mod tests {
 
         let result = message.have();
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "Expected length to be 4 got: 2");
+        assert_eq!(result.unwrap_err(), "expected length to be 4 got: 2");
     }
     #[test]
     fn test_have_payload_conversion_failure() {
@@ -199,7 +209,7 @@ mod tests {
 
         let result = message.have();
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "Expected length to be 4 got: 5");
+        assert_eq!(result.unwrap_err(), "expected length to be 4 got: 5");
     }
 
     // parse_piece tests

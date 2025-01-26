@@ -6,6 +6,7 @@ use crate::{
 };
 use sha1::{Digest, Sha1};
 use std::{
+    os::unix::process,
     sync::{Arc, Mutex},
     thread,
 };
@@ -32,7 +33,7 @@ pub struct PieceProgress<'a> {
     pub backlog: usize,
 }
 
-pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
+pub fn start(torrent: Torrent, mut clients: Vec<Client>) -> Result<(), String> {
     let pieces = pieces_workers(&torrent);
     let num_pieces = pieces.len();
     let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces));
@@ -43,7 +44,11 @@ pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
         println!("{:?} => {:?}", client.peer, client.bitfield)
     }
 
-    thread::sleep(std::time::Duration::from_millis(4000));
+    thread::sleep(std::time::Duration::from_millis(2000));
+
+    //let mut client = clients.remove(0);
+    //println!("{:?} => {:?}", client.peer, client.bitfield);
+    //thread::sleep(std::time::Duration::from_millis(1000));
 
     for mut client in clients {
         client.send_msg_id(MsgId::UNCHOKE, None)?;
@@ -211,7 +216,6 @@ fn download<'a>(
     piece: &'a PieceWork,
 ) -> Result<PieceProgress<'a>, String> {
     while progress.downloaded < piece.length {
-        //downlaod logic here
         if !progress.client.choked {
             while progress.backlog < MAX_BACKLOG as usize && progress.requested < piece.length {
                 let mut block_size = MAX_BLOCK_SIZE as usize;
@@ -255,12 +259,13 @@ fn download<'a>(
                 }
                 7 => {
                     // piece
-                    let res = match msg.parse_piece(&progress) {
+                    let (res_buf, buf_begin) = match msg.parse_piece(&progress) {
                         Ok(res) => res,
                         Err(err) => return Err(err),
                     };
-                    progress.downloaded += res.0.len();
-                    progress.buf.splice((res.1 as usize).., res.0);
+
+                    progress.downloaded += res_buf.len();
+                    progress.buf.splice((buf_begin as usize).., res_buf);
                     progress.backlog -= 1;
                 }
                 _ => {}

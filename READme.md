@@ -44,11 +44,12 @@ sources
     - [x] messages
     - [x] pieces
     - [x] managing connections and pieces
+    - [ ] downloading pieces
+    - [ ] writing pieces to files
 
 
 
 ## to fix
-- [ ] sometimes clients work in sequence instead of in paralllel (needs to be fixed) 
 - [ ] add documentation
 - [ ] add all errors handling
 - [ ] add all componenets tests
