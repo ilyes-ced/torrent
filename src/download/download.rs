@@ -82,6 +82,7 @@ pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
                         println!("??????? client has piece",);
                         match prepare_download(&mut client, piece) {
                             Ok(piece) => {
+                                // here the result needs to be written to file so it doesnt consume alot of ram
                                 let mut results_lock =
                                     results_clone.lock().expect("Failed to lock results");
                                 results_lock.push(PieceResult {
@@ -211,26 +212,28 @@ fn download<'a>(
 ) -> Result<PieceProgress<'a>, String> {
     while progress.downloaded < piece.length {
         //downlaod logic here
-        while progress.backlog < MAX_BACKLOG as usize || progress.requested < piece.length {
-            let mut block_size = MAX_BLOCK_SIZE as usize;
-            //* last block could be smalle than the rest so we change block size
-            if piece.length - progress.requested < block_size {
-                block_size = piece.length - progress.requested
+        if !progress.client.choked {
+            while progress.backlog < MAX_BACKLOG as usize && progress.requested < piece.length {
+                let mut block_size = MAX_BLOCK_SIZE as usize;
+                //* last block could be smalle than the rest so we change block size
+                if (piece.length - progress.requested) < block_size {
+                    block_size = piece.length - progress.requested
+                }
+
+                let mut payload: [u8; 12] = [0; 12];
+                payload[0..4].copy_from_slice(&piece.index.to_be_bytes());
+                payload[4..8].copy_from_slice(&(progress.requested as u32).to_be_bytes());
+                payload[8..12].copy_from_slice(&(block_size as u32).to_be_bytes());
+
+                // ! error handling
+                let _ = progress
+                    .client
+                    .send_msg_id(MsgId::REQUEST, Some(payload.to_vec()))
+                    .map_err(|e| e.to_string())?;
+
+                progress.backlog += 1;
+                progress.requested += block_size;
             }
-
-            let mut payload: [u8; 12] = [0; 12];
-            payload[0..4].copy_from_slice(&piece.index.to_be_bytes());
-            payload[4..8].copy_from_slice(&(progress.requested as u32).to_be_bytes());
-            payload[8..12].copy_from_slice(&(block_size as u32).to_be_bytes());
-
-            // ! error handling
-            let _ = progress
-                .client
-                .send_msg_id(MsgId::REQUEST, Some(payload.to_vec()))
-                .map_err(|e| e.to_string())?;
-
-            progress.backlog += 1;
-            progress.requested += block_size;
         }
 
         match progress.client.read_msg() {
@@ -267,7 +270,7 @@ fn download<'a>(
                     println!("{}", err)
                 }
             }
-        };
+        }
     }
     Ok(progress)
 }
