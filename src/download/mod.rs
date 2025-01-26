@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use std::{net::TcpStream, thread};
+use std::thread;
 
 use client::Client;
 
@@ -56,7 +56,7 @@ pub fn start(torrent: Torrent) -> Result<String, String> {
     //    println!("ip of client:  {:?}", client.peer);
     //}
 
-    let download = download::start(torrent, clients);
+    let _download = download::start(torrent, clients);
 
     Ok(String::new())
 }

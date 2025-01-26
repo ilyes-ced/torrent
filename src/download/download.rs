@@ -1,11 +1,11 @@
 use super::Client;
 use crate::{
     constants::{MsgId, MAX_BACKLOG, MAX_BLOCK_SIZE},
+    peers::Peer,
     torrent::Torrent,
 };
 use sha1::{Digest, Sha1};
 use std::{
-    collections::HashMap,
     sync::{Arc, Mutex},
     thread,
 };
@@ -23,7 +23,7 @@ struct PieceWork {
 }
 #[derive(Debug)]
 
-pub struct pieceProgress<'a> {
+pub struct PieceProgress<'a> {
     pub index: u32,
     pub buf: Vec<u8>,
     pub client: &'a mut Client,
@@ -33,14 +33,17 @@ pub struct pieceProgress<'a> {
 }
 
 pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
-    let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces_workers(&torrent)));
+    let pieces = pieces_workers(&torrent);
+    let num_pieces = pieces.len();
+    let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces));
     let results_arc: Arc<Mutex<Vec<PieceResult>>> = Arc::new(Mutex::new(Vec::new()));
     let mut handles = vec![];
 
-    //for mut client in &clients {
-    //    println!("{:?} => {:?}", client.peer, client.bitfield)
-    //}
-    //std::process::exit(0);
+    for mut client in &clients {
+        println!("{:?} => {:?}", client.peer, client.bitfield)
+    }
+
+    thread::sleep(std::time::Duration::from_millis(4000));
 
     for mut client in clients {
         client.send_msg_id(MsgId::UNCHOKE, None)?;
@@ -53,66 +56,60 @@ pub fn start(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
             println!("----- client {:?} thread starts", client.peer);
             // take a piece and process it
             loop {
-                // break if all workers are finished
                 let mut workers_lock = workers_clone.lock().expect("Failed to lock workers");
-                if workers_lock.is_empty() {
+                let results_lock = results_clone.lock().expect("Failed to lock results");
+                if results_lock.len() == num_pieces {
+                    println!("6666666666666 all pieces are downloaded");
                     break;
                 }
-                // get a worker from the workers list
-                let piece = workers_lock.remove(0);
-                drop(workers_lock);
-
-                // download pieces
-                // processing here
-                // summon prepare_download(if
-                //      it is Ok(resultPiece)) push into results
-                //      if is Err(pieceWork) push it back into workers at the start
-                println!(
-                    "Client {:?} is using piece index: {}",
-                    client.peer, piece.index
-                );
-
-                let results_lock = results_clone.lock().expect("Failed to lock results");
-                // get a worker from the results list
-                println!("--********////////////////{}", results_lock.len());
                 drop(results_lock);
-                //println!("--- client {:?} is  unchoked", client.peer);
-                //thread::sleep(std::time::Duration::from_secs(1));
+                if !workers_lock.is_empty() {
+                    let piece = workers_lock.remove(0);
+                    drop(workers_lock);
 
-                //
+                    //println!(
+                    //    "Client {:?} is using piece index: {}",
+                    //    client.peer, piece.index
+                    //);
 
-                //println!("--********////////////////");
-                //println!("{:?}", client);
-                //println!("--********////////////////");
-                //std::process::exit(0);
-
-                // maybe we should check piece here
-                if client.bitfield.has_piece(piece.index as usize) {
-                    match prepare_download(&mut client, piece) {
-                        Ok(piece) => {
-                            let mut results_lock =
-                                results_clone.lock().expect("Failed to lock results");
-                            results_lock.push(PieceResult {
-                                index: piece.index,
-                                buf: Vec::new(),
-                            });
-                            drop(results_lock);
-                        }
-                        Err(err) => {
-                            println!("/** {}", err.1);
-                            let mut workers_lock =
-                                workers_clone.lock().expect("Failed to lock workers");
-                            // return this later
-                            // workers_lock.insert(0, err.0);
-                            workers_lock.push(err.0);
-                            drop(workers_lock);
-                        }
-                    };
+                    let results_lock = results_clone.lock().expect("Failed to lock results");
+                    //println!(
+                    //    "--********//////////////// --> resutls : {}",
+                    //    results_lock.len()
+                    //);
+                    drop(results_lock);
+                    if client.bitfield.has_piece(piece.index as usize) {
+                        println!("??????? client has piece",);
+                        match prepare_download(&mut client, piece) {
+                            Ok(piece) => {
+                                let mut results_lock =
+                                    results_clone.lock().expect("Failed to lock results");
+                                results_lock.push(PieceResult {
+                                    index: piece.index,
+                                    buf: Vec::new(),
+                                });
+                                drop(results_lock);
+                            }
+                            Err(err) => {
+                                println!("||||||||||||||||||||||||||||||:: {}", err.1);
+                                let mut workers_lock =
+                                    workers_clone.lock().expect("Failed to lock workers");
+                                // return this later
+                                // workers_lock.insert(0, err.0);
+                                workers_lock.push(err.0);
+                                drop(workers_lock);
+                            }
+                        };
+                    } else {
+                        // put piece back in queue
+                        println!("...... client does not have piece",);
+                        let mut workers_lock =
+                            workers_clone.lock().expect("Failed to lock workers");
+                        workers_lock.push(piece);
+                        drop(workers_lock);
+                        thread::sleep(std::time::Duration::from_millis(1000));
+                    }
                 } else {
-                    // put piece back in queue
-                    //println!("/** client does not have piece\n {:?}", client.bitfield);
-                    let mut workers_lock = workers_clone.lock().expect("Failed to lock workers");
-                    workers_lock.push(piece);
                     drop(workers_lock);
                 }
             }
@@ -139,9 +136,9 @@ fn prepare_download(
     client: &mut Client,
     piece: PieceWork,
 ) -> Result<PieceResult, (PieceWork, String)> {
-    let progress = pieceProgress {
+    let progress = PieceProgress {
         index: piece.index,
-        buf: Vec::new(),
+        buf: vec![0; piece.length],
         client,
         downloaded: 0,
         requested: 0,
@@ -166,30 +163,39 @@ fn prepare_download(
     //// download
     let piece_result = match download(progress, &piece) {
         Ok(piece) => piece,
-        Err(err) => return Err((piece, err)),
+        Err(err) => {
+            return Err((piece, err));
+        }
     };
 
     // check integrity
-    let mut hasher = Sha1::new();
-    hasher.update(&piece_result.buf);
-    let hash = hasher.finalize();
-
-    println!("---------------------");
-    println!("{:?}", hash);
-    println!("{:?}", piece.hash);
-    println!("---------------------");
-
-    if !(hash == piece.hash.into()) {
-        return Err((piece, String::from("integrity check failed")));
-    }
-
-    // hasher.update(info_binary.clone());
-    // let result = hasher.finalize();
+    //let mut hasher = Sha1::new();
+    //hasher.update(&piece_result.buf);
+    //let hash = hasher.finalize();
+    //
+    //println!("---------------------");
+    //println!("{:?}", hash);
+    //println!("{:?}", piece.hash);
+    //println!("---------------------");
+    //
+    //if !(hash == piece.hash.into()) {
+    //    return Err((piece, String::from("integrity check failed")));
+    //}
+    //
+    //println!(
+    //    "--------------------- completed download of piece {} ---------------------",
+    //    piece.index
+    //);
 
     println!(
-        "--------------------- completed download of piece {} ---------------------",
-        piece.index
+        "222222222222222222222222222222222222222222222222222222 {:?} ",
+        PieceResult {
+            index: piece.index,
+            buf: [].to_vec(),
+        }
     );
+
+    //std::process::exit(0);
 
     Ok(PieceResult {
         index: piece.index,
@@ -200,60 +206,58 @@ fn prepare_download(
 }
 
 fn download<'a>(
-    mut progress: pieceProgress<'a>,
+    mut progress: PieceProgress<'a>,
     piece: &'a PieceWork,
-) -> Result<pieceProgress<'a>, String> {
+) -> Result<PieceProgress<'a>, String> {
     while progress.downloaded < piece.length {
-        // * if client is unchoked
-        // *       send request for the piece
-        // * else
-        // *       attempt unchoke request
-        if !progress.client.choked {
-            //downlaod logic here
-            while progress.backlog < MAX_BACKLOG as usize || progress.requested < piece.length {
-                let mut block_size = MAX_BLOCK_SIZE as usize;
-                //* last block could be smalle than the rest so we change block size
-                if piece.length - progress.requested < block_size {
-                    block_size = piece.length - progress.requested
-                }
-                // this one to be fixed
-                // sed request Msg
-                let mut payload: [u8; 12] = [0; 12];
-                // add index
-                payload[0..4].copy_from_slice(&piece.index.to_be_bytes());
-                payload[4..8].copy_from_slice(&(progress.requested as u32).to_be_bytes());
-                payload[8..12].copy_from_slice(&(block_size as u32).to_be_bytes());
-                // ! error handling
-                let _ = progress
-                    .client
-                    .send_msg_id(MsgId::HAVE, Some(payload.to_vec()))
-                    .map_err(|e| e.to_string())?;
-                progress.backlog += 1;
-                progress.requested += block_size;
+        //downlaod logic here
+        while progress.backlog < MAX_BACKLOG as usize || progress.requested < piece.length {
+            let mut block_size = MAX_BLOCK_SIZE as usize;
+            //* last block could be smalle than the rest so we change block size
+            if piece.length - progress.requested < block_size {
+                block_size = piece.length - progress.requested
             }
+
+            let mut payload: [u8; 12] = [0; 12];
+            payload[0..4].copy_from_slice(&piece.index.to_be_bytes());
+            payload[4..8].copy_from_slice(&(progress.requested as u32).to_be_bytes());
+            payload[8..12].copy_from_slice(&(block_size as u32).to_be_bytes());
+
+            // ! error handling
+            let _ = progress
+                .client
+                .send_msg_id(MsgId::REQUEST, Some(payload.to_vec()))
+                .map_err(|e| e.to_string())?;
+
+            progress.backlog += 1;
+            progress.requested += block_size;
         }
 
-        //let _ = progress.client.send_msg_id(MsgId::UNCHOKE, None);
-
-        let msg = match progress.client.read_msg() {
+        match progress.client.read_msg() {
             Ok(msg) => match msg.id {
                 0 => progress.client.choked = true,
                 1 => progress.client.choked = false,
                 4 => {
-                    let piece_index = match msg.have() {
-                        Ok(ind) => ind,
-                        Err(err) => return Err(err),
-                    };
-                    println!("***************************************************** bitfield is being set at {}", piece_index);
-                    progress.client.bitfield.set_piece(piece_index as usize);
+                    // have
+                    //match msg.have() {
+                    //    Ok(index) => {
+                    //        println!("***************************************************** bitfield is being set at {}", index);
+                    //        progress.client.bitfield.set_piece(index as usize);
+                    //    }
+                    //    Err(_) => {
+                    //        // maybe we shouldnt care about this error
+                    //        // return Err(err)
+                    //    }
+                    //}
                 }
                 7 => {
-                    let vec = match msg.parse_piece(&progress) {
+                    // piece
+                    let res = match msg.parse_piece(&progress) {
                         Ok(res) => res,
                         Err(err) => return Err(err),
                     };
-                    progress.buf.extend_from_slice(&vec);
-                    progress.downloaded += vec.len();
+                    progress.downloaded += res.0.len();
+                    progress.buf.splice((res.1 as usize).., res.0);
                     progress.backlog -= 1;
                 }
                 _ => {}

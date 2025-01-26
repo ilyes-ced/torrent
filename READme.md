@@ -1,8 +1,12 @@
 # torrent client with rust
 
-inspired by
-[tutorial](https://allenkim67.github.io/programming/2016/05/04/how-to-make-your-own-bittorrent-client.html)
+sources
 
+[tutorial in js](https://allenkim67.github.io/programming/2016/05/04/how-to-make-your-own-bittorrent-client.html)
+
+[tutorial in go](https://blog.jse.li/posts/torrent/)
+
+[torrent specification](https://wiki.theory.org/BitTorrentSpecification#piece:_.3Clen.3D0009.2BX.3E.3Cid.3D7.3E.3Cindex.3E.3Cbegin.3E.3Cblock.3E)
 
 <div align='center' styl>
     <img height='200' src='./logos/logo.svg'>
@@ -45,5 +49,6 @@ inspired by
 
 ## to fix
 - [ ] sometimes clients work in sequence instead of in paralllel (needs to be fixed) 
-- [ ] add tests
 - [ ] add documentation
+- [ ] add all errors handling
+- [ ] add all componenets tests

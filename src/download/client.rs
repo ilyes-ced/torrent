@@ -21,8 +21,6 @@ pub(crate) struct Client {
     pub choked: bool,
     pub bitfield: Bitfield,
     pub peer: Peer,
-    pub info_hash: [u8; 20],
-    pub peer_id: [u8; 20],
 }
 
 impl Client {
@@ -48,8 +46,6 @@ impl Client {
             choked: true,
             bitfield: Bitfield::new(bitfield.payload),
             peer: torrent.peers[peer_index].clone(),
-            info_hash: torrent.info_hash,
-            peer_id: torrent.peer_id,
         })
     }
 
@@ -75,10 +71,9 @@ impl Client {
 
     pub fn read_msg(&mut self) -> Result<Message, String> {
         let response = match from_buf(&self.con) {
-            Ok(msg) => msg,
+            Ok(msg) => return Ok(msg),
             Err(err) => return Err(err),
         };
-        Ok(response)
     }
 }
 
@@ -96,7 +91,7 @@ pub fn connect(torrent: &Torrent, peer_index: usize) -> Result<TcpStream, String
             if e.kind() == io::ErrorKind::TimedOut {
                 return Err(String::from("connection operation timed out!"));
             } else {
-                return Err(String::from(format!("network error occurred: {}", e)));
+                return Err(format!("network error occurred: {}", e));
             }
         }
     };
@@ -181,9 +176,9 @@ pub fn bitfield(con: &TcpStream) -> Result<Message, String> {
     let response = match from_buf(con) {
         Ok(msg) => msg,
         Err(err) => {
-            return Err(String::from(format!(
+            return Err(format!(
                 "error occured when getting bitfields message: {err}",
-            )))
+            ))
         }
     };
     Ok(response)

@@ -18,42 +18,6 @@ pub fn encode_binnary_to_http_chars(input: [u8; 20]) -> String {
     return_string
 }
 
-////////
-////////
-////////
-////////
-////////
-////////
-////////
-////////
-////////
-////////
-////////
-
-pub fn transform_u16_to_array_of_u8(x: u16) -> [u8; 2] {
-    [((x >> 8) & 0xff) as u8, (x & 0xff) as u8]
-}
-pub fn transform_u32_to_array_of_u8(x: u32) -> [u8; 4] {
-    [
-        ((x >> 24) & 0xff) as u8,
-        ((x >> 16) & 0xff) as u8,
-        ((x >> 8) & 0xff) as u8,
-        (x & 0xff) as u8,
-    ]
-}
-pub fn transform_u64_to_array_of_u8(x: u64) -> [u8; 8] {
-    [
-        ((x >> 56) & 0xff) as u8,
-        ((x >> 48) & 0xff) as u8,
-        ((x >> 40) & 0xff) as u8,
-        ((x >> 32) & 0xff) as u8,
-        ((x >> 24) & 0xff) as u8,
-        ((x >> 16) & 0xff) as u8,
-        ((x >> 8) & 0xff) as u8,
-        (x & 0xff) as u8,
-    ]
-}
-
 pub fn concat(vec: &Vec<u8>) -> usize {
     let mut acc: usize = 0;
     for elem in vec {
@@ -76,32 +40,68 @@ pub fn concat(vec: &Vec<u8>) -> usize {
     }
     acc
 }
-
-pub fn digits(num: usize) -> impl Iterator<Item = u32> {
-    num.to_string()
-        .chars()
-        .map(|d| d.to_digit(10).unwrap())
-        .collect::<Vec<_>>()
-        .into_iter()
-}
-
-pub fn len_to_bytes(len: usize) -> Vec<u8> {
-    let mut vec = Vec::new();
-    let digits = digits(len);
-    for digit in digits {
-        match digit {
-            0 => vec.push(48),
-            1 => vec.push(49),
-            2 => vec.push(50),
-            3 => vec.push(51),
-            4 => vec.push(52),
-            5 => vec.push(53),
-            6 => vec.push(54),
-            7 => vec.push(55),
-            8 => vec.push(56),
-            9 => vec.push(57),
-            _ => {}
-        }
-    }
-    vec
-}
+////////
+////////
+////////
+////////
+////////
+////////
+////////
+////////
+////////
+////////
+////////
+//
+// pub fn transform_u16_to_array_of_u8(x: u16) -> [u8; 2] {
+//     [((x >> 8) & 0xff) as u8, (x & 0xff) as u8]
+// }
+// pub fn transform_u32_to_array_of_u8(x: u32) -> [u8; 4] {
+//     [
+//         ((x >> 24) & 0xff) as u8,
+//         ((x >> 16) & 0xff) as u8,
+//         ((x >> 8) & 0xff) as u8,
+//         (x & 0xff) as u8,
+//     ]
+// }
+// pub fn transform_u64_to_array_of_u8(x: u64) -> [u8; 8] {
+//     [
+//         ((x >> 56) & 0xff) as u8,
+//         ((x >> 48) & 0xff) as u8,
+//         ((x >> 40) & 0xff) as u8,
+//         ((x >> 32) & 0xff) as u8,
+//         ((x >> 24) & 0xff) as u8,
+//         ((x >> 16) & 0xff) as u8,
+//         ((x >> 8) & 0xff) as u8,
+//         (x & 0xff) as u8,
+//     ]
+// }
+//
+// pub fn digits(num: usize) -> impl Iterator<Item = u32> {
+//     num.to_string()
+//         .chars()
+//         .map(|d| d.to_digit(10).unwrap())
+//         .collect::<Vec<_>>()
+//         .into_iter()
+// }
+//
+// pub fn len_to_bytes(len: usize) -> Vec<u8> {
+//     let mut vec = Vec::new();
+//     let digits = digits(len);
+//     for digit in digits {
+//         match digit {
+//             0 => vec.push(48),
+//             1 => vec.push(49),
+//             2 => vec.push(50),
+//             3 => vec.push(51),
+//             4 => vec.push(52),
+//             5 => vec.push(53),
+//             6 => vec.push(54),
+//             7 => vec.push(55),
+//             8 => vec.push(56),
+//             9 => vec.push(57),
+//             _ => {}
+//         }
+//     }
+//     vec
+// }
+//

@@ -5,7 +5,7 @@ use std::{
 
 use crate::constants::MsgId;
 
-use super::download::pieceProgress;
+use super::download::PieceProgress;
 
 #[derive(Debug, PartialEq)]
 pub struct Message {
@@ -16,72 +16,73 @@ pub struct Message {
 impl Message {
     pub fn have(self) -> Result<u32, String> {
         if self.id != MsgId::HAVE.to_u8() {
-            return Err(String::from(format!(
+            return Err(format!(
                 "Expected HAVE: {}, got id: {}",
                 MsgId::HAVE.to_u8(),
                 self.id
-            )));
+            ));
         }
+        println!("+++++++++++++++++++++ {}", self.payload.len());
         if self.payload.len() != 4 {
-            return Err(String::from(format!(
+            return Err(format!(
                 "Expected length to be 4 got: {}",
                 self.payload.len()
-            )));
+            ));
         }
 
         let bytes: [u8; 4] = match self.payload.try_into() {
             Ok(bytes) => bytes,
             Err(err) => {
-                return Err(String::from(format!(
+                return Err(format!(
                     "Payload conversion failed; expected 4 bytes but got {}",
                     err.len()
-                )))
+                ))
             }
         };
 
         Ok(u32::from_be_bytes(bytes))
     }
 
-    pub fn parse_piece(self, progress: &pieceProgress) -> Result<Vec<u8>, String> {
+    pub fn parse_piece(self, progress: &PieceProgress) -> Result<(Vec<u8>, u32), String> {
         if self.id != MsgId::PIECE.to_u8() {
-            return Err(String::from(format!(
+            return Err(format!(
                 "Expected HAVE: {}, got id: {}",
                 MsgId::PIECE.to_u8(),
                 self.id
-            )));
+            ));
         }
         if self.payload.len() < 8 {
-            return Err(String::from(format!(
+            return Err(format!(
                 "Expected length to be more than 8 got: {}",
                 self.payload.len()
-            )));
+            ));
         }
         let index = u32::from_be_bytes(self.payload[0..4].try_into().unwrap());
         if progress.index != index {
-            return Err(String::from(format!(
-                "Expected indew: {}, got: {}",
+            return Err(format!(
+                "Expected index: {}, got: {}",
                 progress.index, index
-            )));
+            ));
         }
         let begin = u32::from_be_bytes(self.payload[4..8].try_into().unwrap());
         if begin >= progress.buf.len().try_into().unwrap() {
-            return Err(String::from(format!(
+            return Err(format!(
                 "begin offset beyond whats available {} >= {}",
-                progress.buf.len(),
-                begin
-            )));
+                begin,
+                progress.buf.len()
+            ));
         }
         let block = self.payload[8..].to_vec();
-        if begin as usize + block.len() > progress.buf.len() {
-            return Err(String::from(format!(
+        if (begin as usize + block.len()) > progress.buf.len() {
+            return Err(format!(
                 "data too long {} for offset {} with length {}",
                 block.len(),
                 begin,
                 progress.buf.len()
-            )));
+            ));
         }
 
-        Ok(block)
+        Ok((block, begin))
     }
 }
 
@@ -122,11 +123,11 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
     // reads the rest of the message: id + payload
     let mut msg_buf: Vec<u8> = vec![0; len as usize];
     if len != msg_buf.len() as u32 {
-        return Err(String::from(format!(
+        return Err(format!(
             "payload lenght and message Length does no match, len: {}, payload+4: {}",
             len,
             msg_buf.len() + 4,
-        )));
+        ));
     }
     match con.read(&mut msg_buf) {
         Ok(_) => {}

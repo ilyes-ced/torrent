@@ -62,10 +62,7 @@ impl Decoder {
                 self.next()
             }
 
-            _ => Err(String::from(format!(
-                "unknown charecter: {}",
-                self.input[self.cursor]
-            ))),
+            _ => Err(format!("unknown charecter: {}", self.input[self.cursor])),
         }
     }
 
@@ -197,10 +194,10 @@ impl Decoder {
                     break;
                 }
                 _ => {
-                    return Err(String::from(format!(
+                    return Err(format!(
                         "dont know {}, {}",
                         self.cursor, self.input[self.cursor]
-                    )))
+                    ))
                 }
             }
         }
@@ -246,10 +243,10 @@ impl Decoder {
                 self.cursor += 1;
             }
             _ => {
-                return Err(String::from(format!(
+                return Err(format!(
                     "invalid at the start, index: {}, value:{}",
                     self.cursor, self.input[self.cursor]
-                )))
+                ))
             }
         }
         loop {
@@ -263,10 +260,10 @@ impl Decoder {
                     break;
                 }
                 _ => {
-                    return Err(String::from(format!(
+                    return Err(format!(
                         "the pair name attribute isnt of type string index: {}",
                         self.cursor
-                    )))
+                    ))
                 }
             }
         }
@@ -293,10 +290,11 @@ impl Decoder {
 //  broken dict
 //  correct bencode decoding
 //
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn test1() {}
-}
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
+//
+//    #[test]
+//    fn test1() {}
+//}
