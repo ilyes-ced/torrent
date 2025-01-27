@@ -12,7 +12,6 @@ pub struct Torrent {
     pub info: TorrentInfo,
     pub info_hash: [u8; 20],
     pub peer_id: [u8; 20],
-    pub peers: Vec<Peer>,
 }
 
 #[derive(Clone)]
@@ -138,7 +137,6 @@ fn extract_torrent(
         info,
         info_hash,
         peer_id,
-        peers: Vec::new(),
     })
 }
 

@@ -24,11 +24,11 @@ pub(crate) struct Client {
 }
 
 impl Client {
-    pub fn new(torrent: &Torrent, peer_index: usize) -> Result<Self, String> {
+    pub fn new(torrent: &Torrent, peers: &Vec<Peer>, peer_index: usize) -> Result<Self, String> {
         let handshake = Handshake::new(torrent.info_hash, torrent.peer_id).create_handshake();
-        let con = match connect(torrent, peer_index) {
+        let con = match connect(torrent, peers, peer_index) {
             Ok(tcp_stream) => {
-                match complete_handshake(tcp_stream, torrent, handshake, peer_index) {
+                match complete_handshake(tcp_stream, torrent, peers, handshake, peer_index) {
                     Ok(tcp_stream) => tcp_stream,
                     Err(err) => return Err(err),
                 }
@@ -45,7 +45,7 @@ impl Client {
             con,
             choked: true,
             bitfield: Bitfield::new(bitfield.payload),
-            peer: torrent.peers[peer_index].clone(),
+            peer: peers[peer_index].clone(),
         })
     }
 
@@ -77,12 +77,16 @@ impl Client {
     }
 }
 
-pub fn connect(torrent: &Torrent, peer_index: usize) -> Result<TcpStream, String> {
+pub fn connect(
+    torrent: &Torrent,
+    peers: &Vec<Peer>,
+    peer_index: usize,
+) -> Result<TcpStream, String> {
     //connect to tcp and send handshake
     let stream = match TcpStream::connect_timeout(
         &SocketAddr::new(
-            std::net::IpAddr::V4(torrent.peers[peer_index].ip),
-            torrent.peers[peer_index].port,
+            std::net::IpAddr::V4(peers[peer_index].ip),
+            peers[peer_index].port,
         ),
         Duration::from_secs(TIMEOUT_DURATION),
     ) {
@@ -113,6 +117,7 @@ pub fn connect(torrent: &Torrent, peer_index: usize) -> Result<TcpStream, String
 pub fn complete_handshake(
     mut stream: TcpStream,
     torrent: &Torrent,
+    peers: &Vec<Peer>,
     handshake: [u8; 68],
     peer_index: usize,
 ) -> Result<TcpStream, String> {
@@ -152,7 +157,7 @@ pub fn complete_handshake(
     "recieved handshake: from peer: {:?} \n\tprotocol id:{:?} \n\tinfo hash:{:?} \n\tpeer id:{:?}",
     format!(
         "{}:{}",
-        torrent.peers[peer_index].ip, torrent.peers[peer_index].port
+        peers[peer_index].ip, peers[peer_index].port
     ),
     rec_handshake.protocol_id,
     rec_handshake.info_hash,

@@ -37,6 +37,8 @@ sources
 
 ## TODO
 - [x] bencode decoder
+- [x] parse torrent file
+- [x] calculate info hash
 - [x] get peers with tracker
 - [ ] download
     - [x] tcp connection
@@ -51,6 +53,8 @@ sources
 ## extra features to implement
 - [ ] recovery from all types of errors and disconnections
 - [ ] no reliance on announce (implementing DHT)
+- [ ] magnet links
+- [ ] when download is interupted pick off where it started 
 
 
 ## to fix

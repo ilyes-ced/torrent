@@ -112,7 +112,7 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
             } else {
                 // sometimes causes network errors
                 // os 11
-                return Err(format!("ffff {}", e.to_string()));
+                return Err(format!("{}, {:?}", e.to_string(), len_buf));
             }
         }
     };
@@ -145,7 +145,7 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
     // here we can read msg id and ignore it if it is none of MsgIds
     match msg_buf[0] {
         7 => {
-            println!("+++++++++++PIECE msg buf: {:?}", &msg_buf[0..20]);
+            //println!("+++++++++++PIECE msg buf: {:?}", &msg_buf[0..20]);
         }
         0 | 1 | 2 | 3 | 4 | 5 | 6 | 8 => {}
         _ => {
@@ -153,13 +153,13 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
         }
     }
 
-    println!(
-        "------------------------size:{:?}/{}, id: {}, len:{}",
-        len_buf,
-        len,
-        msg_buf[0],
-        msg_buf.len()
-    );
+    //println!(
+    //    "------------------------size:{:?}/{}, id: {}, len:{}",
+    //    len_buf,
+    //    len,
+    //    msg_buf[0],
+    //    msg_buf.len()
+    //);
     Ok(Message {
         id: msg_buf[0],
         payload: msg_buf[1..].to_vec(),

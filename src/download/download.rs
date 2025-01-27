@@ -41,11 +41,10 @@ pub fn start(torrent: Torrent, mut clients: Vec<Client>) -> Result<(), String> {
     let results_arc: Arc<Mutex<Vec<PieceResult>>> = Arc::new(Mutex::new(Vec::new()));
     let mut handles = vec![];
 
-    for mut client in &clients {
-        println!("{:?} => {:?}", client.peer, client.bitfield)
-    }
-
-    thread::sleep(std::time::Duration::from_millis(2000));
+    //for mut client in &clients {
+    //    println!("{:?} => {:?}", client.peer, client.bitfield)
+    //}
+    //thread::sleep(std::time::Duration::from_millis(2000));
 
     //let mut client = clients.remove(0);
     //println!("{:?} => {:?}", client.peer, client.bitfield);
@@ -211,16 +210,12 @@ fn prepare_download(
         }
     );
 
-    //std::process::exit(0);
-
-    //std::process::exit(0);
+    //send have message here after aquiring piece
 
     Ok(PieceResult {
         index: piece.index,
         buf: piece_result.buf,
     })
-
-    // client.bitfield.has_piece(piece.index)
 }
 
 fn download<'a>(
@@ -297,7 +292,7 @@ fn download<'a>(
             },
             Err(err) => {
                 if err != "keep alive signal" {
-                    println!("{}", err)
+                    return Err(err);
                 }
             }
         }
