@@ -65,7 +65,7 @@ impl Message {
             ));
         }
         let begin = u32::from_be_bytes(self.payload[4..8].try_into().unwrap());
-        if begin >= progress.buf.len().try_into().unwrap() {
+        if (begin as usize) >= progress.buf.len() {
             return Err(format!(
                 "begin offset beyond whats available {} >= {}",
                 begin,
@@ -81,16 +81,6 @@ impl Message {
                 progress.buf.len()
             ));
         }
-        std::fs::write("parsed_piece.txt", format!("{:?}", block));
-
-        let mut file = std::fs::OpenOptions::new()
-            .write(true) // Enable writing
-            .append(true) // Enable appending
-            .open("parsed_piece.txt")
-            .unwrap(); // Specify your file name
-
-        // Write data to the file
-        io::Write::write_all(&mut file, block.as_slice()).unwrap(); // Convert string to bytes
 
         Ok((block, begin))
     }
@@ -114,13 +104,15 @@ pub fn to_buf(msg: Option<Message>) -> Vec<u8> {
 pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
     // reads first 4 bytes = lenght of msg
     let mut len_buf = [0; 4];
-    match con.read(&mut len_buf) {
+    match con.read_exact(&mut len_buf) {
         Ok(_) => {}
         Err(e) => {
             if e.kind() == io::ErrorKind::TimedOut {
                 return Err(String::from("read operation timed out!"));
             } else {
-                return Err(e.to_string());
+                // sometimes causes network errors
+                // os 11
+                return Err(format!("ffff {}", e.to_string()));
             }
         }
     };
@@ -132,14 +124,14 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
 
     // reads the rest of the message: id + payload
     let mut msg_buf: Vec<u8> = vec![0; len as usize];
-    if len != msg_buf.len() as u32 {
-        return Err(format!(
-            "payload lenght and message Length does no match, len: {}, payload+4: {}",
-            len,
-            msg_buf.len() + 4,
-        ));
-    }
-    match con.read(&mut msg_buf) {
+    //if len != msg_buf.len() as u32 {
+    //    return Err(format!(
+    //        "payload lenght and message Length does no match, len: {}, payload+4: {}",
+    //        len,
+    //        msg_buf.len() + 4,
+    //    ));
+    //}
+    match con.read_exact(&mut msg_buf) {
         Ok(_) => {}
         Err(e) => {
             if e.kind() == io::ErrorKind::TimedOut {
@@ -150,6 +142,24 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
         }
     };
 
+    // here we can read msg id and ignore it if it is none of MsgIds
+    match msg_buf[0] {
+        7 => {
+            println!("+++++++++++PIECE msg buf: {:?}", &msg_buf[0..20]);
+        }
+        0 | 1 | 2 | 3 | 4 | 5 | 6 | 8 => {}
+        _ => {
+            return Err(format!("unacceptable message id: {}", msg_buf[0]));
+        }
+    }
+
+    println!(
+        "------------------------size:{:?}/{}, id: {}, len:{}",
+        len_buf,
+        len,
+        msg_buf[0],
+        msg_buf.len()
+    );
     Ok(Message {
         id: msg_buf[0],
         payload: msg_buf[1..].to_vec(),

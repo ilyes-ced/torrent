@@ -56,7 +56,7 @@ impl Client {
             id: signal.to_u8(),
             payload: payload.unwrap_or_else(Vec::new),
         });
-        match self.con.write(&to_buf(msg)) {
+        match self.con.write_all(&to_buf(msg)) {
             Ok(_) => {}
             Err(e) => {
                 if e.kind() == io::ErrorKind::TimedOut {
@@ -70,10 +70,10 @@ impl Client {
     }
 
     pub fn read_msg(&mut self) -> Result<Message, String> {
-        let response = match from_buf(&self.con) {
-            Ok(msg) => return Ok(msg),
-            Err(err) => return Err(err),
-        };
+        match from_buf(&self.con) {
+            Ok(msg) => Ok(msg),
+            Err(err) => Err(err),
+        }
     }
 }
 
@@ -117,7 +117,7 @@ pub fn complete_handshake(
     peer_index: usize,
 ) -> Result<TcpStream, String> {
     // send/write handshake
-    match stream.write(&handshake) {
+    match stream.write_all(&handshake) {
         Ok(_) => {}
         Err(e) => {
             if e.kind() == io::ErrorKind::TimedOut {
@@ -131,7 +131,7 @@ pub fn complete_handshake(
     // recieve/read response
     // only reads 68 bytes of responnse // could cause problems i dont know for sure
     let mut buffer = [0; 68];
-    match stream.read(&mut buffer) {
+    match stream.read_exact(&mut buffer) {
         Ok(_) => {}
         Err(e) => {
             if e.kind() == io::ErrorKind::TimedOut {

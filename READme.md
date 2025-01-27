@@ -44,9 +44,13 @@ sources
     - [x] messages
     - [x] pieces
     - [x] managing connections and pieces
-    - [ ] downloading pieces
+    - [x] downloading pieces
     - [ ] writing pieces to files
 
+
+## extra features to implement
+- [ ] recovery from all types of errors and disconnections
+- [ ] no reliance on announce (implementing DHT)
 
 
 ## to fix

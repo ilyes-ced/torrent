@@ -5,6 +5,7 @@ use crate::{
     torrent::Torrent,
 };
 use sha1::{Digest, Sha1};
+use std::io::{self, Write};
 use std::{
     os::unix::process,
     sync::{Arc, Mutex},
@@ -84,7 +85,7 @@ pub fn start(torrent: Torrent, mut clients: Vec<Client>) -> Result<(), String> {
                     //);
                     drop(results_lock);
                     if client.bitfield.has_piece(piece.index as usize) {
-                        println!("??????? client has piece",);
+                        println!("??????? client has piece {}", piece.index);
                         match prepare_download(&mut client, piece) {
                             Ok(piece) => {
                                 // here the result needs to be written to file so it doesnt consume alot of ram
@@ -112,7 +113,9 @@ pub fn start(torrent: Torrent, mut clients: Vec<Client>) -> Result<(), String> {
                         let mut workers_lock =
                             workers_clone.lock().expect("Failed to lock workers");
                         workers_lock.push(piece);
+                        println!("{:?}", workers_lock.len());
                         drop(workers_lock);
+                        // to sleep this thread so others would take the piece (temporary solution)
                         thread::sleep(std::time::Duration::from_millis(1000));
                     }
                 } else {
@@ -175,26 +178,33 @@ fn prepare_download(
     };
 
     // check integrity
-    //let mut hasher = Sha1::new();
-    //hasher.update(&piece_result.buf);
-    //let hash = hasher.finalize();
-    //
-    //println!("---------------------");
-    //println!("{:?}", hash);
-    //println!("{:?}", piece.hash);
-    //println!("---------------------");
-    //
-    //if !(hash == piece.hash.into()) {
-    //    return Err((piece, String::from("integrity check failed")));
-    //}
-    //
-    //println!(
-    //    "--------------------- completed download of piece {} ---------------------",
-    //    piece.index
-    //);
+    let mut hasher = Sha1::new();
+    hasher.update(&piece_result.buf);
+    let hash = hasher.finalize();
+
+    println!("---------------------");
+    println!("{:?}", hash);
+    println!("{:?}", piece.hash);
+    println!("---------------------");
+
+    if !(hash == piece.hash.into()) {
+        return Err((piece, String::from("integrity check failed")));
+    }
 
     println!(
-        "222222222222222222222222222222222222222222222222222222 {:?} ",
+        "--------------------- completed download of piece {} ---------------------",
+        piece.index
+    );
+
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .open("result.txt")
+        .unwrap();
+
+    writeln!(file, "{:?}", piece_result.buf).unwrap();
+
+    println!(
+        "222222222222222222222222222222222222222222222222222222  {:?} ",
         PieceResult {
             index: piece.index,
             buf: [].to_vec(),
@@ -203,9 +213,11 @@ fn prepare_download(
 
     //std::process::exit(0);
 
+    //std::process::exit(0);
+
     Ok(PieceResult {
         index: piece.index,
-        buf: [].to_vec(),
+        buf: piece_result.buf,
     })
 
     // client.bitfield.has_piece(piece.index)
@@ -246,16 +258,16 @@ fn download<'a>(
                 1 => progress.client.choked = false,
                 4 => {
                     // have
-                    //match msg.have() {
-                    //    Ok(index) => {
-                    //        println!("***************************************************** bitfield is being set at {}", index);
-                    //        progress.client.bitfield.set_piece(index as usize);
-                    //    }
-                    //    Err(_) => {
-                    //        // maybe we shouldnt care about this error
-                    //        // return Err(err)
-                    //    }
-                    //}
+                    match msg.have() {
+                        Ok(index) => {
+                            println!("***************************************************** bitfield is being set at {}", index);
+                            progress.client.bitfield.set_piece(index as usize);
+                        }
+                        Err(_) => {
+                            // maybe we shouldnt care about this error
+                            // return Err(err)
+                        }
+                    }
                 }
                 7 => {
                     // piece
@@ -265,7 +277,20 @@ fn download<'a>(
                     };
 
                     progress.downloaded += res_buf.len();
-                    progress.buf.splice((buf_begin as usize).., res_buf);
+
+                    // progress.buf.splice((buf_begin as usize).., res_buf);
+                    let mut file = std::fs::OpenOptions::new()
+                        .write(true)
+                        .append(true)
+                        .open("buffers.txt")
+                        .unwrap();
+
+                    writeln!(file, "{:?}", res_buf).unwrap();
+
+                    for (i, u) in res_buf.iter().enumerate() {
+                        progress.buf[(buf_begin as usize) + i] = *u;
+                    }
+
                     progress.backlog -= 1;
                 }
                 _ => {}
@@ -284,7 +309,7 @@ fn pieces_workers(torrent: &Torrent) -> Vec<PieceWork> {
     // gets all the pieces from the torrent file: (index, hash, lenght)
     let mut pieces_workers: Vec<PieceWork> = Vec::new();
     for (ind, piece_hash) in torrent.info.pieces.iter().enumerate() {
-        let piece_len = calc_piece_len(&torrent, ind);
+        let piece_len = calc_piece_len(torrent, ind);
         pieces_workers.push(PieceWork {
             // would only error if torrent has more than 2³²-1=4,294,967,296 pieces // kind of impossible
             index: ind.try_into().unwrap(),
