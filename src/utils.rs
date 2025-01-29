@@ -1,10 +1,10 @@
-use rand::distributions::{Alphanumeric, DistString};
+use rand::distr::{Alphanumeric, SampleString};
 
 pub fn new_peer_id() -> [u8; 20] {
     //"-IT0001-"+12 random chars
     let mut id = [0; 20];
     id[0..8].copy_from_slice("-IT0001-".as_bytes());
-    let string = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+    let string = Alphanumeric.sample_string(&mut rand::rng(), 12);
     id[8..20].copy_from_slice(string.as_bytes());
     id
 }

@@ -5,7 +5,10 @@ use crate::{
     torrent::Torrent,
 };
 use sha1::{Digest, Sha1};
-use std::io::{self, Write};
+use std::{
+    io::{self, Write},
+    sync::mpsc::Sender,
+};
 use std::{
     os::unix::process,
     sync::{Arc, Mutex},
@@ -13,9 +16,9 @@ use std::{
 };
 
 #[derive(Debug)]
-struct PieceResult {
-    index: u32,
-    buf: Vec<u8>,
+pub struct PieceResult {
+    pub index: u32,
+    pub buf: Vec<u8>,
 }
 #[derive(Debug)]
 struct PieceWork {
@@ -34,67 +37,62 @@ pub struct PieceProgress<'a> {
     pub backlog: usize,
 }
 
-pub fn start(torrent: Torrent, mut clients: Vec<Client>) -> Result<(), String> {
+pub fn start(
+    torrent: Torrent,
+    clients: Vec<Client>,
+    /*  tx: Sender<PieceResult>,*/
+) -> Result<(), String> {
     let pieces = pieces_workers(&torrent);
-    let num_pieces = pieces.len();
+    let num_pieces_arc: Arc<usize> = Arc::new(pieces.len());
     let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces));
-    let results_arc: Arc<Mutex<Vec<PieceResult>>> = Arc::new(Mutex::new(Vec::new()));
+    let results_counter_arc: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
+    //let tx_arc: Arc<Sender<PieceResult>> = Arc::new(tx);
     let mut handles = vec![];
-
-    //for mut client in &clients {
-    //    println!("{:?} => {:?}", client.peer, client.bitfield)
-    //}
-    //thread::sleep(std::time::Duration::from_millis(2000));
-
-    //let mut client = clients.remove(0);
-    //println!("{:?} => {:?}", client.peer, client.bitfield);
-    //thread::sleep(std::time::Duration::from_millis(1000));
 
     for mut client in clients {
         client.send_msg_id(MsgId::UNCHOKE, None)?;
         client.send_msg_id(MsgId::INTRESTED, None)?;
 
         let workers_clone = Arc::clone(&workers_arc);
-        let results_clone = Arc::clone(&results_arc);
+        let results_counter_clone = Arc::clone(&results_counter_arc);
+        let num_pieces_clone = Arc::clone(&num_pieces_arc);
+        //let tx_clone = Arc::clone(&tx_arc);
 
         let handle = thread::spawn(move || {
             println!("----- client {:?} thread starts", client.peer);
-            // take a piece and process it
             loop {
                 let mut workers_lock = workers_clone.lock().expect("Failed to lock workers");
-                let results_lock = results_clone.lock().expect("Failed to lock results");
-                if results_lock.len() == num_pieces {
+                let results_counter_lock = results_counter_clone
+                    .lock()
+                    .expect("Failed to lock results");
+
+                if *results_counter_lock == *num_pieces_clone {
                     println!("6666666666666 all pieces are downloaded");
                     break;
                 }
-                drop(results_lock);
+                drop(results_counter_lock);
                 if !workers_lock.is_empty() {
                     let piece = workers_lock.remove(0);
                     drop(workers_lock);
 
-                    //println!(
-                    //    "Client {:?} is using piece index: {}",
-                    //    client.peer, piece.index
-                    //);
-
-                    let results_lock = results_clone.lock().expect("Failed to lock results");
-                    //println!(
-                    //    "--********//////////////// --> resutls : {}",
-                    //    results_lock.len()
-                    //);
-                    drop(results_lock);
                     if client.bitfield.has_piece(piece.index as usize) {
-                        println!("??????? client has piece {}", piece.index);
+                        println!("client {:?} has piece {}", client.peer, piece.index);
                         match prepare_download(&mut client, piece) {
                             Ok(piece) => {
                                 // here the result needs to be written to file so it doesnt consume alot of ram
-                                let mut results_lock =
-                                    results_clone.lock().expect("Failed to lock results");
-                                results_lock.push(PieceResult {
-                                    index: piece.index,
-                                    buf: Vec::new(),
-                                });
-                                drop(results_lock);
+                                //      let mut results_lock =
+                                //          results_clone.lock().expect("Failed to lock results");
+                                //      results_lock.push(PieceResult {
+                                //          index: piece.index,
+                                //          buf: Vec::new(),
+                                //      });
+
+                                //let _ = tx_clone.send(PieceResult {
+                                //    index: piece.index,
+                                //    buf: Vec::new(),
+                                //});
+
+                                //      drop(results_lock);
                             }
                             Err(err) => {
                                 println!("||||||||||||||||||||||||||||||:: {}", err.1);
@@ -115,6 +113,7 @@ pub fn start(torrent: Torrent, mut clients: Vec<Client>) -> Result<(), String> {
                         println!("{:?}", workers_lock.len());
                         drop(workers_lock);
                         // to sleep this thread so others would take the piece (temporary solution)
+                        // maybe not temporary but there could be a better solution
                         thread::sleep(std::time::Duration::from_millis(1000));
                     }
                 } else {
@@ -132,8 +131,8 @@ pub fn start(torrent: Torrent, mut clients: Vec<Client>) -> Result<(), String> {
     }
 
     // Display results
-    let results_lock = results_arc.lock().unwrap();
-    println!("Results len(): {}", results_lock.len());
+    let results_lock = results_counter_arc.lock().unwrap();
+    println!("Results len(): {}", results_lock);
     let workers_lock = workers_arc.lock().unwrap();
     println!("workers len(): {}", workers_lock.len());
 
@@ -181,10 +180,10 @@ fn prepare_download(
     hasher.update(&piece_result.buf);
     let hash = hasher.finalize();
 
-    println!("---------------------");
-    println!("{:?}", hash);
-    println!("{:?}", piece.hash);
-    println!("---------------------");
+    //println!("---------------------");
+    //println!("{:?}", hash);
+    //println!("{:?}", piece.hash);
+    //println!("---------------------");
 
     if !(hash == piece.hash.into()) {
         return Err((piece, String::from("integrity check failed")));
@@ -195,20 +194,13 @@ fn prepare_download(
         piece.index
     );
 
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .open("result.txt")
-        .unwrap();
-
-    writeln!(file, "{:?}", piece_result.buf).unwrap();
-
-    println!(
-        "222222222222222222222222222222222222222222222222222222  {:?} ",
-        PieceResult {
-            index: piece.index,
-            buf: [].to_vec(),
-        }
-    );
+    //println!(
+    //    "222222222222222222222222222222222222222222222222222222  {:?} ",
+    //    PieceResult {
+    //        index: piece.index,
+    //        buf: [].to_vec(),
+    //    }
+    //);
 
     //send have message here after aquiring piece
 
@@ -287,6 +279,11 @@ fn download<'a>(
                     }
 
                     progress.backlog -= 1;
+                }
+                6 => {
+                    // TODO: implement seeding
+                    // for request messages
+                    // implement it to seed files
                 }
                 _ => {}
             },

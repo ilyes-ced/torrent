@@ -51,11 +51,17 @@ sources
 
 
 ## extra features to implement
-- [ ] recovery from all types of errors and disconnections
+- [ ] recovery from all types of errors and disconnections (no unwraps in this app should be left)
 - [ ] no reliance on announce (implementing DHT)
 - [ ] magnet links
 - [ ] when download is interupted pick off where it started 
 
+
+## Errors:
+- [ ] Resource temporarily unavailable (os error 11) ---> (message.rs line:107-y)
+- [ ] failed to fill whole buffer ---> (message.rs line:127)
+- [ ] Broken pipe (os error 32)
+- [ ] insane CPU usage almost 100% (i5 8600k)
 
 ## to fix
 - [ ] add documentation

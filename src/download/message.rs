@@ -111,7 +111,7 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
                 return Err(String::from("read operation timed out!"));
             } else {
                 // sometimes causes network errors
-                // os 11
+                // Resource temporarily unavailable (os error 11)
                 return Err(format!("{}, {:?}", e.to_string(), len_buf));
             }
         }
@@ -124,14 +124,9 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
 
     // reads the rest of the message: id + payload
     let mut msg_buf: Vec<u8> = vec![0; len as usize];
-    //if len != msg_buf.len() as u32 {
-    //    return Err(format!(
-    //        "payload lenght and message Length does no match, len: {}, payload+4: {}",
-    //        len,
-    //        msg_buf.len() + 4,
-    //    ));
-    //}
     match con.read_exact(&mut msg_buf) {
+        // sometimes causes errors
+        // cant read full buffer
         Ok(_) => {}
         Err(e) => {
             if e.kind() == io::ErrorKind::TimedOut {

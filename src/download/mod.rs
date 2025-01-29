@@ -1,7 +1,9 @@
+use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
 use client::Client;
+use download::PieceResult;
 
 use crate::peers::Peer;
 use crate::torrent::Torrent;
@@ -29,6 +31,7 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
             "starting handshake with peer {index_clone}: {:?}",
             peers_clone[index_clone]
         );
+        // creates the clients
         let handle =
             thread::spawn(
                 move || match Client::new(&torrent_clone, &peers_clone, index_clone) {
@@ -64,7 +67,18 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
     //    println!("ip of client:  {:?}", client.peer);
     //}
 
-    let _download = download::start(torrent, clients);
+    //let (tx, rx) = channel::<PieceResult>();
+
+    let _download = download::start(torrent, clients /* , tx*/);
+
+    // mscp channel for finished pieces
+    //thread::spawn(move || {
+    //    let finished_piece = rx.recv().unwrap();
+    //    println!(
+    //        "!!!!!!--------------------- recieved completed download of piece {} ---------------------!!!!!!",
+    //        finished_piece.index
+    //    );
+    //});
 
     Ok(String::new())
 }
