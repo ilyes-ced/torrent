@@ -1,14 +1,15 @@
+// commented out messages are not needed
 #[derive(Debug)]
 pub enum MsgId {
-    CHOKE = 0,
+    // CHOKE = 0,
     UNCHOKE = 1,
-    INTRESTED = 2,
-    NOTINTRESTED = 3,
+    INTERESTED = 2,
+    // NOTINTRESTED = 3,
     HAVE = 4,
-    BITFIELD = 5,
+    // BITFIELD = 5,
     REQUEST = 6,
     PIECE = 7,
-    CANCEL = 8,
+    // CANCEL = 8,
 }
 impl MsgId {
     pub fn to_u8(self) -> u8 {
@@ -19,7 +20,7 @@ impl MsgId {
 // tcp connection timeout
 // set to a small value for easier/faster debugging
 // maybe set it to 10 in production
-pub(crate) const TIMEOUT_DURATION: u64 = 3; // in secods
+pub(crate) const TIMEOUT_DURATION: u64 = 3; // in seconds
 
 pub(crate) const PORT: u16 = 6881;
 

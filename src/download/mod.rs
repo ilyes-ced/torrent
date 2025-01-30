@@ -1,5 +1,4 @@
-use std::sync::mpsc::channel;
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc::channel, Arc, Mutex};
 use std::thread;
 
 use client::Client;
@@ -67,18 +66,19 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
     //    println!("ip of client:  {:?}", client.peer);
     //}
 
-    //let (tx, rx) = channel::<PieceResult>();
-
-    let _download = download::start(torrent, clients /* , tx*/);
-
+    let (tx, rx) = channel::<PieceResult>();
     // mscp channel for finished pieces
-    //thread::spawn(move || {
-    //    let finished_piece = rx.recv().unwrap();
-    //    println!(
-    //        "!!!!!!--------------------- recieved completed download of piece {} ---------------------!!!!!!",
-    //        finished_piece.index
-    //    );
-    //});
+    let handle = thread::spawn(move || loop {
+        // here we write data to file
+        let finished_piece = rx.recv().unwrap();
+        println!(
+            "!!!!!!--------------------- received completed download of piece {} ---------------------!!!!!!",
+            finished_piece.index
+        );
+    });
 
+    let _download = download::start(torrent, clients, tx);
+
+    handle.join().unwrap();
     Ok(String::new())
 }

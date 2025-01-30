@@ -112,7 +112,7 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
             } else {
                 // sometimes causes network errors
                 // Resource temporarily unavailable (os error 11)
-                return Err(format!("{}, {:?}", e.to_string(), len_buf));
+                return Err(format!("{}, {:?}", e.to_string(), con.peer_addr()));
             }
         }
     };
@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn test_have_wrong_id() {
         let message = Message {
-            id: MsgId::INTRESTED.to_u8(),
+            id: MsgId::INTERESTED.to_u8(),
             payload: vec![0, 0, 0, 1],
         };
 

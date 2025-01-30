@@ -1,6 +1,7 @@
 mod bencode;
 mod constants;
 mod download;
+mod error;
 mod log;
 mod peers;
 mod torrent;

@@ -120,7 +120,7 @@ impl Decoder {
             }
             self.cursor += 1;
         }
-        // return cursor to orginal place
+        // return cursor to original place
         // remove start d and end e
         //info_bin.remove(0);
         //info_bin.pop();
@@ -148,7 +148,6 @@ impl Decoder {
                 let result = hasher.finalize();
                 self.info_hash = result.into();
 
-                let _ = std::fs::write("output.txt", info_binary);
                 self.cursor = original_cursor;
             }
 

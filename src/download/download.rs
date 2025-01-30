@@ -40,23 +40,23 @@ pub struct PieceProgress<'a> {
 pub fn start(
     torrent: Torrent,
     clients: Vec<Client>,
-    /*  tx: Sender<PieceResult>,*/
+    tx: Sender<PieceResult>,
 ) -> Result<(), String> {
     let pieces = pieces_workers(&torrent);
     let num_pieces_arc: Arc<usize> = Arc::new(pieces.len());
     let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces));
     let results_counter_arc: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
-    //let tx_arc: Arc<Sender<PieceResult>> = Arc::new(tx);
+    let tx_arc: Arc<Sender<PieceResult>> = Arc::new(tx);
     let mut handles = vec![];
 
     for mut client in clients {
         client.send_msg_id(MsgId::UNCHOKE, None)?;
-        client.send_msg_id(MsgId::INTRESTED, None)?;
+        client.send_msg_id(MsgId::INTERESTED, None)?;
 
         let workers_clone = Arc::clone(&workers_arc);
         let results_counter_clone = Arc::clone(&results_counter_arc);
         let num_pieces_clone = Arc::clone(&num_pieces_arc);
-        //let tx_clone = Arc::clone(&tx_arc);
+        let tx_clone = Arc::clone(&tx_arc);
 
         let handle = thread::spawn(move || {
             println!("----- client {:?} thread starts", client.peer);
@@ -87,10 +87,10 @@ pub fn start(
                                 //          buf: Vec::new(),
                                 //      });
 
-                                //let _ = tx_clone.send(PieceResult {
-                                //    index: piece.index,
-                                //    buf: Vec::new(),
-                                //});
+                                let _ = tx_clone.send(PieceResult {
+                                    index: piece.index,
+                                    buf: Vec::new(),
+                                });
 
                                 //      drop(results_lock);
                             }
@@ -152,22 +152,7 @@ fn prepare_download(
         backlog: 0,
     };
 
-    // check availability on bitfield
-
-    //println!("{:?}", progress);
-    //println!("******************");
-    //println!(
-    //    "{} \n {}",
-    //    progress.client.bitfield,
-    //    progress.client.bitfield.has_piece(piece.index as usize)
-    //);
-    //println!("******************");
-    // bad/needs change because when a client doesnt have a piece we keep asking him for it
-    //if !progress.client.bitfield.has_piece(piece.index as usize) {
-    //    return Err((piece, String::from("client does not have this piece")));
-    //}
-
-    //// download
+    // download
     let piece_result = match download(progress, &piece) {
         Ok(piece) => piece,
         Err(err) => {
@@ -179,30 +164,9 @@ fn prepare_download(
     let mut hasher = Sha1::new();
     hasher.update(&piece_result.buf);
     let hash = hasher.finalize();
-
-    //println!("---------------------");
-    //println!("{:?}", hash);
-    //println!("{:?}", piece.hash);
-    //println!("---------------------");
-
     if !(hash == piece.hash.into()) {
         return Err((piece, String::from("integrity check failed")));
     }
-
-    println!(
-        "--------------------- completed download of piece {} ---------------------",
-        piece.index
-    );
-
-    //println!(
-    //    "222222222222222222222222222222222222222222222222222222  {:?} ",
-    //    PieceResult {
-    //        index: piece.index,
-    //        buf: [].to_vec(),
-    //    }
-    //);
-
-    //send have message here after aquiring piece
 
     Ok(PieceResult {
         index: piece.index,
@@ -247,7 +211,6 @@ fn download<'a>(
                     // have
                     match msg.have() {
                         Ok(index) => {
-                            println!("***************************************************** bitfield is being set at {}", index);
                             progress.client.bitfield.set_piece(index as usize);
                         }
                         Err(_) => {
@@ -264,15 +227,6 @@ fn download<'a>(
                     };
 
                     progress.downloaded += res_buf.len();
-
-                    // progress.buf.splice((buf_begin as usize).., res_buf);
-                    let mut file = std::fs::OpenOptions::new()
-                        .write(true)
-                        .append(true)
-                        .open("buffers.txt")
-                        .unwrap();
-
-                    writeln!(file, "{:?}", res_buf).unwrap();
 
                     for (i, u) in res_buf.iter().enumerate() {
                         progress.buf[(buf_begin as usize) + i] = *u;
