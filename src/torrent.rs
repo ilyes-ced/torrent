@@ -1,7 +1,15 @@
+use crate::bencode::DecoderResults;
 use serde_json::Value;
 use std::fmt;
 
-use crate::{bencode::DecoderResults, peers::Peer};
+#[derive(Clone)]
+pub enum FileInfo {
+    // single file: length
+    Single(u64),
+    // multiple files: array[Dir:[path1,path2....]+length]
+    Multiple(Vec<Files>),
+}
+
 #[derive(Clone)]
 pub struct Torrent {
     pub announce: String,
@@ -20,13 +28,14 @@ pub struct TorrentInfo {
     pub pieces: Vec<[u8; 20]>,
     pub piece_length: u64,
     //only if there is 1 file
-    pub length: Option<u64>,
-    // only used when there is more than 1 file
-    pub files: Option<Vec<TorrentFile>>,
+    // pub length: Option<u64>,
+    //only used when there is more than 1 file
+    // pub files: Option<Vec<TorrentFile>>,
+    pub files: FileInfo,
 }
 
 #[derive(Clone)]
-pub struct TorrentFile {
+pub struct Files {
     pub paths: Vec<String>,
     pub length: u64,
 }
@@ -34,7 +43,7 @@ pub struct TorrentFile {
 impl Torrent {
     pub fn new(data: DecoderResults, peer_id: [u8; 20]) -> Result<Torrent, String> {
         let json_object: Value = serde_json::from_str(&data.result).unwrap();
-        let result = extract_torrent(&json_object, data.info_hash, peer_id).unwrap();
+        let result = extract_torrent_data(&json_object, data.info_hash, peer_id).unwrap();
 
         //println!("{}", object["info"]);
         println!("{}", result);
@@ -43,7 +52,7 @@ impl Torrent {
     }
 }
 
-fn extract_torrent(
+fn extract_torrent_data(
     json_object: &Value,
     info_hash: [u8; 20],
     peer_id: [u8; 20],
@@ -100,12 +109,11 @@ fn extract_torrent(
         piece_length: info_value["piece length"]
             .as_u64()
             .ok_or("Missing or invalid piece_length in info")?,
-        length: info_value.get("length").and_then(Value::as_u64),
-        files: if let Some(files_value) = info_value.get("files").and_then(Value::as_array) {
-            let files = files_value
+        files: if let Some(elements) = info_value.get("files").and_then(Value::as_array) {
+            let test: Vec<Files> = elements
                 .iter()
                 .map(|file_value| {
-                    Ok(TorrentFile {
+                    Ok(Files {
                         paths: file_value["path"]
                             .as_array()
                             .map(|paths| {
@@ -121,10 +129,13 @@ fn extract_torrent(
                             .ok_or("Missing or invalid length in file")?,
                     })
                 })
-                .collect::<Result<Vec<TorrentFile>, String>>()?;
-            Some(files)
+                .collect::<Result<Vec<Files>, String>>()
+                .unwrap();
+
+            FileInfo::Multiple(test)
         } else {
-            None
+            // todo: handle error
+            FileInfo::Single(info_value.get("length").and_then(Value::as_u64).unwrap())
         },
     };
 
@@ -173,31 +184,42 @@ impl fmt::Display for Torrent {
 impl fmt::Display for TorrentInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let files_info = match &self.files {
-            Some(files) => files
-                .iter()
-                .map(|file| file.to_string()) // Call Display on each TorrentFile
-                .collect::<Vec<String>>()
-                .join("\n\t\t"), // Join with new line
-            None => "No files available".to_string(),
+            FileInfo::Single(length) => format!("Single file: length: {}", length.to_string()),
+            FileInfo::Multiple(files) => {
+                let mut names = String::new();
+                for file in files {
+                    names.push_str(&format!(
+                        "length:{}, file: \n\t\t",
+                        file.length.to_string().as_str()
+                    ));
+                    for path in &file.paths {
+                        names.push_str(path);
+                        names.push_str("/");
+                    }
+                    names.pop();
+                    names.push('\n');
+                    names.push('\t');
+                    names.push('\t');
+                }
+                names
+            }
         };
         write!(
             f,
             "\tName: {}\n\
                      \tPieces: [{:?} . . . . {:?}] \n\
                      \tPiece length: {}\n\
-                     \tlength: {:?}\n\
                      \tFiles: \n\t\t{}",
             self.name,
             self.pieces[0],
             self.pieces[self.pieces.len() - 1],
             self.piece_length,
-            self.length,
             files_info
         )
     }
 }
 
-impl fmt::Display for TorrentFile {
+impl fmt::Display for Files {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Paths: {:?}, length: {}", self.paths, self.length)
     }

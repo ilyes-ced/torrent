@@ -48,6 +48,7 @@ sources
     - [x] managing connections and pieces
     - [x] downloading pieces
     - [ ] writing pieces to files
+    - [ ] make it work with both single file and multiple files torrents
 
 
 ## extra features to implement
@@ -85,3 +86,4 @@ writeln!(file, "{:?}", res_buf).unwrap();
 - [ ] add documentation
 - [ ] add all errors handling
 - [ ] add all components tests
+- [ ] some Peers responses come out as binary instead of text of Ip addresses (maybe change it to udp (https://www.bittorrent.org/beps/bep_0015.html))

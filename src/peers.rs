@@ -27,6 +27,7 @@ impl Peer {
         let url = build_http_url(torrent_data, peer_id).unwrap();
         // todo: add error handling for in case disconnected
         let result = send_request(url).unwrap();
+        println!("{}", result);
         let decoded_response = Decoder::new(result.as_bytes()).start().unwrap();
 
         let json_response: Value = serde_json::from_str(&decoded_response.result).unwrap();

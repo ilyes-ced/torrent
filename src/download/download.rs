@@ -168,6 +168,14 @@ fn prepare_download(
         return Err((piece, String::from("integrity check failed")));
     }
 
+    //let mut file = std::fs::OpenOptions::new()
+    //    .write(true)
+    //    .append(true)
+    //    .open("first_piece.txt")
+    //    .unwrap();
+    //writeln!(file, "{:?}", piece_result.buf).unwrap();
+    //std::process::exit(0);
+
     Ok(PieceResult {
         index: piece.index,
         buf: piece_result.buf,
@@ -266,13 +274,21 @@ fn pieces_workers(torrent: &Torrent) -> Vec<PieceWork> {
     pieces_workers
 }
 
+// todo: now its made for only 1 file
 fn calc_piece_len(torrent: &Torrent, ind: usize) -> usize {
     let begin = ind * torrent.info.piece_length as usize;
     let mut end = begin + torrent.info.piece_length as usize;
-    if end > torrent.info.length.unwrap() as usize {
-        end = torrent.info.length.unwrap() as usize
-    }
-    let res = end - begin;
-    //println!("{} ===> {:?} ===> {}", ind, piece_hash, res);
-    res
+    let files = match &torrent.info.files {
+        crate::torrent::FileInfo::Single(length) => {
+            if end > *length as usize {
+                end = *length as usize
+            }
+            end - begin
+        }
+        crate::torrent::FileInfo::Multiple(items) => {
+            println!("BIG errorrrrrrrr");
+            std::process::exit(0)
+        }
+    };
+    files
 }

@@ -62,7 +62,7 @@ impl Decoder {
                 self.next()
             }
 
-            _ => Err(format!("unknown charecter: {}", self.input[self.cursor])),
+            _ => Err(format!("unknown character: {}", self.input[self.cursor])),
         }
     }
 
@@ -144,10 +144,9 @@ impl Decoder {
 
                 // hashing
                 let mut hasher = Sha1::new();
-                hasher.update(info_binary.clone());
+                hasher.update(info_binary);
                 let result = hasher.finalize();
                 self.info_hash = result.into();
-
                 self.cursor = original_cursor;
             }
 
@@ -204,9 +203,9 @@ impl Decoder {
         Ok(concat(&value))
     }
     fn get_string(&mut self) -> Result<String, String> {
-        let lenght = self.get_string_len();
+        let length = self.get_string_len();
         let mut string: Vec<u8> = Vec::new();
-        match lenght {
+        match length {
             Ok(len) => {
                 for _ in 0..len {
                     string.push(self.input[self.cursor]);
