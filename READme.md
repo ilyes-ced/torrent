@@ -62,6 +62,7 @@ sources
 - [ ] Resource temporarily unavailable (os error 11) ---> (message.rs line:107)
 - [ ] failed to fill whole buffer ---> (message.rs line:127)
 - [ ] Broken pipe (os error 32)
+- [ ] receiving pieces in the wrong order "expected index: 44, got: 9"
 - [x] insane CPU usage almost 100% (i5 8600k):
 ```rust
 // this one was caused because of this code block which was ran everytime we receieved a PIECE message from a peer
@@ -78,6 +79,7 @@ writeln!(file, "{:?}", res_buf).unwrap();
 ```
 
 ## to fix
+- [ ] some Peers responses come out as binary instead of text of Ip addresses (maybe change it to udp (https://www.bittorrent.org/beps/bep_0015.html))
 - [ ] refactor and improve naming 
 - [ ] divide code to more functions for better testing
 - [ ] add connection resets in case of connection errors (using MSCP channels maybe)
@@ -86,4 +88,3 @@ writeln!(file, "{:?}", res_buf).unwrap();
 - [ ] add documentation
 - [ ] add all errors handling
 - [ ] add all components tests
-- [ ] some Peers responses come out as binary instead of text of Ip addresses (maybe change it to udp (https://www.bittorrent.org/beps/bep_0015.html))

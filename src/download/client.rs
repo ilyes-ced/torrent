@@ -21,20 +21,15 @@ pub(crate) struct Client {
     pub choked: bool,
     pub bitfield: Bitfield,
     pub peer: Peer,
+    pub handshake: [u8; 68],
+    pub info_hash: [u8; 20],
 }
 
 impl Client {
-    pub fn new(torrent: &Torrent, peers: &Vec<Peer>, peer_index: usize) -> Result<Self, String> {
+    pub fn new(torrent: &Torrent, peer: &Peer) -> Result<Self, String> {
         let handshake = Handshake::new(torrent.info_hash, torrent.peer_id).create_handshake();
-        let con = match connect(torrent, peers, peer_index) {
-            Ok(tcp_stream) => {
-                match complete_handshake(tcp_stream, torrent, peers, handshake, peer_index) {
-                    Ok(tcp_stream) => tcp_stream,
-                    Err(err) => return Err(err),
-                }
-            }
-            Err(err) => return Err(err),
-        };
+
+        let con = connect(peer, torrent.info_hash, handshake)?;
 
         let bitfield = match bitfield(&con) {
             Ok(msg) => msg,
@@ -45,8 +40,44 @@ impl Client {
             con,
             choked: true,
             bitfield: Bitfield::new(bitfield.payload),
-            peer: peers[peer_index].clone(),
+            peer: peer.clone(),
+            handshake,
+            info_hash: torrent.info_hash,
         })
+    }
+
+    pub fn restart_con(&mut self) -> Result<(), String> {
+        println!("*******************************");
+        println!("*******************************");
+        println!("restarting connection with peer: {:?}", self.peer);
+        println!("*******************************");
+        println!("*******************************");
+
+        if let Err(e) = self.con.shutdown(std::net::Shutdown::Both) {
+            match e.kind() {
+                io::ErrorKind::NotConnected => {
+                    // Already disconnected.  That's fine.
+                    println!("peer {:?} is already disconnected", self.peer);
+                }
+                _ => {
+                    println!("Error shutting down connection: {}", e);
+                }
+            }
+        }
+        //  self.con.shutdown(std::net::Shutdown::Both).unwrap();
+
+        let con = connect(&self.peer, self.info_hash, self.handshake).unwrap();
+
+        match bitfield(&con) {
+            Ok(msg) => self.bitfield = Bitfield::new(msg.payload),
+            Err(err) => return Err(err),
+        };
+        println!("*******************************");
+        println!("*******************************");
+        println!("restarted connection with peer: {:?}", self.peer);
+        println!("*******************************");
+        println!("*******************************");
+        Ok(())
     }
 
     // sends Messages of CHOKE/INTRESTED/REQUEST/.../...
@@ -77,17 +108,10 @@ impl Client {
     }
 }
 
-pub fn connect(
-    torrent: &Torrent,
-    peers: &Vec<Peer>,
-    peer_index: usize,
-) -> Result<TcpStream, String> {
+pub fn connect(peer: &Peer, info_hash: [u8; 20], handshake: [u8; 68]) -> Result<TcpStream, String> {
     //connect to tcp and send handshake
     let stream = match TcpStream::connect_timeout(
-        &SocketAddr::new(
-            std::net::IpAddr::V4(peers[peer_index].ip),
-            peers[peer_index].port,
-        ),
+        &SocketAddr::new(std::net::IpAddr::V4(peer.ip), peer.port),
         Duration::from_secs(TIMEOUT_DURATION),
     ) {
         Ok(con) => con,
@@ -110,16 +134,17 @@ pub fn connect(
         Err(err) => return Err(err.to_string()),
     };
 
-    // return the connection
-    Ok(stream)
+    match complete_handshake(stream, info_hash, peer, handshake) {
+        Ok(tcp_stream) => Ok(tcp_stream),
+        Err(err) => return Err(err),
+    }
 }
 
 pub fn complete_handshake(
     mut stream: TcpStream,
-    torrent: &Torrent,
-    peers: &Vec<Peer>,
+    info_hash: [u8; 20],
+    peer: &Peer,
     handshake: [u8; 68],
-    peer_index: usize,
 ) -> Result<TcpStream, String> {
     // send/write handshake
     match stream.write_all(&handshake) {
@@ -149,7 +174,7 @@ pub fn complete_handshake(
     let response = buffer;
     let rec_handshake = match handshake::read_handshake(response) {
         Ok(handshake) => handshake,
-        Err(_) => return Err(String::from("error recieving the handshake")),
+        Err(_) => return Err(String::from("error receiving the handshake")),
     };
 
     println!("-----------------------------------------");
@@ -157,7 +182,7 @@ pub fn complete_handshake(
     "recieved handshake: from peer: {:?} \n\tprotocol id:{:?} \n\tinfo hash:{:?} \n\tpeer id:{:?}",
     format!(
         "{}:{}",
-        peers[peer_index].ip, peers[peer_index].port
+        peer.ip, peer.port
     ),
     rec_handshake.protocol_id,
     rec_handshake.info_hash,
@@ -165,7 +190,7 @@ pub fn complete_handshake(
 );
     println!("-----------------------------------------");
 
-    if rec_handshake.info_hash == torrent.info_hash {
+    if rec_handshake.info_hash == info_hash {
         // seccuss continue the cmmunication
         println!("successfull handshake");
         Ok(stream)

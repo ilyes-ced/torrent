@@ -112,7 +112,8 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
             } else {
                 // sometimes causes network errors
                 // Resource temporarily unavailable (os error 11)
-                return Err(format!("{}, {:?}", e.to_string(), con.peer_addr()));
+                //return Err(format!("{}, {:?}", e.to_string(), con.peer_addr()));
+                return Err(e.to_string());
             }
         }
     };

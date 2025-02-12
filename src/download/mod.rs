@@ -33,7 +33,7 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
         // creates the clients
         let handle =
             thread::spawn(
-                move || match Client::new(&torrent_clone, &peers_clone, index_clone) {
+                move || match Client::new(&torrent_clone, &peers_clone[index_clone]) {
                     Ok(client) => {
                         let mut lock = clients_clone.lock().unwrap();
                         lock.push(client);
