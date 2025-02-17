@@ -95,53 +95,10 @@ pub fn start(
                                 //      drop(results_lock);
                             }
                             Err(err) => {
-                                if err.1 == "Resource temporarily unavailable (os error 11)" {
-                                    let mut counter = 0;
-                                    'outer: loop {
-                                        match client.restart_con() {
-                                            Ok(_) => break 'outer,
-                                            Err(_) => {
-                                                warning(
-                                                    "*************** increased counter "
-                                                        .to_string(),
-                                                );
-                                                counter += 1
-                                            }
-                                        }
-                                    }
-                                    if counter > 3 {
-                                        error(format!("client {:?} restarted 3 times and it didnt work client will be dropped", client.peer));
-                                        error("************************************************************".to_string());
-                                        error("************************************************************".to_string());
-                                        error("************************************************************".to_string());
-                                        error("************************************************************".to_string());
-                                        error(err.1.clone());
-                                        break;
-                                    }
-                                } else if err.1 == "failed to fill whole buffer" {
-                                    let mut counter = 0;
-                                    'outer: loop {
-                                        match client.restart_con() {
-                                            Ok(_) => break 'outer,
-                                            Err(_) => {
-                                                warning(
-                                                    "*************** increased counter "
-                                                        .to_string(),
-                                                );
-                                                counter += 1
-                                            }
-                                        }
-                                    }
-                                    if counter > 3 {
-                                        error(format!("client {:?} restarted 3 times and it didnt work client will be dropped", client.peer));
-                                        error("************************************************************".to_string());
-                                        error("************************************************************".to_string());
-                                        error("************************************************************".to_string());
-                                        error("************************************************************".to_string());
-                                        error(err.1.clone());
-                                        break;
-                                    }
-                                } else if err.1 == "Broken pipe (os error 32)" {
+                                if err.1 == "Resource temporarily unavailable (os error 11)"
+                                    || err.1 == "failed to fill whole buffer"
+                                    || err.1 == "Broken pipe (os error 32)"
+                                {
                                     let mut counter = 0;
                                     'outer: loop {
                                         match client.restart_con() {

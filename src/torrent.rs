@@ -167,28 +167,34 @@ impl fmt::Display for Torrent {
             self.created_by,
             self.info_hash
                 .iter()
-                .map(|b| format!("{:02x}", b)) // Format each byte as two-digit hex
-                .collect::<Vec<String>>() // Collect into a vector of strings
+                .map(|b| format!("{:02x}", b))
+                .collect::<Vec<String>>()
                 .join(" "),
             self.info_hash
                 .iter()
-                .map(|b| format!("{}", b)) // Format each byte as two-digit hex
-                .collect::<Vec<String>>() // Collect into a vector of strings
+                .map(|b| format!("{}", b))
+                .collect::<Vec<String>>()
                 .join(" "),
             self.info,
-        ) // You may need to implement Display for TorrentInfo as well
+        )
     }
 }
 
 impl fmt::Display for TorrentInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let files_info = match &self.files {
-            FileInfo::Single(length) => format!("Single file: length: {}", length.to_string()),
+            FileInfo::Single(length) => {
+                format!(
+                    "Single file: {} \n\t\tlength: {}",
+                    self.name,
+                    length.to_string()
+                )
+            }
             FileInfo::Multiple(files) => {
                 let mut names = String::new();
                 for file in files {
                     names.push_str(&format!(
-                        "length:{}, file: \n\t\t",
+                        "length:{}, file: \n\t\t\t",
                         file.length.to_string().as_str()
                     ));
                     for path in &file.paths {
