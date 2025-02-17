@@ -13,7 +13,7 @@ enum Color {
 pub fn info(msg: String) {
     println!(
         "{} {} {}",
-        time_date(),
+        color(time_date(), Color::Blue),
         color("[ INFO ]".to_string(), Color::Blue),
         color(msg, Color::Blue),
     );
@@ -21,7 +21,7 @@ pub fn info(msg: String) {
 pub fn debug(msg: String) {
     println!(
         "{} {} {}",
-        time_date(),
+        color(time_date(), Color::Green),
         color("[ DEBUG ]".to_string(), Color::Green),
         color(msg, Color::Green),
     );
@@ -29,7 +29,7 @@ pub fn debug(msg: String) {
 pub fn warning(msg: String) {
     println!(
         "{} {} {}",
-        time_date(),
+        color(time_date(), Color::Yellow),
         color("[ WARNING ]".to_string(), Color::Yellow),
         color(msg, Color::Yellow),
     );
@@ -37,7 +37,7 @@ pub fn warning(msg: String) {
 pub fn error(msg: String) {
     println!(
         "{} {} {}",
-        time_date(),
+        color(time_date(), Color::Red),
         color("[ ERROR ]".to_string(), Color::Red),
         color(msg, Color::Red),
     );

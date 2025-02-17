@@ -1,16 +1,12 @@
 use super::Client;
 use crate::{
     constants::{MsgId, MAX_BACKLOG, MAX_BLOCK_SIZE},
-    peers::Peer,
+    log::{debug, error, info, warning},
     torrent::Torrent,
 };
 use sha1::{Digest, Sha1};
+use std::sync::mpsc::Sender;
 use std::{
-    io::{self, Write},
-    sync::mpsc::Sender,
-};
-use std::{
-    os::unix::process,
     sync::{Arc, Mutex},
     thread,
 };
@@ -59,7 +55,7 @@ pub fn start(
         let tx_clone = Arc::clone(&tx_arc);
 
         let handle = thread::spawn(move || {
-            println!("----- client {:?} thread starts", client.peer);
+            info(format!("----- client {:?} thread starts", client.peer));
             loop {
                 let mut workers_lock = workers_clone.lock().expect("Failed to lock workers");
                 let results_counter_lock = results_counter_clone
@@ -67,16 +63,20 @@ pub fn start(
                     .expect("Failed to lock results");
 
                 if *results_counter_lock == *num_pieces_clone {
-                    println!("6666666666666 all pieces are downloaded");
+                    info("6666666666666 all pieces are downloaded".to_string());
                     break;
                 }
                 drop(results_counter_lock);
                 if !workers_lock.is_empty() {
+                    warning(format!("number of workers left: {}", workers_lock.len()));
                     let piece = workers_lock.remove(0);
                     drop(workers_lock);
 
                     if client.bitfield.has_piece(piece.index as usize) {
-                        println!("client {:?} has piece {}", client.peer, piece.index);
+                        info(format!(
+                            "client {:?} has piece {}",
+                            client.peer, piece.index
+                        ));
                         match prepare_download(&mut client, piece) {
                             Ok(piece) => {
                                 // here the result needs to be written to file so it doesnt consume alot of ram
@@ -95,32 +95,77 @@ pub fn start(
                                 //      drop(results_lock);
                             }
                             Err(err) => {
-                                println!("||||||||||||||||||||||||||||||:: {}", err.1);
                                 if err.1 == "Resource temporarily unavailable (os error 11)" {
-                                    println!("000000000000000000000000000000000000000000000");
-                                    println!("000000000000000000000000000000000000000000000");
-                                    println!("000000000000000000000000000000000000000000000");
-                                    println!("000000000000000000000000000000000000000000000");
-                                    println!("000000000000000000000000000000000000000000000");
-                                    println!("000000000000000000000000000000000000000000000");
-                                    let _ = client.restart_con();
+                                    let mut counter = 0;
+                                    'outer: loop {
+                                        match client.restart_con() {
+                                            Ok(_) => break 'outer,
+                                            Err(_) => {
+                                                warning(
+                                                    "*************** increased counter "
+                                                        .to_string(),
+                                                );
+                                                counter += 1
+                                            }
+                                        }
+                                    }
+                                    if counter > 3 {
+                                        error(format!("client {:?} restarted 3 times and it didnt work client will be dropped", client.peer));
+                                        error("************************************************************".to_string());
+                                        error("************************************************************".to_string());
+                                        error("************************************************************".to_string());
+                                        error("************************************************************".to_string());
+                                        error(err.1.clone());
+                                        break;
+                                    }
                                 } else if err.1 == "failed to fill whole buffer" {
-                                    println!("111111111111111111111111111111111111111111111");
-                                    println!("111111111111111111111111111111111111111111111");
-                                    println!("111111111111111111111111111111111111111111111");
-                                    println!("111111111111111111111111111111111111111111111");
-                                    println!("111111111111111111111111111111111111111111111");
-                                    println!("111111111111111111111111111111111111111111111");
-                                    let _ = client.restart_con();
+                                    let mut counter = 0;
+                                    'outer: loop {
+                                        match client.restart_con() {
+                                            Ok(_) => break 'outer,
+                                            Err(_) => {
+                                                warning(
+                                                    "*************** increased counter "
+                                                        .to_string(),
+                                                );
+                                                counter += 1
+                                            }
+                                        }
+                                    }
+                                    if counter > 3 {
+                                        error(format!("client {:?} restarted 3 times and it didnt work client will be dropped", client.peer));
+                                        error("************************************************************".to_string());
+                                        error("************************************************************".to_string());
+                                        error("************************************************************".to_string());
+                                        error("************************************************************".to_string());
+                                        error(err.1.clone());
+                                        break;
+                                    }
                                 } else if err.1 == "Broken pipe (os error 32)" {
-                                    println!("222222222222222222222222222222222222222222222");
-                                    println!("222222222222222222222222222222222222222222222");
-                                    println!("222222222222222222222222222222222222222222222");
-                                    println!("222222222222222222222222222222222222222222222");
-                                    println!("222222222222222222222222222222222222222222222");
-                                    println!("222222222222222222222222222222222222222222222");
-                                    let _ = client.restart_con();
+                                    let mut counter = 0;
+                                    'outer: loop {
+                                        match client.restart_con() {
+                                            Ok(_) => break 'outer,
+                                            Err(_) => {
+                                                warning(
+                                                    "*************** increased counter "
+                                                        .to_string(),
+                                                );
+                                                counter += 1
+                                            }
+                                        }
+                                    }
+                                    if counter > 3 {
+                                        error(format!("client {:?} restarted 3 times and it didnt work client will be dropped", client.peer));
+                                        error("************************************************************".to_string());
+                                        error("************************************************************".to_string());
+                                        error("************************************************************".to_string());
+                                        error("************************************************************".to_string());
+                                        error(err.1.clone());
+                                        break;
+                                    }
                                 }
+                                error(err.1);
 
                                 let mut workers_lock =
                                     workers_clone.lock().expect("Failed to lock workers");
@@ -132,12 +177,12 @@ pub fn start(
                         };
                     } else {
                         // put piece back in queue
-                        println!("...... client does not have piece",);
+                        error("...... client does not have piece".to_string());
                         let mut workers_lock =
                             workers_clone.lock().expect("Failed to lock workers");
                         workers_lock.push(piece);
-                        println!("{:?}", workers_lock.len());
                         drop(workers_lock);
+                        // todo:
                         // to sleep this thread so others would take the piece (temporary solution)
                         // maybe not temporary but there could be a better solution
                         thread::sleep(std::time::Duration::from_millis(1000));
@@ -152,15 +197,15 @@ pub fn start(
 
     for handle in handles {
         if let Err(e) = handle.join() {
-            eprintln!("Thread encountered an error: {:?}", e);
+            error(format!("Thread encountered an error: {:?}", e));
         }
     }
 
     // Display results
     let results_lock = results_counter_arc.lock().unwrap();
-    println!("Results len(): {}", results_lock);
+    debug(format!("Results len(): {}", results_lock));
     let workers_lock = workers_arc.lock().unwrap();
-    println!("workers len(): {}", workers_lock.len());
+    debug(format!("workers len(): {}", workers_lock.len()));
 
     Ok(())
 }

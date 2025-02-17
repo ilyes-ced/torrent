@@ -59,10 +59,8 @@ pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResul
     // old http based peers tracking
 
     let url = build_http_url(torrent_data, peer_id).unwrap();
-    println!("{}", url);
     // todo: add error handling for in case disconnected
     let result = send_request(url).unwrap();
-    println!("{}", result);
     let decoded_response = Decoder::new(result.as_bytes()).start().unwrap();
 
     let json_response: Value = serde_json::from_str(&decoded_response.result).unwrap();

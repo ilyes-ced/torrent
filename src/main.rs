@@ -8,6 +8,7 @@ mod torrent;
 mod utils;
 
 use bencode::Decoder;
+use log::info;
 use std::{fs::File, io::Read};
 use torrent::Torrent;
 
@@ -25,7 +26,7 @@ fn main() -> std::io::Result<()> {
     let torrent_data = Torrent::new(bencode_data, peer_id).unwrap();
     let peers = peers::get_peers(&torrent_data, peer_id).unwrap();
     // peers.interval can use it later
-    println!("{:?}", peers);
+    info(format!("{:?}", peers));
     let _download = download::start(torrent_data, peers.peers).unwrap();
 
     Ok(())

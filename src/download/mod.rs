@@ -1,9 +1,9 @@
+use client::Client;
+use download::PieceResult;
 use std::sync::{mpsc::channel, Arc, Mutex};
 use std::thread;
 
-use client::Client;
-use download::PieceResult;
-
+use crate::log::{error, info};
 use crate::peers::Peer;
 use crate::torrent::Torrent;
 
@@ -14,7 +14,7 @@ mod handshake;
 mod message;
 
 pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
-    println!("starting download\n");
+    info("starting download\n".to_string());
 
     let clients_arc: Arc<Mutex<Vec<Client>>> = Arc::new(Mutex::new(Vec::new()));
     let torrent_arc: Arc<Torrent> = Arc::new(torrent.clone());
@@ -26,10 +26,10 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
         let torrent_clone = Arc::clone(&torrent_arc);
         let peers_clone = Arc::clone(&peers_arc);
         let index_clone = i;
-        println!(
+        info(format!(
             "starting handshake with peer {index_clone}: {:?}",
-            peers_clone[index_clone]
-        );
+            peers_clone[index_clone],
+        ));
         // creates the clients
         let handle =
             thread::spawn(
@@ -40,10 +40,10 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
                         // not sure
                         drop(lock)
                     }
-                    Err(err) => println!(
+                    Err(err) => error(format!(
                         "connection with peer was dropped: index:{index_clone}, {:?} | cause: {}",
                         peers_clone[index_clone], err
-                    ),
+                    )),
                 },
             );
         handles.push(handle);
@@ -51,7 +51,7 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
 
     for handle in handles {
         if let Err(e) = handle.join() {
-            eprintln!("Thread encountered an error: {:?}", e);
+            error(format!("Thread encountered an error: {:?}", e));
         }
     }
 
@@ -61,7 +61,7 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
         .into_inner()
         .expect("clients mutex cannot be locked");
 
-    println!("number of clients:  {:?}", clients.len());
+    info(format!("number of clients:  {:?}", clients.len()));
     //for client in clients {
     //    println!("ip of client:  {:?}", client.peer);
     //}
@@ -71,10 +71,10 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
     let handle = thread::spawn(move || loop {
         // here we write data to file
         let finished_piece = rx.recv().unwrap();
-        println!(
+        info(format!(
             "!!!!!!--------------------- received completed download of piece {} ---------------------!!!!!!",
             finished_piece.index
-        );
+        ));
     });
 
     let _download = download::start(torrent, clients, tx);

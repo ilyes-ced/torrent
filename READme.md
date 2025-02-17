@@ -59,13 +59,14 @@ sources
 
 
 ## Errors:
-- [ ] Resource temporarily unavailable (os error 11) ---> (message.rs line:107)
-- [ ] failed to fill whole buffer ---> (message.rs line:127)
-- [ ] Broken pipe (os error 32)
+- [ ] restart clients (clients keep breaking with): 
+  - [ ] Resource temporarily unavailable (os error 11) ---> (message.rs line:107)
+  - [ ] failed to fill whole buffer ---> (message.rs line:127)
+  - [ ] Broken pipe (os error 32)
 - [ ] receiving pieces in the wrong order "expected index: 44, got: 9"
 - [x] insane CPU usage almost 100% (i5 8600k):
 ```rust
-// this one was caused because of this code block which was ran everytime we receieved a PIECE message from a peer
+// this one was caused because of this code block which was ran everytime we received a PIECE message from a peer
 // the CPU consumption is still a bit high and can be lowered but thats not a priority right now
 // NOTE: this was discovered thanks to flamegraph profiler (https://github.com/flamegraph-rs/flamegraph)
 progress.buf.splice((buf_begin as usize).., res_buf);

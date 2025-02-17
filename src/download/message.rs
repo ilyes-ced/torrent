@@ -3,7 +3,7 @@ use std::{
     net::TcpStream,
 };
 
-use crate::constants::MsgId;
+use crate::{constants::MsgId, log::debug};
 
 use super::download::PieceProgress;
 
@@ -22,7 +22,7 @@ impl Message {
                 self.id
             ));
         }
-        println!("+++++++++++++++++++++ {}", self.payload.len());
+        debug(format!("+++++++++++++++++++++ {}", self.payload.len()));
         if self.payload.len() != 4 {
             return Err(format!(
                 "expected length to be 4 got: {}",

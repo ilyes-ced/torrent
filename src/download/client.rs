@@ -1,5 +1,6 @@
 use crate::{
     constants::{MsgId, TIMEOUT_DURATION},
+    log::{debug, error, info},
     peers::Peer,
     torrent::Torrent,
 };
@@ -47,20 +48,16 @@ impl Client {
     }
 
     pub fn restart_con(&mut self) -> Result<(), String> {
-        println!("*******************************");
-        println!("*******************************");
-        println!("restarting connection with peer: {:?}", self.peer);
-        println!("*******************************");
-        println!("*******************************");
+        debug(format!("restarting connection with peer: {:?}", self.peer));
 
         if let Err(e) = self.con.shutdown(std::net::Shutdown::Both) {
             match e.kind() {
                 io::ErrorKind::NotConnected => {
                     // Already disconnected.  That's fine.
-                    println!("peer {:?} is already disconnected", self.peer);
+                    error(format!("peer {:?} is already disconnected", self.peer));
                 }
                 _ => {
-                    println!("Error shutting down connection: {}", e);
+                    error(format!("Error shutting down connection: {}", e));
                 }
             }
         }
@@ -72,11 +69,7 @@ impl Client {
             Ok(msg) => self.bitfield = Bitfield::new(msg.payload),
             Err(err) => return Err(err),
         };
-        println!("*******************************");
-        println!("*******************************");
-        println!("restarted connection with peer: {:?}", self.peer);
-        println!("*******************************");
-        println!("*******************************");
+        debug(format!("restarted connection with peer: {:?}", self.peer));
         Ok(())
     }
 
@@ -177,27 +170,23 @@ pub fn complete_handshake(
         Err(_) => return Err(String::from("error receiving the handshake")),
     };
 
-    println!("-----------------------------------------");
-    println!(
-    "recieved handshake: from peer: {:?} \n\tprotocol id:{:?} \n\tinfo hash:{:?} \n\tpeer id:{:?}",
-    format!(
-        "{}:{}",
-        peer.ip, peer.port
-    ),
-    rec_handshake.protocol_id,
-    rec_handshake.info_hash,
-    String::from_utf8_lossy(&rec_handshake.peer_id).to_string()
-);
-    println!("-----------------------------------------");
+    info(format!(
+        "{} {} \n\tprotocol id:{} \n\tinfo hash:{:?}  \n\tpeer id: {}\n",
+        "received handshake from peer:",
+        format!("{}:{}", peer.ip, peer.port),
+        rec_handshake.protocol_id,
+        rec_handshake.info_hash,
+        String::from_utf8_lossy(&rec_handshake.peer_id).to_string()
+    ));
 
     if rec_handshake.info_hash == info_hash {
         // seccuss continue the cmmunication
-        println!("successfull handshake");
+        info("successful handshake".to_string());
         Ok(stream)
     } else {
         //failure
         Err(String::from(
-            "info hash recieved does not match your info hash",
+            "info hash received does not match your info hash",
         ))
     }
 }
@@ -207,7 +196,7 @@ pub fn bitfield(con: &TcpStream) -> Result<Message, String> {
         Ok(msg) => msg,
         Err(err) => {
             return Err(format!(
-                "error occured when getting bitfields message: {err}",
+                "error occurred when getting bitfields message: {err}",
             ))
         }
     };
