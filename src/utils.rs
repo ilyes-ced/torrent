@@ -1,4 +1,11 @@
-use rand::distr::{Alphanumeric, SampleString};
+use rand::{
+    distr::{Alphanumeric, SampleString},
+    Rng,
+};
+
+pub fn new_transaction_id() -> u32 {
+    rand::rng().random()
+}
 
 pub fn new_peer_id() -> [u8; 20] {
     //"-IT0001-"+12 random chars
