@@ -55,9 +55,10 @@ pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResul
     socket.connect(remote_host).unwrap();
     //socket.send(&buf).unwrap();
     let res = udp_req(&socket, buf.to_vec()).unwrap();
+
     let mut buffer = [0; 16];
-    let (amt, _) = socket.recv_from(&mut buffer).unwrap();
-    debug(format!("read {} bytes", amt));
+    let s = socket.recv(&mut buffer).unwrap();
+    debug(format!("read {} bytes", s));
     debug(format!("******************{:?}", buffer));
 
     let recv_action = &buffer[0..4];
@@ -98,7 +99,7 @@ pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResul
     let announce_response = udp_req(&socket, req_buf.to_vec()).unwrap();
     debug(format!("res: {:?}", announce_response));
 
-    //let (amt, _) = socket.recv_from(&mut announce_response).unwrap();
+    //let (amt, _) = socket.recv(&mut announce_response).unwrap();
     //debug(format!("read {} bytes", amt));
     //debug(format!("announce response: {:?}", announce_response));
 
@@ -205,16 +206,16 @@ fn udp_req(socket: &UdpSocket, request: Vec<u8>) -> Result<Vec<u8>, String> {
             return Err(String::from("too many retries, cant receive data"));
         }
 
-        if let Err(e) = socket.send(&request) {
+        if let Err(e) = socket.send(request.as_slice()) {
             error(format!("Failed to send request 1.: {}", e));
         }
 
         let mut response: [u8; 1024] = [0; 1024];
 
-        match socket.recv_from(&mut response) {
-            Ok((amt, _)) => {
+        match socket.recv(&mut response) {
+            Ok(s) => {
                 info(format!("received: {:?}", response));
-                debug(format!("read {} bytes", amt));
+                debug(format!("read {} bytes", s));
                 debug(format!("announce response: {:?}", response));
                 retry = false;
                 return Ok(response.to_vec());
@@ -223,7 +224,8 @@ fn udp_req(socket: &UdpSocket, request: Vec<u8>) -> Result<Vec<u8>, String> {
                 if err.kind() == std::io::ErrorKind::WouldBlock {
                     // Handle WouldBlock by waiting
                     warning("Resource temporarily unavailable, waiting...".to_string());
-                    std::thread::sleep(timeout);
+                    std::thread::sleep(Duration::from_millis(10)); // Wait a bit
+                    continue;
                 } else {
                     error(format!("Error receiving data 2.: {}", err));
                 }

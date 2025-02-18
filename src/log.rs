@@ -53,15 +53,8 @@ fn color(txt: String, color: Color) -> String {
 }
 
 fn time_date() -> String {
-    // e.g. `2014-11-28T21:45:59.324310806+09:00`}
+    // e.g. `2014-11-28T21:45:59.324310806+09:00`
     let local: DateTime<Local> = Local::now();
-    format!(
-        "{}-{}-{} {}:{}:{}",
-        local.year(),
-        local.month(),
-        local.day(),
-        local.hour(),
-        local.minute(),
-        local.second()
-    )
+    let formatted = local.format("%Y-%m-%d %H:%M:%S.%3f");
+    format!("{}", formatted)
 }
