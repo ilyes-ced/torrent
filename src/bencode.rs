@@ -30,7 +30,7 @@ impl Decoder {
             if self.finished == true || self.cursor == self.input.len() {
                 break;
             } else {
-                result = format!("{}{}", result, self.next().unwrap());
+                result = format!("{}{}", result, self.next()?);
             }
         }
         Ok(DecoderResults {
@@ -43,19 +43,19 @@ impl Decoder {
         match self.input[self.cursor] {
             b'd' => {
                 self.cursor += 1;
-                Ok(self.get_dict().unwrap())
+                Ok(self.get_dict()?)
             }
             b'l' => {
                 self.cursor += 1;
-                Ok(self.get_list().unwrap())
+                Ok(self.get_list()?)
             }
             b'i' => {
                 self.cursor += 1;
-                Ok(self.get_int().unwrap())
+                Ok(self.get_int()?)
             }
             b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => {
                 // puts the string value in ""
-                Ok(format!("\"{}\"", self.get_string().unwrap()))
+                Ok(format!("\"{}\"", self.get_string()?))
             }
             b' ' => {
                 self.cursor += 1;
@@ -83,7 +83,7 @@ impl Decoder {
                     info_bin.push(self.input[self.cursor]);
                     self.cursor += 1;
 
-                    let int = self.get_int().unwrap();
+                    let int = self.get_int()?;
                     let int_bytes = int.as_bytes().to_vec();
 
                     for i in int_bytes {
@@ -93,7 +93,7 @@ impl Decoder {
                     self.cursor -= 1;
                 }
                 b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => {
-                    let str_len = self.get_string_len().unwrap();
+                    let str_len = self.get_string_len()?;
                     let str_len_string = str_len.to_string();
                     let str_len_bytes = str_len_string.as_bytes();
 
@@ -135,12 +135,12 @@ impl Decoder {
                     self.cursor += 1;
                     break;
                 }
-                _ => self.get_string().unwrap(),
+                _ => self.get_string()?,
             };
 
             if name == "info" {
                 let original_cursor = self.cursor;
-                let info_binary = self.info_binary().unwrap();
+                let info_binary = self.info_binary()?;
 
                 // hashing
                 let mut hasher = Sha1::new();
@@ -150,7 +150,7 @@ impl Decoder {
                 self.cursor = original_cursor;
             }
 
-            let value = self.next().unwrap();
+            let value = self.next()?;
 
             current_dict = format!("{}\"{}\":{},", current_dict, name, value)
         }
@@ -169,7 +169,7 @@ impl Decoder {
                     self.cursor += 1;
                     break;
                 }
-                _ => self.next().unwrap(),
+                _ => self.next()?,
             };
             current_list = format!("{}{},", current_list, value)
         }
@@ -275,7 +275,10 @@ impl Decoder {
         if point_counter > 1 {
             return Err(String::from("invalid float format"));
         }
-        Ok(String::from_utf8(value).unwrap())
+        match String::from_utf8(value) {
+            Ok(res) => Ok(res),
+            Err(err) => Err(err.to_string()),
+        }
     }
 }
 
