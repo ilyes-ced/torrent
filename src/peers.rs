@@ -1,11 +1,10 @@
 use crate::bencode::DecoderResults;
-use crate::log::{debug, error, info, warning};
-use crate::torrent::{self, Torrent};
-use crate::utils::{self, encode_binnary_to_http_chars};
+use crate::log::{debug, error, warning};
+use crate::torrent::Torrent;
+use crate::utils::encode_binnary_to_http_chars;
 use crate::{bencode::Decoder, constants};
 use reqwest::blocking::Client;
 use serde_json::Value;
-use std::fmt::format;
 use std::net::Ipv4Addr;
 
 #[derive(Debug, Clone)]
@@ -21,26 +20,17 @@ pub struct PeersResult {
 }
 
 pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResult, String> {
+    // todo: if announce is not https search for one in the announce-list
     let url = build_http_url(torrent_data, peer_id).unwrap();
     let result: String = send_request(url).unwrap();
 
     // there is 2 cases:
-
-    error("test000000000".to_string());
-    error("test000000000".to_string());
     let peers = match Decoder::new(result.as_bytes()).start() {
         //      1. tracker can send the peers data as utf8 chars so we decode the bencode and use them directly
-        Ok(decoded_resp) => {
-            error("test000000000".to_string());
-            peers_utf(decoded_resp)
-        }
+        Ok(decoded_resp) => peers_utf(decoded_resp),
         //      2. tracker will send the peer data as binary so which our benocde decoder cant read as string(utf8 chars) so we need to extract them manually from the response
-        Err(err) => {
-            error("test111111111".to_string());
-            peers_binary(result)
-        }
+        Err(_) => peers_binary(result),
     }?;
-
     Ok(peers)
 }
 

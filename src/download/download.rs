@@ -2,7 +2,7 @@ use super::Client;
 use crate::{
     constants::{MsgId, MAX_BACKLOG, MAX_BLOCK_SIZE},
     log::{debug, error, info, warning},
-    torrent::Torrent,
+    torrent::{FileInfo, Torrent},
 };
 use sha1::{Digest, Sha1};
 use std::sync::mpsc::Sender;
@@ -89,11 +89,12 @@ pub fn start(
 
                                 let _ = tx_clone.send(PieceResult {
                                     index: piece.index,
-                                    buf: Vec::new(),
+                                    buf: piece.buf,
                                 });
 
                                 //      drop(results_lock);
                             }
+                            // todo: still needs debugging not sure if it works
                             Err(err) => {
                                 if err.1 == "Resource temporarily unavailable (os error 11)"
                                     || err.1 == "failed to fill whole buffer"
@@ -307,13 +308,13 @@ fn calc_piece_len(torrent: &Torrent, ind: usize) -> usize {
     let begin = ind * torrent.info.piece_length as usize;
     let mut end = begin + torrent.info.piece_length as usize;
     let files = match &torrent.info.files {
-        crate::torrent::FileInfo::Single(length) => {
+        FileInfo::Single(length) => {
             if end > *length as usize {
                 end = *length as usize
             }
             end - begin
         }
-        crate::torrent::FileInfo::Multiple(items) => {
+        FileInfo::Multiple(items) => {
             // todo
             todo!()
         }

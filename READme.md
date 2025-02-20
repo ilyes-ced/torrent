@@ -52,10 +52,11 @@ sources
 
 
 ## extra features to implement
+- [ ] remove clients when they error and refresh and add clients periodically
 - [ ] recovery from all types of errors and disconnections (no unwraps in this app should be left)
 - [ ] no reliance on announce (implementing DHT)
 - [ ] magnet links
-- [ ] when download is interrupted pick off where it started 
+- [ ] when download is interrupted pick off where it started
 
 
 ## Errors:

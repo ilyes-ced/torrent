@@ -1,5 +1,3 @@
-use client::Client;
-use download::PieceResult;
 use std::sync::{mpsc::channel, Arc, Mutex};
 use std::thread;
 
@@ -12,6 +10,11 @@ mod client;
 mod download;
 mod handshake;
 mod message;
+mod writer;
+
+use client::Client;
+use download::PieceResult;
+use writer::write_single_file;
 
 pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
     info("starting download\n".to_string());
@@ -62,22 +65,41 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
         .expect("clients mutex cannot be locked");
 
     info(format!("number of clients:  {:?}", clients.len()));
-    //for client in clients {
-    //    println!("ip of client:  {:?}", client.peer);
-    //}
+    if clients.len() == 0 {
+        error("no clients were found for this torrent".to_string());
+        return Err(String::from("no clients were found for this torrent"));
+    }
 
+    /*
+        ! very bad with torrent_arc stuff here
+    */
+
+    let torrent_arc = Arc::new(Mutex::new(torrent));
+    let torrent_arc_clone = Arc::clone(&torrent_arc);
     let (tx, rx) = channel::<PieceResult>();
     // mscp channel for finished pieces
     let handle = thread::spawn(move || loop {
         // here we write data to file
-        let finished_piece = rx.recv().unwrap();
+        let finished_piece = match rx.recv() {
+            Ok(res) => res,
+            Err(err) => {
+                error(format!(
+                    "error receiving in the receiver thread: {}",
+                    err.to_string()
+                ));
+                std::process::exit(0);
+            }
+        };
+        let torrent_guard = torrent_arc_clone.lock().unwrap();
+        let f = write_single_file(&torrent_guard, finished_piece.index, finished_piece.buf);
         info(format!(
             "!!!!!!--------------------- received completed download of piece {} ---------------------!!!!!!",
             finished_piece.index
         ));
     });
 
-    let _download = download::start(torrent, clients, tx);
+    let torrent_guard = torrent_arc.lock().unwrap().to_owned(); // Acquire the lock
+    let _download = download::start(torrent_guard, clients, tx);
 
     handle.join().unwrap();
     Ok(String::new())
