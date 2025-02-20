@@ -314,8 +314,8 @@ fn calc_piece_len(torrent: &Torrent, ind: usize) -> usize {
             end - begin
         }
         crate::torrent::FileInfo::Multiple(items) => {
-            println!("BIG errorrrrrrrr");
-            std::process::exit(0)
+            // todo
+            todo!()
         }
     };
     files
