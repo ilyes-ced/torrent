@@ -1,11 +1,13 @@
 use crate::bencode::DecoderResults;
-use crate::log::{debug, error, warning};
+use crate::log::{debug, error, info, warning};
 use crate::torrent::Torrent;
 use crate::utils::encode_binnary_to_http_chars;
 use crate::{bencode::Decoder, constants};
+use bytes::Bytes;
 use reqwest::blocking::Client;
 use serde_json::Value;
 use std::net::Ipv4Addr;
+use std::num::ParseIntError;
 
 #[derive(Debug, Clone)]
 pub struct Peer {
@@ -22,19 +24,18 @@ pub struct PeersResult {
 pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResult, String> {
     // todo: if announce is not https search for one in the announce-list
     let url = build_http_url(torrent_data, peer_id).unwrap();
-    let result: String = send_request(url).unwrap();
+    let result = send_request(url).unwrap();
 
-    // there is 2 cases:
-    let peers = match Decoder::new(result.as_bytes()).start() {
-        //      1. tracker can send the peers data as utf8 chars so we decode the bencode and use them directly
-        Ok(decoded_resp) => peers_utf(decoded_resp),
-        //      2. tracker will send the peer data as binary so which our benocde decoder cant read as string(utf8 chars) so we need to extract them manually from the response
-        Err(_) => peers_binary(result),
-    }?;
+    let binding = result.to_vec();
+    let bytes = binding.as_slice();
+
+    let decoded_resp = Decoder::new(bytes).start()?;
+    let peers = parse(decoded_resp)?;
+
     Ok(peers)
 }
 
-fn send_request(url: String) -> Result<String, String> {
+fn send_request(url: String) -> Result<Bytes, String> {
     let client = Client::new();
     let response = match client.get(url).send() {
         Ok(res) => res,
@@ -42,10 +43,11 @@ fn send_request(url: String) -> Result<String, String> {
     };
 
     if response.status().is_success() {
-        let body = match response.text() {
+        let body = match response.bytes() {
             Ok(res) => res,
             Err(err) => return Err(format!("Failed to fetch data: {}", err)),
         };
+
         Ok(body)
     } else {
         Err(format!("Failed to fetch data: {}", response.status()))
@@ -69,11 +71,23 @@ fn build_http_url(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<String, S
 
     Ok(url)
 }
+pub fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
+        .collect()
+}
 
-fn peers_utf(decoded_response: DecoderResults) -> Result<PeersResult, String> {
+fn parse(decoded_response: DecoderResults) -> Result<PeersResult, String> {
+    error("test".to_string());
     let json_response: Value = serde_json::from_str(&decoded_response.result).unwrap();
+    debug(format!("{}", json_response));
     let mut peers: Vec<Peer> = Vec::new();
     //extract peers ip addresses from the serde json object and insert them into the list of peers
+
+    // 2cases:
+    //  1. peers data is utf8 it reads it directly from the array
+    //  2. peers data is binary so its not in an array but a string of hex bytes "6F 58 DB 29 A3 EB 75 . . ." so it needs to be read as Vec<u8> and read to x.x.x.x:port
     if let Some(array) = json_response["peers"].as_array() {
         for item in array {
             if let (Some(ip), Some(port)) = (item["ip"].as_str(), item["port"].as_u64()) {
@@ -84,58 +98,114 @@ fn peers_utf(decoded_response: DecoderResults) -> Result<PeersResult, String> {
             }
         }
     } else {
-        panic!("we couldnt find peers in the tracker response");
+        //try to read it as binary here
+        if let Some(peers_bin) = json_response["peers"].as_str() {
+            let str_bytes = peers_bin.split(" ").collect::<String>();
+
+            let bytes = decode_hex(&str_bytes).unwrap();
+
+            if bytes.len() % 3 != 0 {
+                error("wrong format for the peers data".to_string());
+                return Err(String::from("wrong format for the peers data"));
+            }
+
+            for i in 0..(bytes.len() / 6) {
+                let peer = Peer {
+                    ip: Ipv4Addr::new(
+                        bytes[i * 6 + 0],
+                        bytes[i * 6 + 1],
+                        bytes[i * 6 + 2],
+                        bytes[i * 6 + 3],
+                    ),
+                    port: u16::from_be_bytes([bytes[i * 6 + 4], bytes[i * 6 + 5]]),
+                };
+                debug(format!("peer: {:?}", peer));
+                peers.push(peer);
+            }
+            debug(format!("all ppers result:  {:?}", peers));
+        } else {
+            return Err(String::from(
+                "we couldnt find peers in the tracker response",
+            ));
+        }
     }
 
     let interval = json_response["interval"].as_u64().unwrap_or(900);
     Ok(PeersResult { peers, interval })
 }
 
-fn peers_binary(result: String) -> Result<PeersResult, String> {
-    warning(format!("{}", result));
-    let peers_raw = result.split_once("peers").unwrap().1;
-    let (s, b) = peers_raw.split_once(":").unwrap();
-    let size = s.parse::<usize>().unwrap();
-    let bytes = b.as_bytes();
+//fn peers_binary(result: Bytes) -> Result<PeersResult, String> {
+//warning(format!("{:?}", result));
+//for (i, window) in result.windows(2).enumerate() {
+//    if window == b"ip" {
+//        error(format!("----------"));
+//        error(format!("{:?}", i));
+//        error(format!("ip: {:?}", window));
+//        error(format!("----------"));
+//    }
+//}
+//for (i, window) in result.windows(4).enumerate() {
+//    if window == b"port" {
+//        error(format!("----------"));
+//        error(format!("{:?}", i));
+//        error(format!("port: {:?}", window));
+//        error(format!("----------"));
+//    }
+//}
+//
+//Err(String::from("test"))
 
-    let mut raw_bytes: Vec<u8> = Vec::new();
-    for i in 0..size {
-        raw_bytes.push(bytes[i])
-    }
+/////////////////////////////////
+/////////////////////////////////
+/////////////////////////////////
+/////////////////////////////////
+/////////////////////////////////
+/////////////////////////////////
+/////////////////////////////////
 
-    if raw_bytes.len() % 3 != 0 {
-        error("wrong format for the peers data".to_string());
-        return Err(String::from("wrong format for the peers data"));
-    }
+//let peers_raw = result.split_once("peers").unwrap().1;
+//let (s, b) = peers_raw.split_once(":").unwrap();
+//let size = s.parse::<usize>().unwrap();
+//let bytes = b.as_bytes();
 
-    let mut peers: Vec<Peer> = Vec::new();
-    for i in 0..(raw_bytes.len() / 6) {
-        let peer = Peer {
-            ip: Ipv4Addr::new(
-                raw_bytes[i * 6 + 0],
-                raw_bytes[i * 6 + 1],
-                raw_bytes[i * 6 + 2],
-                raw_bytes[i * 6 + 3],
-            ),
-            port: u16::from_be_bytes([raw_bytes[i * 6 + 4], raw_bytes[i * 6 + 5]]),
-        };
-        peers.push(peer);
-    }
+//let mut raw_bytes: Vec<u8> = Vec::new();
+//for i in 0..size {
+//    raw_bytes.push(bytes[i])
+//}
 
-    // for interval
+//if raw_bytes.len() % 3 != 0 {
+//    error("wrong format for the peers data".to_string());
+//    return Err(String::from("wrong format for the peers data"));
+//}
 
-    let pt1 = result.split_once("interval").unwrap().1;
-    let pt2 = pt1.split_once("e").unwrap().0;
-    let pt3 = pt2.split_once("i").unwrap().1;
-    debug(format!("+++++++++++++++++++++ {}", pt3));
-    let size = pt3.parse::<u64>().unwrap();
-    debug(format!("+++++++++++++++++++++ {}", pt3));
+//let mut peers: Vec<Peer> = Vec::new();
+//for i in 0..(raw_bytes.len() / 6) {
+//    let peer = Peer {
+//        ip: Ipv4Addr::new(
+//            raw_bytes[i * 6 + 0],
+//            raw_bytes[i * 6 + 1],
+//            raw_bytes[i * 6 + 2],
+//            raw_bytes[i * 6 + 3],
+//        ),
+//        port: u16::from_be_bytes([raw_bytes[i * 6 + 4], raw_bytes[i * 6 + 5]]),
+//    };
+//    peers.push(peer);
+//}
 
-    Ok(PeersResult {
-        peers,
-        interval: size,
-    })
-}
+//// for interval
+
+//let pt1 = result.split_once("interval").unwrap().1;
+//let pt2 = pt1.split_once("e").unwrap().0;
+//let pt3 = pt2.split_once("i").unwrap().1;
+//debug(format!("+++++++++++++++++++++ {}", pt3));
+//let size = pt3.parse::<u64>().unwrap();
+//debug(format!("+++++++++++++++++++++ {}", pt3));
+
+//Ok(PeersResult {
+//    peers,
+//    interval: size,
+//})
+//}
 
 // unused udp connection with trakcer
 // should work but does not
