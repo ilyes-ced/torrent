@@ -57,6 +57,7 @@ sources
 - [ ] no reliance on announce (implementing DHT)
 - [ ] magnet links
 - [ ] when download is interrupted pick off where it started
+- [ ] rework getting peers from the tracker
 
 
 ## Errors:
@@ -81,7 +82,7 @@ writeln!(file, "{:?}", res_buf).unwrap();
 ```
 
 ## to fix
-- [ ] some Peers responses come out as binary instead of text of Ip addresses (maybe change it to udp (https://www.bittorrent.org/beps/bep_0015.html))
+- [x] some Peers responses come out as binary instead of text of Ip addresses (maybe change it to udp (https://www.bittorrent.org/beps/bep_0015.html))
 
 it seems to be that getting peers from trackers is usually done with HTTP and not UDP, but some torrents return the response as an invalid bencode message
 ```
