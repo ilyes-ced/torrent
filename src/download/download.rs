@@ -63,12 +63,15 @@ pub fn start(
                     .expect("Failed to lock results");
 
                 if *results_counter_lock == *num_pieces_clone {
-                    info("6666666666666 all pieces are downloaded".to_string());
+                    info(format!(
+                        "all pieces are downloaded | client {:?} is finished",
+                        client.peer
+                    ));
                     break;
                 }
                 drop(results_counter_lock);
                 if !workers_lock.is_empty() {
-                    warning(format!("number of workers left: {}", workers_lock.len()));
+                    debug(format!("number of workers left: {}", workers_lock.len()));
                     let piece = workers_lock.remove(0);
                     drop(workers_lock);
 
@@ -79,23 +82,20 @@ pub fn start(
                         ));
                         match prepare_download(&mut client, piece) {
                             Ok(piece) => {
-                                // here the result needs to be written to file so it doesnt consume alot of ram
-                                //      let mut results_lock =
-                                //          results_clone.lock().expect("Failed to lock results");
-                                //      results_lock.push(PieceResult {
-                                //          index: piece.index,
-                                //          buf: Vec::new(),
-                                //      });
-
                                 let _ = tx_clone.send(PieceResult {
                                     index: piece.index,
                                     buf: piece.buf,
                                 });
-
-                                //      drop(results_lock);
+                                // increment results_counter_clone
+                                let mut results_counter_lock = results_counter_clone
+                                    .lock()
+                                    .expect("Failed to lock results");
+                                *results_counter_lock += 1;
+                                drop(results_counter_lock);
                             }
                             // todo: still needs debugging not sure if it works
                             Err(err) => {
+                                // todo : change the counter of failure to the struct of client because here we cant keep track of failures because when con is restarted the counter var is in a different loop
                                 if err.1 == "Resource temporarily unavailable (os error 11)"
                                     || err.1 == "failed to fill whole buffer"
                                     || err.1 == "Broken pipe (os error 32)"
@@ -146,6 +146,7 @@ pub fn start(
                         thread::sleep(std::time::Duration::from_millis(1000));
                     }
                 } else {
+                    // we dont end loop here because even tho the workers array is empty there could be one that is being processed
                     drop(workers_lock);
                 }
             }

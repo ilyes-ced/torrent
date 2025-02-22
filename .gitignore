@@ -1,4 +1,7 @@
 /target
+*.zip
+*.pdf
+*.txt
 
 # for testing
 /node

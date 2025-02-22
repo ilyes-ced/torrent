@@ -47,6 +47,10 @@ impl Client {
         })
     }
 
+    pub fn shutdown_con(&mut self) -> Result<(), String> {
+        Ok(())
+    }
+
     pub fn restart_con(&mut self) -> Result<(), String> {
         debug(format!("restarting connection with peer: {:?}", self.peer));
 
@@ -63,12 +67,19 @@ impl Client {
         }
         //  self.con.shutdown(std::net::Shutdown::Both).unwrap();
 
-        let con = connect(&self.peer, self.info_hash, self.handshake).unwrap();
+        let con = match connect(&self.peer, self.info_hash, self.handshake) {
+            Ok(con) => con,
+            Err(err) => return Err(err),
+        };
 
         match bitfield(&con) {
             Ok(msg) => self.bitfield = Bitfield::new(msg.payload),
             Err(err) => return Err(err),
         };
+
+        // oppsie daisy: implemented the reconnect logic but not actually put it in the client
+        self.con = con;
+
         debug(format!("restarted connection with peer: {:?}", self.peer));
         Ok(())
     }
@@ -86,6 +97,8 @@ impl Client {
                 if e.kind() == io::ErrorKind::TimedOut {
                     return Err(String::from("Write operation timed out!"));
                 } else {
+                    // error:
+                    // Broken pipe (os error 32)
                     return Err(e.to_string());
                 }
             }

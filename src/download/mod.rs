@@ -71,7 +71,7 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
     }
 
     /*
-        ! very bad with torrent_arc stuff here
+        ! very bad with torrent_arc stuff here, needs to be changed
     */
 
     let torrent_arc = Arc::new(Mutex::new(torrent));
