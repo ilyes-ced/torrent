@@ -1,11 +1,11 @@
 <mxfile host="65bd71144e">
     <diagram id="eGLk4Z8ibDaawNsVyFnV" name="Page-1">
-        <mxGraphModel dx="1909" dy="1337" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="636" dy="1114" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="2" value="flowchart TD&#10;    A[Christmas] --&gt;|Get money| B(Go shopping)&#10;    B --&gt; C{Let me think}&#10;    C --&gt;|One| D[Laptop]&#10;    C --&gt;|Two| E[iPhone]&#10;    C --&gt;|Three| F[fa:fa-car Car]&#10;  " style="shadow=0;dashed=0;align=left;strokeWidth=1;shape=mxgraph.mermaid.abstract.mermaid;labelBackgroundColor=#ffffff;noLabel=1;" vertex="1" parent="1">
-                    <mxGeometry x="140" y="240" width="630" height="830" as="geometry"/>
+                <mxCell id="2" value="flowchart TD&#10;    A[main] --&gt;|read file as bytes| B(decode the bencode file to serde_json)&#10;    B --&gt; C[create the torrent data structure]&#10;    C --&gt; D[get peers data ip:port from the tracker]&#10;    D --&gt; E[start tcp connection with peers]&#10;    E --&gt; F[complete handshake]&#10;    F --&gt; G[get bitfield]&#10;    G --&gt; H[get a piece of PieceWorker from the queue]&#10;    H --&gt; I{peer has this piece?}&#10;    I --yes--&gt; J[request pieces from peers]&#10;    I --no--&gt; L[put the piece back in the work]&#10;    L --&gt; H&#10;    J --&gt; M[download piece]&#10;    J --success--&gt; O[check piece integrity]&#10;    J --failure--&gt; E&#10;    O --success--&gt;Q[send it to the writer thread]&#10;    O --failure--&gt;L&#10;    Q --&gt; R[write the piece to file]&#10;    " style="shadow=0;dashed=0;align=left;strokeWidth=1;shape=mxgraph.mermaid.abstract.mermaid;labelBackgroundColor=#ffffff;noLabel=1;" parent="1" vertex="1">
+                    <mxGeometry x="260" y="360" width="400" height="1000" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
