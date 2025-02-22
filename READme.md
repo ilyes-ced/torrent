@@ -66,6 +66,7 @@ sources
   - [ ] failed to fill whole buffer ---> (message.rs line:127)
   - [ ] Broken pipe (os error 32)
 - [ ] receiving pieces in the wrong order "expected index: 44, got: 9"
+- [ ] when the last piece is finished downloading the receiving MSCP channel throws "error receiving in the receiver thread: receiving on a closed channel"
 - [x] insane CPU usage almost 100% (i5 8600k):
 ```rust
 // this one was caused because of this code block which was ran everytime we received a PIECE message from a peer
@@ -81,7 +82,7 @@ let mut file = std::fs::OpenOptions::new()
 writeln!(file, "{:?}", res_buf).unwrap();
 ```
 
-## to fix
+## to fix (not errors)
 - [x] some Peers responses come out as binary instead of text of Ip addresses (maybe change it to udp (https://www.bittorrent.org/beps/bep_0015.html))
 
 it seems to be that getting peers from trackers is usually done with HTTP and not UDP, but some torrents return the response as an invalid bencode message
@@ -97,7 +98,7 @@ could be that the binary data is bytes for ip.ip.ip.ip:port 6bytes total (this i
 
 - [ ] refactor and improve naming 
 - [ ] divide code to more functions for better testing
-- [ ] add connection resets in case of connection errors (using MSCP channels maybe)
+- [x] add connection resets in case of connection errors
 - [x] send piece result to a writer thread with MSCP channels
 - [ ] search for more clients regularly
 - [ ] add documentation

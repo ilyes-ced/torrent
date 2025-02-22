@@ -2,7 +2,7 @@ use crate::{bencode::DecoderResults, log::info};
 use serde_json::Value;
 use std::fmt;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum FileInfo {
     // single file: length
     Single(u64),
@@ -10,7 +10,7 @@ pub enum FileInfo {
     Multiple(Vec<Files>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Torrent {
     pub announce: String,
     pub announce_list: Option<String>, // implement later
@@ -22,7 +22,7 @@ pub struct Torrent {
     pub peer_id: [u8; 20],
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TorrentInfo {
     pub name: String,
     pub pieces: Vec<[u8; 20]>,
@@ -34,7 +34,7 @@ pub struct TorrentInfo {
     pub files: FileInfo,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Files {
     pub paths: Vec<String>,
     pub length: u64,

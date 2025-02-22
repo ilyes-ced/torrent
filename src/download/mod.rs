@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::sync::{mpsc::channel, Arc, Mutex};
 use std::thread;
 
@@ -10,7 +11,8 @@ mod client;
 mod download;
 mod handshake;
 mod message;
-mod writer;
+//todo change this later no need for it to
+pub(crate) mod writer;
 
 use client::Client;
 use download::PieceResult;
@@ -91,6 +93,11 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
             }
         };
         let torrent_guard = torrent_arc_clone.lock().unwrap();
+
+        let mut file =
+            std::fs::File::create(format!("piece_{}.txt", finished_piece.index)).unwrap();
+        file.write_all(&finished_piece.buf).unwrap();
+
         let f = write_single_file(&torrent_guard, finished_piece.index, finished_piece.buf);
         info(format!(
             "!!!!!!--------------------- received completed download of piece {} ---------------------!!!!!!",
