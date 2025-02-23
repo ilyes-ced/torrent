@@ -23,8 +23,43 @@ pub struct PeersResult {
 
 pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResult, String> {
     // todo: if announce is not https search for one in the announce-list
-    let url = build_http_url(torrent_data, peer_id).unwrap();
-    let result = send_request(url).unwrap();
+    // * keeps changing the url in case of errors
+    // ! not tested 100% with functioning urls
+    let mut co: usize = 0;
+    let result = loop {
+        let url: String = if co == 0 {
+            torrent_data.announce.clone()
+        } else {
+            // idk why so many clones
+            debug(format!(
+                "number of urls: {:?}, using: {}",
+                torrent_data.announce_list.clone().unwrap().len(),
+                co - 1
+            ));
+            if (co - 1) >= torrent_data.announce_list.clone().unwrap().len() {
+                return Err(String::from("unable to establish network with the tracker URls provided in the torrent file"));
+            }
+            torrent_data.announce_list.clone().unwrap()[co - 1].clone()
+        };
+        info(format!(
+            "using announce url: {:?} | attempt: {}",
+            url,
+            co + 1
+        ));
+        let request = build_http_url(url, torrent_data, peer_id).unwrap();
+        match send_request(request) {
+            Ok(res) => break res,
+            Err(err) => {
+                co += 1;
+                error(format!("error sending tracker request: {:?}", err));
+                continue;
+            }
+        };
+    };
+    //let url = build_http_url(torrent_data, peer_id).unwrap();
+    //let result = send_request(url).unwrap();
+
+    debug(format!("{:?}", result));
 
     let binding = result.to_vec();
     let bytes = binding.as_slice();
@@ -39,23 +74,27 @@ fn send_request(url: String) -> Result<Bytes, String> {
     let client = Client::new();
     let response = match client.get(url).send() {
         Ok(res) => res,
-        Err(err) => return Err(format!("Failed to fetch data: {}", err)),
+        Err(err) => return Err(format!("Failed to get response from client: {}", err)),
     };
 
     if response.status().is_success() {
         let body = match response.bytes() {
             Ok(res) => res,
-            Err(err) => return Err(format!("Failed to fetch data: {}", err)),
+            Err(err) => return Err(format!("Failed to get response data: {}", err)),
         };
 
         Ok(body)
     } else {
-        Err(format!("Failed to fetch data: {}", response.status()))
+        Err(format!("Failed to get response: {}", response.status()))
     }
 }
 
-fn build_http_url(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<String, String> {
-    let url = torrent_data.announce.clone()
+fn build_http_url(
+    url: String,
+    torrent_data: &Torrent,
+    peer_id: [u8; 20],
+) -> Result<String, String> {
+    let url = url
         + "?info_hash="
         + &encode_binnary_to_http_chars(torrent_data.info_hash)
         + "&peer_id="
