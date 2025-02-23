@@ -263,13 +263,10 @@ fn download<'a>(
                         Ok(res) => res,
                         Err(err) => return Err(err),
                     };
-
                     progress.downloaded += res_buf.len();
-
                     for (i, u) in res_buf.iter().enumerate() {
                         progress.buf[(buf_begin as usize) + i] = *u;
                     }
-
                     progress.backlog -= 1;
                 }
                 6 => {

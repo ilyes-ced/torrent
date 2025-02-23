@@ -94,14 +94,11 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
         };
         let torrent_guard = torrent_arc_clone.lock().unwrap();
 
-        let mut file =
-            std::fs::File::create(format!("piece_{}.txt", finished_piece.index)).unwrap();
-        file.write_all(&finished_piece.buf).unwrap();
-
-        let f = write_single_file(&torrent_guard, finished_piece.index, finished_piece.buf);
+        let _ =
+            write_single_file(&torrent_guard, finished_piece.index, finished_piece.buf).unwrap();
         info(format!(
             "!!!!!!--------------------- received completed download of piece {} ---------------------!!!!!!",
-            finished_piece.index
+            finished_piece.index,
         ));
     });
 

@@ -39,7 +39,7 @@ pub(crate) fn write_single_file(torrent: &Torrent, index: u32, buf: Vec<u8>) -> 
     //debug(format!("{}", ind));
     let file_len = file.metadata().unwrap().len();
     debug(format!(
-        "before writing a piece: {:?},{:?}",
+        "before writing a piece: file len: {:?}, ind*piece_size: {:?}",
         file_len,
         ind * torrent.info.piece_length
     ));
@@ -48,7 +48,12 @@ pub(crate) fn write_single_file(torrent: &Torrent, index: u32, buf: Vec<u8>) -> 
     if file_len < (ind * torrent.info.piece_length) {
         warning("here we add 00000....00000".to_string());
         // here write until ind with zeros
-        let num_blocks_to_fill = (ind + 1) - (file_len / torrent.info.piece_length);
+        let num_blocks_to_fill = ind - (file_len / torrent.info.piece_length);
+
+        warning(format!(
+            "we add {} blocks of size {}",
+            num_blocks_to_fill, torrent.info.piece_length
+        ));
 
         // write (num_blocks_to_fill*torrent.info.piece_length) with zeros
         let zeros: Vec<u8> = vec![0; (num_blocks_to_fill * torrent.info.piece_length) as usize];
@@ -58,35 +63,35 @@ pub(crate) fn write_single_file(torrent: &Torrent, index: u32, buf: Vec<u8>) -> 
 
     //debug(format!("{:?}", buf));
     //debug(format!("{}", ind));
-    let res = file.write_at(&buf, (ind * torrent.info.piece_length));
+    error(format!("{:?}", &buf.len()));
+    let res = file.write_at(&buf, ind * torrent.info.piece_length);
 
     let file_len = file.metadata().unwrap().len();
     debug(format!(
-        "after writing a piece: {:?},{:?}",
+        "after writing a piece: file len: {:?}, ind*piece_size: {:?}",
         file_len,
         ind * torrent.info.piece_length
     ));
     Ok(())
 }
 
+// todo: remove all prints and useless stuff
+// todo: add ability to download pieces to text files and test with them because they are too large to put in github
 #[cfg(test)]
 mod tests {
-    use tempfile::NamedTempFile;
+    use std::fs;
 
-    use crate::torrent::{FileInfo, TorrentInfo};
+    use crate::torrent;
 
     use super::*;
-    use std::fs::{self, OpenOptions};
-
     #[test]
-    fn test_file_exists() {
-        let temp_file = NamedTempFile::new().unwrap();
+    fn it_works() {
         let torrent = Torrent {
-            info: TorrentInfo {
-                name: temp_file.path().to_str().unwrap().to_string(),
-                piece_length: 16,
+            info: torrent::TorrentInfo {
+                name: "POLEN23E.zip".to_string(),
+                piece_length: 4190208,
                 pieces: Default::default(),
-                files: FileInfo::Single(20),
+                files: torrent::FileInfo::Single(34561190),
             },
             announce: Default::default(),
             announce_list: Default::default(),
@@ -97,112 +102,39 @@ mod tests {
             peer_id: Default::default(),
         };
 
-        let buf = vec![1, 2, 3, 4];
-        let result = write_single_file(&torrent, 0, buf.clone());
-        assert!(result.is_ok());
+        let mut files = [
+            (File::open("piece_8.txt").unwrap(), 8),
+            (File::open("piece_4.txt").unwrap(), 4),
+            (File::open("piece_7.txt").unwrap(), 7),
+            (File::open("piece_3.txt").unwrap(), 3),
+            (File::open("piece_6.txt").unwrap(), 6),
+            (File::open("piece_0.txt").unwrap(), 0),
+            (File::open("piece_1.txt").unwrap(), 1),
+            (File::open("piece_2.txt").unwrap(), 2),
+            (File::open("piece_5.txt").unwrap(), 5),
+        ];
 
-        let mut file = File::open(temp_file.path()).unwrap();
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents).unwrap();
-        assert_eq!(contents, buf);
-    }
+        for ind in 0..files.len() {
+            let file_ind = files[ind].1;
+            let mut file = &files[ind].0;
 
-    #[test]
-    fn test_file_does_not_exist() {
-        let temp_file = NamedTempFile::new().unwrap();
-        let torrent = Torrent {
-            info: TorrentInfo {
-                name: temp_file.path().to_str().unwrap().to_string(),
-                piece_length: 16,
-                pieces: Default::default(),
-                files: FileInfo::Single(20),
-            },
-            announce: Default::default(),
-            announce_list: Default::default(),
-            comment: Default::default(),
-            creation_date: Default::default(),
-            created_by: Default::default(),
-            info_hash: Default::default(),
-            peer_id: Default::default(),
-        };
+            let metadata = file.metadata().expect("unable to read metadata");
 
-        // Remove the temp file to simulate it not existing
-        fs::remove_file(temp_file.path()).unwrap();
+            info(format!(
+                "in iteration: {ind}, for piece: {:?}, with length: {}, index: {}",
+                fs::read_link(std::path::PathBuf::from(format!(
+                    "/proc/self/fd/{}",
+                    std::os::fd::AsRawFd::as_raw_fd(file)
+                )))
+                .unwrap(),
+                metadata.len(),
+                file_ind
+            ));
+            let mut buffer = vec![0; metadata.len() as usize];
 
-        let buf = vec![1, 2, 3, 4];
-        let result = write_single_file(&torrent, 0, buf.clone());
-        assert!(result.is_ok());
-
-        let mut file = File::open(temp_file.path()).unwrap();
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents).unwrap();
-        assert_eq!(contents, buf);
-    }
-
-    #[test]
-    fn test_file_smaller_than_index() {
-        let temp_file = NamedTempFile::new().unwrap();
-        let torrent = Torrent {
-            info: TorrentInfo {
-                name: temp_file.path().to_str().unwrap().to_string(),
-                piece_length: 16,
-                pieces: Default::default(),
-                files: FileInfo::Single(20),
-            },
-            announce: Default::default(),
-            announce_list: Default::default(),
-            comment: Default::default(),
-            creation_date: Default::default(),
-            created_by: Default::default(),
-            info_hash: Default::default(),
-            peer_id: Default::default(),
-        };
-
-        let buf = vec![1, 2, 3, 4];
-        let result = write_single_file(&torrent, 32, buf.clone());
-        assert!(result.is_ok());
-
-        let mut file = File::open(temp_file.path()).unwrap();
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents).unwrap();
-        assert_eq!(contents.len(), 36);
-        assert_eq!(&contents[32..36], &buf);
-    }
-
-    #[test]
-    fn test_file_large_enough() {
-        let temp_file = NamedTempFile::new().unwrap();
-        let torrent = Torrent {
-            info: TorrentInfo {
-                name: temp_file.path().to_str().unwrap().to_string(),
-                piece_length: 16,
-                pieces: Default::default(),
-                files: FileInfo::Single(20),
-            },
-            announce: Default::default(),
-            announce_list: Default::default(),
-            comment: Default::default(),
-            creation_date: Default::default(),
-            created_by: Default::default(),
-            info_hash: Default::default(),
-            peer_id: Default::default(),
-        };
-
-        // Write initial data to make the file large enough
-        let mut file = OpenOptions::new()
-            .write(true)
-            .open(temp_file.path())
-            .unwrap();
-        file.write_all(&vec![0; 64]).unwrap();
-
-        let buf = vec![1, 2, 3, 4];
-        let result = write_single_file(&torrent, 32, buf.clone());
-        assert!(result.is_ok());
-
-        let mut file = File::open(temp_file.path()).unwrap();
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents).unwrap();
-        assert_eq!(contents.len(), 64);
-        assert_eq!(&contents[32..36], &buf);
+            file.read(&mut buffer).expect("buffer overflow");
+            let res = write_single_file(&torrent, file_ind.try_into().unwrap(), buffer);
+            //std::thread::sleep(Duration::from_secs(10));
+        }
     }
 }

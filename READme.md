@@ -8,19 +8,14 @@ sources
 
 [torrent specification](https://wiki.theory.org/BitTorrentSpecification#piece:_.3Clen.3D0009.2BX.3E.3Cid.3D7.3E.3Cindex.3E.3Cbegin.3E.3Cblock.3E)
 
+
 <div align='center' style>
     <img height='200' src='./logos/logo.svg'>
 </div>
 
 
-## notes
-- copying the contents of a .torrent file doesn't work (idk why)
-- copying the entire file then changing it's name is ok
 
 
-## features
-- NOTICE: this client only works with torrent files that have an announce url in them
-- bencode encoder
 
 
 
@@ -40,15 +35,16 @@ sources
 - [x] parse torrent file
 - [x] calculate info hash
 - [x] get peers with tracker
-- [ ] download
+- [x] download
     - [x] tcp connection
     - [x] handshakes
     - [x] messages
     - [x] pieces
     - [x] managing connections and pieces
     - [x] downloading pieces
-    - [ ] writing pieces to files
-    - [ ] make it work with both single file and multiple files torrents
+- [x] writing pieces to files
+    - [x] single files
+    - [ ] multi files
 
 
 ## extra features to implement
@@ -61,11 +57,11 @@ sources
 
 
 ## Errors:
-- [ ] restart clients (clients keep breaking with): 
-  - [ ] Resource temporarily unavailable (os error 11) ---> (message.rs line:107)
-  - [ ] failed to fill whole buffer ---> (message.rs line:127)
-  - [ ] Broken pipe (os error 32)
-- [ ] receiving pieces in the wrong order "expected index: 44, got: 9"
+- [x] restart clients (clients keep breaking with): 
+  - Resource temporarily unavailable (os error 11) ---> (message.rs line:107)
+  - failed to fill whole buffer ---> (message.rs line:127)
+  - Broken pipe (os error 32)
+- [x] receiving pieces in the wrong order "expected index: 44, got: 9" (used to get this error but not anymore idk why)
 - [ ] when the last piece is finished downloading the receiving MSCP channel throws "error receiving in the receiver thread: receiving on a closed channel"
 - [x] insane CPU usage almost 100% (i5 8600k):
 ```rust
