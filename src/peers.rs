@@ -30,22 +30,29 @@ pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResul
         let url: String = if co == 0 {
             torrent_data.announce.clone()
         } else {
-            // idk why so many clones
-            debug(format!(
-                "number of urls: {:?}, using: {}",
-                torrent_data.announce_list.clone().unwrap().len(),
-                co - 1
-            ));
-            if (co - 1) >= torrent_data.announce_list.clone().unwrap().len() {
-                return Err(String::from("unable to establish network with the tracker URls provided in the torrent file"));
+            match torrent_data.announce_list.clone() {
+                Some(res) => {
+                    // idk why so many clones
+                    debug(format!(
+                        "number of urls: {:?}, using: {}",
+                        torrent_data.announce_list.clone().unwrap().len(),
+                        co - 1
+                    ));
+                    if (co - 1) >= torrent_data.announce_list.clone().unwrap().len() {
+                        return Err(String::from("unable to establish network with the tracker URls provided in the torrent file"));
+                    }
+                    torrent_data.announce_list.clone().unwrap()[co - 1].clone()
+                }
+                None => return Err(String::from("no announce_list ULRs to use")),
             }
-            torrent_data.announce_list.clone().unwrap()[co - 1].clone()
         };
+
         info(format!(
             "using announce url: {:?} | attempt: {}",
             url,
             co + 1
         ));
+
         let request = build_http_url(url, torrent_data, peer_id).unwrap();
         match send_request(request) {
             Ok(res) => break res,
@@ -118,7 +125,6 @@ pub fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
 }
 
 fn parse(decoded_response: DecoderResults) -> Result<PeersResult, String> {
-    error("test".to_string());
     let json_response: Value = serde_json::from_str(&decoded_response.result).unwrap();
     debug(format!("{}", json_response));
     let mut peers: Vec<Peer> = Vec::new();

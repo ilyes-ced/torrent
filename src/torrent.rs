@@ -66,20 +66,29 @@ fn extract_torrent_data(
         .ok_or("Missing or invalid announce")?
         .to_string();
 
-    let announce_list: Vec<String> = json_object["announce-list"]
+    let announce_list: Option<Vec<String>> = json_object["announce-list"]
         .as_array()
-        .ok_or("Missing or invalid announce-list in info")?
-        .iter()
-        .flat_map(|url_array| {
-            url_array
-                .as_array()
-                .unwrap_or(&vec![]) // Default to an empty vector if not an array
+        .map(|array| {
+            let urls: Vec<String> = array
                 .iter()
-                .filter_map(Value::as_str)
-                .map(String::from)
-                .collect::<Vec<String>>()
+                .flat_map(|url_array| {
+                    url_array
+                        .as_array()
+                        .unwrap_or(&vec![]) // Default to an empty vector if not an array
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(String::from)
+                        .collect::<Vec<String>>()
+                })
+                .collect::<Vec<String>>();
+
+            if urls.is_empty() {
+                None
+            } else {
+                Some(urls)
+            }
         })
-        .collect();
+        .flatten(); // Flatten the nested Option
 
     let comment = json_object
         .get("comment")
@@ -154,7 +163,7 @@ fn extract_torrent_data(
 
     Ok(Torrent {
         announce,
-        announce_list: Some(announce_list),
+        announce_list: announce_list,
         comment,
         creation_date,
         created_by,

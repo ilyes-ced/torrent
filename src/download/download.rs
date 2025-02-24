@@ -305,16 +305,28 @@ fn pieces_workers(torrent: &Torrent) -> Vec<PieceWork> {
 fn calc_piece_len(torrent: &Torrent, ind: usize) -> usize {
     let begin = ind * torrent.info.piece_length as usize;
     let mut end = begin + torrent.info.piece_length as usize;
+
     let files = match &torrent.info.files {
         FileInfo::Single(length) => {
             if end > *length as usize {
                 end = *length as usize
             }
+            debug(format!("{:?}", end - begin));
             end - begin
         }
-        FileInfo::Multiple(items) => {
+        FileInfo::Multiple(files) => {
             // todo
-            todo!()
+            let mut length: usize = 0;
+            for file in files {
+                length += file.length as usize;
+            }
+
+            if end > length as usize {
+                end = length as usize
+            }
+            debug(format!("{:?}", end - begin));
+
+            end - begin
         }
     };
     files
