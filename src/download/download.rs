@@ -1,17 +1,19 @@
 use super::Client;
+use crate::torrent::FileInfo::{Multiple, Single};
 use crate::{
     constants::{MsgId, MAX_BACKLOG, MAX_BLOCK_SIZE},
     log::{debug, error, info, warning},
     torrent::{FileInfo, Torrent},
 };
 use sha1::{Digest, Sha1};
+use std::collections::HashMap;
 use std::sync::mpsc::Sender;
 use std::{
     sync::{Arc, Mutex},
     thread,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PieceResult {
     pub index: u32,
     pub buf: Vec<u8>,
@@ -311,7 +313,6 @@ fn calc_piece_len(torrent: &Torrent, ind: usize) -> usize {
             if end > *length as usize {
                 end = *length as usize
             }
-            debug(format!("{:?}", end - begin));
             end - begin
         }
         FileInfo::Multiple(files) => {
@@ -324,7 +325,6 @@ fn calc_piece_len(torrent: &Torrent, ind: usize) -> usize {
             if end > length as usize {
                 end = length as usize
             }
-            debug(format!("{:?}", end - begin));
 
             end - begin
         }

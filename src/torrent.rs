@@ -47,6 +47,12 @@ pub struct Files {
 impl Torrent {
     pub fn new(data: DecoderResults, peer_id: [u8; 20]) -> Result<Torrent, String> {
         let json_object: Value = serde_json::from_str(&data.result).unwrap();
+
+        //* for writing the decoded bencode into a json file
+        //let json_string = serde_json::to_string_pretty(&json_object).unwrap();
+        //let mut file = std::fs::File::create("output.json").unwrap();
+        //std::io::Write::write_all(&mut file, json_string.as_bytes()).unwrap();
+
         let result = extract_torrent_data(&json_object, data.info_hash, peer_id).unwrap();
 
         info(format!("{}", result));

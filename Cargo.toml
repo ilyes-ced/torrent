@@ -21,3 +21,4 @@ bytes = "1.10.0"
 
 [dev-dependencies]
 tempfile = "3.17.1"
+itertools = "0.14.0"

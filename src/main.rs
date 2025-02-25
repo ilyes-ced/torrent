@@ -21,7 +21,7 @@ fn main() -> std::io::Result<()> {
     //maybe we need a static PeerId
     let peer_id = utils::new_peer_id();
     //let path = "debian.torrent";
-    let path = "tests/torrents/yome.torrent";
+    let path = "tests/torrents/many_files.torrent";
     let mut file = File::open(path)?;
     let mut buf = vec![];
     file.read_to_end(&mut buf)?;

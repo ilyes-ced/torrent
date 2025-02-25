@@ -16,7 +16,7 @@ pub(crate) mod writer;
 
 use client::Client;
 use download::PieceResult;
-use writer::write_single_file;
+use writer::write_file;
 
 pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
     info("starting download\n".to_string());
@@ -94,8 +94,7 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
         };
         let torrent_guard = torrent_arc_clone.lock().unwrap();
 
-        let _ =
-            write_single_file(&torrent_guard, finished_piece.index, finished_piece.buf).unwrap();
+        let _ = write_file(&torrent_guard, finished_piece.clone()).unwrap();
         info(format!(
             "!!!!!!--------------------- received completed download of piece {} ---------------------!!!!!!",
             finished_piece.index,
