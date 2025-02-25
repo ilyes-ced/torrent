@@ -41,6 +41,71 @@ pub fn start(
     tx: Sender<PieceResult>,
 ) -> Result<(), String> {
     let pieces = pieces_workers(&torrent);
+
+    //let files = match &torrent.info.files {
+    //    Multiple(files) => files,
+    //    Single(_) => return Err(String::from("we cant accept single files here")), // should never happen
+    //};
+    //let mut cumulative_file_length: u64 = 0;
+    //for file in files {
+    //    let (file_start, file_end) = (cumulative_file_length, cumulative_file_length + file.length);
+    //    cumulative_file_length += file.length;
+    //    info(format!("file bounds {}, {}", file_start, file_end));
+    //}
+
+    // hashmap<piece_index, files index in belongs to>
+
+    //  info(format!("number of pieces: {:?}", pieces.len()));
+    //  let mut piece_to_file_mapping = Vec::new();
+    //  for piece in pieces {
+    //      let p_len = torrent.info.piece_length;
+    //      let p_ind = piece.index as u64;
+
+    //      let mut files_len: Vec<u64> = Vec::new();
+    //      for file in files {
+    //          files_len.push(file.length);
+    //      }
+
+    //      let piece_start = p_len * p_ind;
+    //      let piece_end = p_len * p_ind + p_len;
+
+    //      let mut cumulative_file_length: u64 = 0;
+    //      'files: for (i, file) in files.iter().enumerate() {
+    //          //file bounds
+
+    //          let file_start = cumulative_file_length;
+    //          let file_end = cumulative_file_length + file.length;
+
+    //          if piece_start < file_end && piece_end > file_start {
+    //              let file_offset = std::cmp::max(piece_start, file_start);
+    //              let length = std::cmp::min(piece_end, file_end) - file_offset;
+
+    //              // file index, write offset in file, piece index, part of piece length
+    //              piece_to_file_mapping.push((
+    //                  i,
+    //                  file_offset - file_start,
+    //                  piece.index,
+    //                  length,
+    //                  (piece_start, piece_start + length),
+    //              ));
+    //          }
+
+    //          cumulative_file_length += file.length;
+    //      }
+    //  }
+
+    //  info(format!(
+    //      "{}",
+    //      piece_to_file_mapping
+    //          .clone()
+    //          .into_iter()
+    //          .map(|(a, b, c, g, (d, e))| format!("({}, {}, {}, {}, ({}, {}))", a, b, c, g, d, e))
+    //          .collect::<Vec<_>>()
+    //          .join("\n")
+    //  ));
+
+    //  std::process::exit(0);
+
     let num_pieces_arc: Arc<usize> = Arc::new(pieces.len());
     let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces));
     let results_counter_arc: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));

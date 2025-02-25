@@ -1,3 +1,4 @@
+use std::cmp::{max, min};
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
@@ -17,11 +18,11 @@ use super::download::PieceResult;
 //todo:  needs cleaning up, too many calculations they need to be organized in variables
 
 pub(crate) fn write_file(torrent: &Torrent, piece: PieceResult) -> Result<(), String> {
-    let _ = match &torrent.info.files {
+    let res = match &torrent.info.files {
         Single(len) => write_single_file(torrent, piece),
         Multiple(files) => write_multi_file(torrent, piece),
     };
-    Err(String::from("test"))
+    res
 }
 
 /*
@@ -69,35 +70,56 @@ fn write_multi_file(torrent: &Torrent, piece: PieceResult) -> Result<(), String>
 
     let mappings = mapping(torrent, &piece)?;
 
-    debug(format!("mappings {:?}", mappings));
+    debug(format!(
+        "################## for piece: {}, mappings {:?}",
+        piece.index, mappings
+    ));
 
-    for mapping in mappings {
+    for (map_ind, mapping) in mappings.iter().enumerate() {
         let ind = piece.index as u64;
         let file_path = files[mapping.file_index].clone().paths.join("/");
         let file = get_file(&file_path)?;
+        warning(format!("file path{}", file_path));
 
-        let file_len = file.metadata().unwrap().len();
-        let piece_len = torrent.info.piece_length;
+        let file_len: usize = file.metadata().unwrap().len() as usize;
+        let piece_len: usize = torrent.info.piece_length as usize;
 
-        if file_len < (ind * piece_len) {
-            let num_blocks_to_fill = ind - (file_len / piece_len);
+        if file_len < mapping.file_write_offset as usize {
+            // map_ind here should be the index of this piece comppared to other pieces for this same file
+            let num_blocks_to_fill: usize =
+                ((mapping.file_write_offset / p_len) as f64).floor() as usize;
 
             warning(format!(
-                "Adding {} blocks of size {}",
-                num_blocks_to_fill, piece_len
+                "Adding {} blocks of size {}, at: {}",
+                num_blocks_to_fill, piece_len, file_len
             ));
 
-            let zeros: Vec<u8> = vec![0; changeme as usize];
+            let zeros: Vec<u8> = vec![0; num_blocks_to_fill * piece_len as usize];
 
-            file.write_at(&zeros, file_len).map_err(|e| e.to_string())?;
+            file.write_at(&zeros, file_len as u64)
+                .map_err(|e| e.to_string())?;
+
+            let buffer = if mappings.len() == 1 {
+                &piece.buf
+            } else if mappings.len() == 2 {
+                if map_ind == 0 {
+                    &piece.buf[..mapping.piece_write_len as usize]
+                } else {
+                    &piece.buf[mapping.piece_write_len as usize..]
+                }
+            } else if mappings.len() > 2 {
+                // todo
+                &piece.buf
+            } else {
+                return Err(String::from("should never happen"));
+            };
+
+            warning(format!("writing buffer of length: {}", buffer.len()));
+            file.write_at(buffer, mapping.file_write_offset)
+                .map_err(|err| err.to_string())?;
         }
-
-        file.write_at(&piece.buf, change_me)
-            .map_err(|err| err.to_string())?;
     }
-
-    std::process::exit(0);
-
+    println!("\n");
     Ok(())
 }
 
@@ -122,7 +144,7 @@ fn get_file(path: &str) -> Result<File, String> {
 struct Mapping {
     file_index: usize,
     file_write_offset: u64,
-    piece_write_length: u64,
+    piece_write_len: u64,
 }
 
 fn mapping(torrent: &Torrent, piece: &PieceResult) -> Result<Vec<Mapping>, String> {
@@ -151,15 +173,15 @@ fn mapping(torrent: &Torrent, piece: &PieceResult) -> Result<Vec<Mapping>, Strin
         let file_end = cumulative_file_length + file.length;
 
         if piece_start < file_end && piece_end > file_start {
-            let file_offset = std::cmp::max(piece_start, file_start);
-            let length = std::cmp::min(piece_end, file_end) - file_offset;
+            let file_offset = max(piece_start, file_start);
+            let length = min(piece_end, file_end) - file_offset;
 
-            // file index, write offset in file, piece index, part of piece length
+            // file index, write offset in file, piece index, part of piece bounds (start, end)
             //piece_to_file_mapping.push((i, file_offset - file_start, p_ind, length));
             piece_to_file_mapping.push(Mapping {
                 file_index: i,
                 file_write_offset: file_offset - file_start,
-                piece_write_length: length,
+                piece_write_len: length,
             })
         }
 
