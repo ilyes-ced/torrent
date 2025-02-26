@@ -1,12 +1,5 @@
 # torrent client with rust
 
-sources
-
-[tutorial in js](https://allenkim67.github.io/programming/2016/05/04/how-to-make-your-own-bittorrent-client.html)
-
-[tutorial in go](https://blog.jse.li/posts/torrent/)
-
-[torrent specification](https://wiki.theory.org/BitTorrentSpecification#piece:_.3Clen.3D0009.2BX.3E.3Cid.3D7.3E.3Cindex.3E.3Cbegin.3E.3Cblock.3E)
 
 
 <div align='center' style>
@@ -16,6 +9,13 @@ sources
 
 
 
+sources
+
+[tutorial in js](https://allenkim67.github.io/programming/2016/05/04/how-to-make-your-own-bittorrent-client.html)
+
+[tutorial in go](https://blog.jse.li/posts/torrent/)
+
+[torrent specification](https://wiki.theory.org/BitTorrentSpecification#piece:_.3Clen.3D0009.2BX.3E.3Cid.3D7.3E.3Cindex.3E.3Cbegin.3E.3Cblock.3E)
 
 
 
@@ -30,7 +30,10 @@ sources
 
 
 
-## TODO
+
+
+
+## features TODO
 - [x] bencode decoder
 - [x] parse torrent file
 - [x] calculate info hash
@@ -44,7 +47,7 @@ sources
     - [x] downloading pieces
 - [x] writing pieces to files
     - [x] single files
-    - [ ] multi files
+    - [x] multi files
 
 
 ## extra features to implement
@@ -52,15 +55,15 @@ sources
 - [ ] recovery from all types of errors and disconnections (no unwraps in this app should be left)
 - [ ] no reliance on announce (implementing DHT)
 - [ ] magnet links
-- [ ] when download is interrupted pick off where it started
-- [ ] rework getting peers from the tracker
+- [ ] when download is interrupted pick off where it started (read the local files that are downloaded already)(remove them from the PieceWorkers Vector)
+- [x] rework getting peers from the tracker (not using udp tho)
 
 
 ## Errors:
 - [x] restart clients (clients keep breaking with): 
   - Resource temporarily unavailable (os error 11) ---> (message.rs line:107)
   - failed to fill whole buffer ---> (message.rs line:127)
-  - Broken pipe (os error 32)
+  - Broken pipe (os error 32) ---> (when trying to write to a closed socket)
 - [x] receiving pieces in the wrong order "expected index: 44, got: 9" (used to get this error but not anymore idk why)
 - [ ] when the last piece is finished downloading the receiving MSCP channel throws "error receiving in the receiver thread: receiving on a closed channel"
 - [x] insane CPU usage almost 100% (i5 8600k):
@@ -98,5 +101,5 @@ could be that the binary data is bytes for ip.ip.ip.ip:port 6bytes total (this i
 - [x] send piece result to a writer thread with MSCP channels
 - [ ] search for more clients regularly
 - [ ] add documentation
-- [ ] add all errors handling
+- [ ] add all errors handling (remove all .unwrap())
 - [ ] add all components tests

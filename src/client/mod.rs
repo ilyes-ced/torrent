@@ -10,11 +10,13 @@ use std::{
     time::Duration,
 };
 
-use super::{
-    bitfield::Bitfield,
-    handshake::{self, Handshake},
-    message::{from_buf, to_buf, Message},
-};
+mod bitfield;
+mod handshake;
+mod message;
+
+use bitfield::Bitfield;
+use handshake::Handshake;
+use message::{from_buf, to_buf, Message};
 
 #[derive(Debug)]
 pub(crate) struct Client {

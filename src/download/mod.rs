@@ -1,20 +1,13 @@
-use std::io::Write;
 use std::sync::{mpsc::channel, Arc, Mutex};
 use std::thread;
 
+use crate::client::Client;
 use crate::log::{error, info};
 use crate::peers::Peer;
 use crate::torrent::Torrent;
+use crate::writer;
 
-mod bitfield;
-mod client;
-mod download;
-mod handshake;
-mod message;
-//todo change this later no need for it to
-pub(crate) mod writer;
-
-use client::Client;
+pub(crate) mod download;
 use download::PieceResult;
 use writer::write_file;
 

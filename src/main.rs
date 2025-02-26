@@ -1,4 +1,5 @@
 mod bencode;
+mod client;
 mod constants;
 mod download;
 mod error;
@@ -6,6 +7,7 @@ mod log;
 mod peers;
 mod torrent;
 mod utils;
+mod writer;
 
 use bencode::Decoder;
 use log::info;

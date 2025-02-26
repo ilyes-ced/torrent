@@ -3,9 +3,7 @@ use std::{
     net::TcpStream,
 };
 
-use crate::{constants::MsgId, log::debug};
-
-use super::download::PieceProgress;
+use crate::{constants::MsgId, download::download::PieceProgress, log::debug};
 
 #[derive(Debug, PartialEq)]
 pub struct Message {

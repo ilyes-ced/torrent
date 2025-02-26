@@ -1,19 +1,12 @@
 use std::cmp::{max, min};
 use std::fs::File;
-use std::io;
-use std::io::prelude::*;
-use std::io::BufReader;
-use std::io::Read;
-use std::io::SeekFrom;
 use std::os::unix::fs::FileExt;
 use std::path::Path;
 
-use crate::log::warning;
-use crate::log::{debug, error, info};
+use crate::download::download::PieceResult;
+use crate::log::{debug, info};
 use crate::torrent::FileInfo::{Multiple, Single};
 use crate::torrent::{Files, Torrent};
-
-use super::download::PieceResult;
 
 //todo:  needs cleaning up, too many calculations they need to be organized in variables
 
@@ -238,7 +231,7 @@ mod tests {
             ));
             let mut buffer = vec![0; metadata.len() as usize];
 
-            file.read(&mut buffer).expect("buffer overflow");
+            std::io::Read::read(&mut file, &mut buffer).expect("buffer overflow");
             //let res = write_single_file(&torrent, piece);
             //std::thread::sleep(Duration::from_secs(10));
         }
