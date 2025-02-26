@@ -11,45 +11,36 @@ use std::path::Path;
 use crate::log::warning;
 use crate::log::{debug, error, info};
 use crate::torrent::FileInfo::{Multiple, Single};
-use crate::torrent::Torrent;
+use crate::torrent::{Files, Torrent};
 
 use super::download::PieceResult;
 
 //todo:  needs cleaning up, too many calculations they need to be organized in variables
 
 pub(crate) fn write_file(torrent: &Torrent, piece: PieceResult) -> Result<(), String> {
-    let res = match &torrent.info.files {
-        Single(len) => write_single_file(torrent, piece),
-        Multiple(files) => write_multi_file(torrent, piece),
-    };
-    res
+    match &torrent.info.files {
+        Single(_) => write_single_file(torrent, piece),
+        Multiple(files) => write_multi_file(torrent, piece, files),
+    }
 }
 
-/*
-    ? check if file already has the bytes inited
-    ? if for example the file is empty and we want to write piece 2 at index 262144
-    ? it would cause an error
-    ? must init all pieces with zeros before writing piece 2
-*/
 pub(crate) fn write_single_file(torrent: &Torrent, piece: PieceResult) -> Result<(), String> {
     let ind = piece.index as u64;
     let file = get_file(&torrent.info.name)?;
-
-    let file_len = file.metadata().unwrap().len();
     let piece_len = torrent.info.piece_length;
 
-    if file_len < (ind * piece_len) {
-        let num_blocks_to_fill = ind - (file_len / piece_len);
-
-        warning(format!(
-            "Adding {} blocks of size {}",
-            num_blocks_to_fill, piece_len
-        ));
-
-        let zeros: Vec<u8> = vec![0; (num_blocks_to_fill * piece_len) as usize];
-
-        file.write_at(&zeros, file_len).map_err(|e| e.to_string())?;
-    }
+    /*
+    ? this part was intended to write empty blocks of zeros when we download the last pieces before the first pieces so we fill the first ones with zeros but it turns out that .write_at() already does that by default
+    */
+    //if file_len < (ind * piece_len) {
+    //    let num_blocks_to_fill = ind - (file_len / piece_len);
+    //    warning(format!(
+    //        "Adding {} blocks of size {}",
+    //        num_blocks_to_fill, piece_len
+    //    ));
+    //    let zeros: Vec<u8> = vec![0; (num_blocks_to_fill * piece_len) as usize];
+    //    file.write_at(&zeros, file_len).map_err(|e| e.to_string())?;
+    //}
 
     file.write_at(&piece.buf, ind * piece_len)
         .map_err(|err| err.to_string())?;
@@ -57,67 +48,49 @@ pub(crate) fn write_single_file(torrent: &Torrent, piece: PieceResult) -> Result
     Ok(())
 }
 
-fn write_multi_file(torrent: &Torrent, piece: PieceResult) -> Result<(), String> {
+fn write_multi_file(
+    torrent: &Torrent,
+    piece: PieceResult,
+    files: &Vec<Files>,
+) -> Result<(), String> {
     // we have files in torrent and piece index we can calculate to which file or multiple files each pioece belongs
-
-    let files = match &torrent.info.files {
-        Multiple(files) => files,
-        Single(_) => return Err(String::from("we cant accept single files here")), // should never happen
-    };
-
-    let p_len = torrent.info.piece_length;
-    let p_ind = piece.index as u64;
-
     let mappings = mapping(torrent, &piece)?;
 
     debug(format!(
-        "################## for piece: {}, mappings {:?}",
+        "for piece: {}, mappings {:?}",
         piece.index, mappings
     ));
 
     for (map_ind, mapping) in mappings.iter().enumerate() {
-        let ind = piece.index as u64;
         let file_path = files[mapping.file_index].clone().paths.join("/");
         let file = get_file(&file_path)?;
-        warning(format!("file path{}", file_path));
 
-        let file_len: usize = file.metadata().unwrap().len() as usize;
-        let piece_len: usize = torrent.info.piece_length as usize;
+        let piece_len = torrent.info.piece_length;
 
-        if file_len < mapping.file_write_offset as usize {
-            // map_ind here should be the index of this piece comppared to other pieces for this same file
-            let num_blocks_to_fill: usize =
-                ((mapping.file_write_offset / p_len) as f64).floor() as usize;
-
-            warning(format!(
-                "Adding {} blocks of size {}, at: {}",
-                num_blocks_to_fill, piece_len, file_len
-            ));
-
-            let zeros: Vec<u8> = vec![0; num_blocks_to_fill * piece_len as usize];
-
-            file.write_at(&zeros, file_len as u64)
-                .map_err(|e| e.to_string())?;
-
-            let buffer = if mappings.len() == 1 {
-                &piece.buf
-            } else if mappings.len() == 2 {
-                if map_ind == 0 {
-                    &piece.buf[..mapping.piece_write_len as usize]
-                } else {
-                    &piece.buf[mapping.piece_write_len as usize..]
-                }
-            } else if mappings.len() > 2 {
-                // todo
-                &piece.buf
+        let buffer = if mappings.len() == 1 {
+            &piece.buf
+        } else if mappings.len() == 2 {
+            if map_ind == 0 {
+                &piece.buf[0..mapping.piece_write_len as usize]
             } else {
-                return Err(String::from("should never happen"));
-            };
+                &piece.buf[(piece_len - mapping.piece_write_len) as usize..]
+            }
+        } else if mappings.len() > 2 {
+            if map_ind == 0 {
+                &piece.buf[mapping.piece_write_len as usize..]
+            } else if map_ind == mappings.len() - 1 {
+                &piece.buf[..mapping.piece_write_len as usize]
+            } else {
+                // todo: untested
+                &piece.buf[mappings[map_ind - 1].piece_write_len as usize
+                    ..mappings[map_ind + 1].piece_write_len as usize]
+            }
+        } else {
+            return Err(String::from("should never happen"));
+        };
 
-            warning(format!("writing buffer of length: {}", buffer.len()));
-            file.write_at(buffer, mapping.file_write_offset)
-                .map_err(|err| err.to_string())?;
-        }
+        file.write_at(buffer, mapping.file_write_offset)
+            .map_err(|err| err.to_string())?;
     }
     println!("\n");
     Ok(())

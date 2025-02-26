@@ -8,13 +8,8 @@ mod torrent;
 mod utils;
 
 use bencode::Decoder;
-use download::writer;
 use log::info;
-use std::{
-    fs::{self, File},
-    io::Read,
-    time::Duration,
-};
+use std::{fs::File, io::Read};
 use torrent::Torrent;
 
 fn main() -> std::io::Result<()> {
@@ -32,22 +27,6 @@ fn main() -> std::io::Result<()> {
     // peers.interval can use it later
     info(format!("{:?}", peers));
     let _download = download::start(torrent_data, peers.peers).unwrap();
-
-    // let file = File::options()
-    //     .read(true)
-    //     .write(true)
-    //     .open("test.txt")
-    //     .map_err(|e| e.to_string())
-    //     .unwrap();
-
-    // let test = std::os::unix::fs::FileExt::write_at(
-    //     &file,
-    //     &[
-    //         150, 239, 21, 88, 47, 62, 122, 139, 184, 00, 00, 00, 00, 00, 00, 00, 00,
-    //     ],
-    //     0,
-    // )
-    // .map_err(|e| e.to_string());
 
     Ok(())
 }
