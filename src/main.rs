@@ -1,18 +1,16 @@
-mod bencode;
 mod client;
 mod constants;
 mod download;
-mod error;
+mod io;
 mod log;
 mod peers;
-mod torrent;
+mod torrentfile;
 mod utils;
-mod writer;
 
-use bencode::Decoder;
 use log::info;
 use std::{fs::File, io::Read};
-use torrent::Torrent;
+use torrentfile::bencode::Decoder;
+use torrentfile::torrent::Torrent;
 
 fn main() -> std::io::Result<()> {
     //maybe we need a static PeerId

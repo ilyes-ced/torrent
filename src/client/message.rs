@@ -13,10 +13,10 @@ pub struct Message {
 
 impl Message {
     pub fn have(self) -> Result<u32, String> {
-        if self.id != MsgId::HAVE.to_u8() {
+        if self.id != MsgId::Have.to_u8() {
             return Err(format!(
                 "expected HAVE: {}, got id: {}",
-                MsgId::HAVE.to_u8(),
+                MsgId::Have.to_u8(),
                 self.id
             ));
         }
@@ -42,10 +42,10 @@ impl Message {
     }
 
     pub fn parse_piece(self, progress: &PieceProgress) -> Result<(Vec<u8>, u32), String> {
-        if self.id != MsgId::PIECE.to_u8() {
+        if self.id != MsgId::Piece.to_u8() {
             return Err(format!(
                 "expected HAVE: {}, got id: {}",
-                MsgId::PIECE.to_u8(),
+                MsgId::Piece.to_u8(),
                 self.id
             ));
         }
@@ -176,7 +176,7 @@ mod tests {
     #[test]
     fn test_have_success() {
         let message = Message {
-            id: MsgId::HAVE.to_u8(),
+            id: MsgId::Have.to_u8(),
             payload: vec![0, 0, 0, 1],
         };
 
@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn test_have_wrong_id() {
         let message = Message {
-            id: MsgId::INTERESTED.to_u8(),
+            id: MsgId::Interested.to_u8(),
             payload: vec![0, 0, 0, 1],
         };
 
@@ -197,7 +197,7 @@ mod tests {
     #[test]
     fn test_have_wrong_payload_length() {
         let message = Message {
-            id: MsgId::HAVE.to_u8(),
+            id: MsgId::Have.to_u8(),
             payload: vec![0, 0],
         };
 
@@ -208,7 +208,7 @@ mod tests {
     #[test]
     fn test_have_payload_conversion_failure() {
         let message = Message {
-            id: MsgId::HAVE.to_u8(),
+            id: MsgId::Have.to_u8(),
             payload: vec![0; 5],
         };
 
@@ -221,7 +221,7 @@ mod tests {
     #[test]
     fn request() {
         let message = Message {
-            id: MsgId::HAVE.to_u8(),
+            id: MsgId::Have.to_u8(),
             payload: vec![0, 0, 0, 1],
         };
 

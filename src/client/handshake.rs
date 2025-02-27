@@ -8,8 +8,8 @@ impl Handshake {
     pub fn new(info_hash: [u8; 20], peer_id: [u8; 20]) -> Handshake {
         Handshake {
             protocol_id: String::from("BitTorrent protocol"),
-            info_hash: info_hash,
-            peer_id: peer_id,
+            info_hash,
+            peer_id,
         }
     }
     pub fn create_handshake(&self) -> [u8; 68] {

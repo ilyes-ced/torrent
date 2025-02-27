@@ -2,7 +2,7 @@ use crate::{
     constants::{MsgId, TIMEOUT_DURATION},
     log::{debug, error, info},
     peers::Peer,
-    torrent::Torrent,
+    torrentfile::torrent::Torrent,
 };
 use std::{
     io::{self, Read, Write},
@@ -49,9 +49,9 @@ impl Client {
         })
     }
 
-    pub fn shutdown_con(&mut self) -> Result<(), String> {
-        Ok(())
-    }
+    // pub fn shutdown_con(&mut self) -> Result<(), String> {
+    //     Ok(())
+    // }
 
     pub fn restart_con(&mut self) -> Result<(), String> {
         debug(format!("restarting connection with peer: {:?}", self.peer));
@@ -91,7 +91,8 @@ impl Client {
         // signal is one of the constants in MsgId
         let msg = Some(Message {
             id: signal.to_u8(),
-            payload: payload.unwrap_or_else(Vec::new),
+            // todo: test this was changed from "unwrap_or_else(Vec::new)" to "unwrap_or_default()" suggested by clippy
+            payload: payload.unwrap_or_default(),
         });
         match self.con.write_all(&to_buf(msg)) {
             Ok(_) => {}
@@ -133,19 +134,16 @@ pub fn connect(peer: &Peer, info_hash: [u8; 20], handshake: [u8; 68]) -> Result<
     };
 
     // not sure if read and write timeouts are needed
-    let _ = match stream.set_read_timeout(Some(Duration::from_secs(TIMEOUT_DURATION))) {
+    match stream.set_read_timeout(Some(Duration::from_secs(TIMEOUT_DURATION))) {
         Ok(_) => {}
         Err(err) => return Err(err.to_string()),
     };
-    let _ = match stream.set_write_timeout(Some(Duration::from_secs(TIMEOUT_DURATION))) {
+    match stream.set_write_timeout(Some(Duration::from_secs(TIMEOUT_DURATION))) {
         Ok(_) => {}
         Err(err) => return Err(err.to_string()),
     };
 
-    match complete_handshake(stream, info_hash, peer, handshake) {
-        Ok(tcp_stream) => Ok(tcp_stream),
-        Err(err) => return Err(err),
-    }
+    complete_handshake(stream, info_hash, peer, handshake)
 }
 
 pub fn complete_handshake(
@@ -186,12 +184,13 @@ pub fn complete_handshake(
     };
 
     info(format!(
-        "{} {} \n\tprotocol id:{} \n\tinfo hash:{:?}  \n\tpeer id: {}\n",
+        "{} {}:{} \n\tprotocol id:{} \n\tinfo hash:{:?}  \n\tpeer id: {}\n",
         "received handshake from peer:",
-        format!("{}:{}", peer.ip, peer.port),
+        peer.ip,
+        peer.port,
         rec_handshake.protocol_id,
         rec_handshake.info_hash,
-        String::from_utf8_lossy(&rec_handshake.peer_id).to_string()
+        String::from_utf8_lossy(&rec_handshake.peer_id)
     ));
 
     if rec_handshake.info_hash == info_hash {

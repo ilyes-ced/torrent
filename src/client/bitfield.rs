@@ -5,7 +5,7 @@ pub struct Bitfield {
 
 impl Bitfield {
     pub fn new(bytes: Vec<u8>) -> Self {
-        Bitfield { bytes: bytes }
+        Bitfield { bytes }
     }
 
     pub fn has_piece(&self, index: usize) -> bool {

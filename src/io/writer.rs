@@ -5,8 +5,10 @@ use std::path::Path;
 
 use crate::download::download::PieceResult;
 use crate::log::{debug, info};
-use crate::torrent::FileInfo::{Multiple, Single};
-use crate::torrent::{Files, Torrent};
+use crate::torrentfile::torrent::{
+    FileInfo::{Multiple, Single},
+    {Files, Torrent},
+};
 
 //todo:  needs cleaning up, too many calculations they need to be organized in variables
 
@@ -41,11 +43,7 @@ pub(crate) fn write_single_file(torrent: &Torrent, piece: PieceResult) -> Result
     Ok(())
 }
 
-fn write_multi_file(
-    torrent: &Torrent,
-    piece: PieceResult,
-    files: &Vec<Files>,
-) -> Result<(), String> {
+fn write_multi_file(torrent: &Torrent, piece: PieceResult, files: &[Files]) -> Result<(), String> {
     // we have files in torrent and piece index we can calculate to which file or multiple files each pioece belongs
     let mappings = mapping(torrent, &piece)?;
 
@@ -94,7 +92,7 @@ fn get_file(path: &str) -> Result<File, String> {
         info("file exists".to_string())
     } else {
         info("file does not exists. creating . . .".to_string());
-        let test = File::create(path).unwrap();
+        File::create(path).unwrap();
     }
 
     let file = File::options()
@@ -180,7 +178,7 @@ fn mapping(torrent: &Torrent, piece: &PieceResult) -> Result<Vec<Mapping>, Strin
 mod tests {
     use std::fs;
 
-    use crate::torrent;
+    use crate::{torrentfile::torrent, Torrent};
 
     use super::*;
     #[test]

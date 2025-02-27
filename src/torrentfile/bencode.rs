@@ -27,7 +27,7 @@ impl Decoder {
     pub fn start(&mut self) -> Result<DecoderResults, String> {
         let mut result = String::new();
         loop {
-            if self.finished == true || self.cursor == self.input.len() {
+            if self.finished || self.cursor == self.input.len() {
                 break;
             } else {
                 result = format!("{}{}", result, self.next()?);
@@ -226,7 +226,7 @@ impl Decoder {
                 let value = value.replace("\"", "'");
                 Ok(value)
             }
-            Err(err) => return Err(err),
+            Err(err) => Err(err),
         }
     }
     fn get_int(&mut self) -> Result<String, String> {

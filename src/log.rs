@@ -1,7 +1,4 @@
-use chrono::{
-    prelude::{DateTime, Local},
-    Datelike, Timelike,
-};
+use chrono::prelude::{DateTime, Local};
 
 enum Color {
     Red,
@@ -45,10 +42,10 @@ pub fn error(msg: String) {
 
 fn color(txt: String, color: Color) -> String {
     match color {
-        Color::Red => return format!("\x1b[31m{}\x1b[0m", txt),
-        Color::Green => return format!("\x1b[32m{}\x1b[0m", txt),
-        Color::Yellow => return format!("\x1b[33m{}\x1b[0m", txt),
-        Color::Blue => return format!("\x1b[34m{}\x1b[0m", txt),
+        Color::Red => format!("\x1b[31m{}\x1b[0m", txt),
+        Color::Green => format!("\x1b[32m{}\x1b[0m", txt),
+        Color::Yellow => format!("\x1b[33m{}\x1b[0m", txt),
+        Color::Blue => format!("\x1b[34m{}\x1b[0m", txt),
     }
 }
 

@@ -2,10 +2,10 @@ use std::sync::{mpsc::channel, Arc, Mutex};
 use std::thread;
 
 use crate::client::Client;
+use crate::io::writer;
 use crate::log::{error, info};
 use crate::peers::Peer;
-use crate::torrent::Torrent;
-use crate::writer;
+use crate::torrentfile::torrent::Torrent;
 
 pub(crate) mod download;
 use download::PieceResult;
@@ -60,7 +60,7 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
         .expect("clients mutex cannot be locked");
 
     info(format!("number of clients:  {:?}", clients.len()));
-    if clients.len() == 0 {
+    if clients.is_empty() {
         error("no clients were found for this torrent".to_string());
         return Err(String::from("no clients were found for this torrent"));
     }
@@ -78,16 +78,13 @@ pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<String, String> {
         let finished_piece = match rx.recv() {
             Ok(res) => res,
             Err(err) => {
-                error(format!(
-                    "error receiving in the receiver thread: {}",
-                    err.to_string()
-                ));
+                error(format!("error receiving in the receiver thread: {}", err));
                 std::process::exit(0);
             }
         };
         let torrent_guard = torrent_arc_clone.lock().unwrap();
 
-        let _ = write_file(&torrent_guard, finished_piece.clone()).unwrap();
+        write_file(&torrent_guard, finished_piece.clone()).unwrap();
         info(format!(
             "!!!!!!--------------------- received completed download of piece {} ---------------------!!!!!!",
             finished_piece.index,

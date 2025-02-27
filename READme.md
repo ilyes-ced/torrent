@@ -48,10 +48,18 @@ sources
 - [x] writing pieces to files
     - [x] single files
     - [x] multi files
+- [ ] seeding
+- [ ] resume downloads 
+- [ ] display percetege downloaded + clean up the terminal printing
+
+
+
+
 
 
 ## extra features to implement
-- [ ] remove clients when they error and refresh and add clients periodically
+- [ ] refactor the "download" folder
+- [ ] remove clients when they error and refresh and add clients periodically (stop client threads, refresh peers and start new clients)
 - [ ] recovery from all types of errors and disconnections (no unwraps in this app should be left)
 - [ ] no reliance on announce (implementing DHT)
 - [ ] magnet links
@@ -66,6 +74,7 @@ sources
   - Broken pipe (os error 32) ---> (when trying to write to a closed socket)
 - [x] receiving pieces in the wrong order "expected index: 44, got: 9" (used to get this error but not anymore idk why)
 - [ ] when the last piece is finished downloading the receiving MSCP channel throws "error receiving in the receiver thread: receiving on a closed channel"
+- [ ] fix the connection drop logic its broken 
 - [x] insane CPU usage almost 100% (i5 8600k):
 ```rust
 // this one was caused because of this code block which was ran everytime we received a PIECE message from a peer
@@ -80,6 +89,12 @@ let mut file = std::fs::OpenOptions::new()
 
 writeln!(file, "{:?}", res_buf).unwrap();
 ```
+
+
+
+
+
+
 
 ## to fix (not errors)
 - [x] some Peers responses come out as binary instead of text of Ip addresses (maybe change it to udp (https://www.bittorrent.org/beps/bep_0015.html))

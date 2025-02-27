@@ -1,8 +1,10 @@
-use crate::bencode::DecoderResults;
-use crate::log::{debug, error, info, warning};
-use crate::torrent::Torrent;
+use crate::constants;
+use crate::log::{debug, error, info};
+use crate::torrentfile::{
+    bencode::{Decoder, DecoderResults},
+    torrent::Torrent,
+};
 use crate::utils::encode_binnary_to_http_chars;
-use crate::{bencode::Decoder, constants};
 use bytes::Bytes;
 use reqwest::blocking::Client;
 use serde_json::Value;
@@ -18,7 +20,7 @@ pub struct Peer {
 #[derive(Debug)]
 pub struct PeersResult {
     pub peers: Vec<Peer>,
-    pub interval: u64,
+    pub _interval: u64,
 }
 
 pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResult, String> {
@@ -31,7 +33,7 @@ pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResul
             torrent_data.announce.clone()
         } else {
             match torrent_data.announce_list.clone() {
-                Some(res) => {
+                Some(_) => {
                     // idk why so many clones
                     debug(format!(
                         "number of urls: {:?}, using: {}",
@@ -157,7 +159,7 @@ fn parse(decoded_response: DecoderResults) -> Result<PeersResult, String> {
             for i in 0..(bytes.len() / 6) {
                 let peer = Peer {
                     ip: Ipv4Addr::new(
-                        bytes[i * 6 + 0],
+                        bytes[i * 6],
                         bytes[i * 6 + 1],
                         bytes[i * 6 + 2],
                         bytes[i * 6 + 3],
@@ -176,7 +178,10 @@ fn parse(decoded_response: DecoderResults) -> Result<PeersResult, String> {
     }
 
     let interval = json_response["interval"].as_u64().unwrap_or(900);
-    Ok(PeersResult { peers, interval })
+    Ok(PeersResult {
+        peers,
+        _interval: interval,
+    })
 }
 
 //fn peers_binary(result: Bytes) -> Result<PeersResult, String> {

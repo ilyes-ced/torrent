@@ -1,7 +1,4 @@
-use crate::{
-    bencode::DecoderResults,
-    log::{debug, info},
-};
+use crate::{log::info, torrentfile::bencode::DecoderResults};
 use serde_json::Value;
 use std::fmt;
 
@@ -72,9 +69,8 @@ fn extract_torrent_data(
         .ok_or("Missing or invalid announce")?
         .to_string();
 
-    let announce_list: Option<Vec<String>> = json_object["announce-list"]
-        .as_array()
-        .map(|array| {
+    let announce_list: Option<Vec<String>> =
+        json_object["announce-list"].as_array().and_then(|array| {
             let urls: Vec<String> = array
                 .iter()
                 .flat_map(|url_array| {
@@ -93,8 +89,7 @@ fn extract_torrent_data(
             } else {
                 Some(urls)
             }
-        })
-        .flatten(); // Flatten the nested Option
+        });
 
     let comment = json_object
         .get("comment")
@@ -169,7 +164,7 @@ fn extract_torrent_data(
 
     Ok(Torrent {
         announce,
-        announce_list: announce_list,
+        announce_list,
         comment,
         creation_date,
         created_by,
@@ -213,11 +208,7 @@ impl fmt::Display for TorrentInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let files_info = match &self.files {
             FileInfo::Single(length) => {
-                format!(
-                    "Single file: {} \n\t\tlength: {}",
-                    self.name,
-                    length.to_string()
-                )
+                format!("Single file: {} \n\t\tlength: {}", self.name, length)
             }
             FileInfo::Multiple(files) => {
                 let mut names = String::new();
@@ -228,7 +219,7 @@ impl fmt::Display for TorrentInfo {
                     ));
                     for path in &file.paths {
                         names.push_str(path);
-                        names.push_str("/");
+                        names.push('/');
                     }
                     names.pop();
                     names.push('\n');

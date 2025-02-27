@@ -2,7 +2,7 @@ use crate::{
     client::Client,
     constants::{MsgId, MAX_BACKLOG, MAX_BLOCK_SIZE},
     log::{debug, error, info, warning},
-    torrent::{FileInfo, Torrent},
+    torrentfile::torrent::{FileInfo, Torrent},
 };
 use sha1::{Digest, Sha1};
 use std::sync::mpsc::Sender;
@@ -46,8 +46,8 @@ pub fn start(
     let mut handles = vec![];
 
     for mut client in clients {
-        client.send_msg_id(MsgId::UNCHOKE, None)?;
-        client.send_msg_id(MsgId::INTERESTED, None)?;
+        client.send_msg_id(MsgId::Unchoke, None)?;
+        client.send_msg_id(MsgId::Interested, None)?;
 
         let workers_clone = Arc::clone(&workers_arc);
         let results_counter_clone = Arc::clone(&results_counter_arc);
@@ -194,7 +194,7 @@ fn prepare_download(
     let mut hasher = Sha1::new();
     hasher.update(&piece_result.buf);
     let hash = hasher.finalize();
-    if !(hash == piece.hash.into()) {
+    if hash != piece.hash.into() {
         return Err((piece, String::from("integrity check failed")));
     }
 
@@ -231,9 +231,9 @@ fn download<'a>(
                 payload[8..12].copy_from_slice(&(block_size as u32).to_be_bytes());
 
                 // ! error handling
-                let _ = progress
+                progress
                     .client
-                    .send_msg_id(MsgId::REQUEST, Some(payload.to_vec()))
+                    .send_msg_id(MsgId::Request, Some(payload.to_vec()))
                     .map_err(|e| e.to_string())?;
 
                 progress.backlog += 1;
@@ -314,8 +314,8 @@ fn calc_piece_len(torrent: &Torrent, ind: usize) -> usize {
         }
         FileInfo::Multiple(files) => {
             let length: usize = files.iter().map(|s| s.length as usize).sum();
-            if end > length as usize {
-                end = length as usize
+            if end > length {
+                end = length
             }
             end - begin
         }
