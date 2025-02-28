@@ -76,6 +76,7 @@ pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResul
     let decoded_resp = Decoder::new(bytes).start()?;
     let peers = parse(decoded_resp)?;
 
+    info(format!("{:?}", peers));
     Ok(peers)
 }
 

@@ -1,7 +1,7 @@
 /target
+/.vscode
+
+# for testing
 *.zip
 *.pdf
 *.txt
-
-# for testing
-/node

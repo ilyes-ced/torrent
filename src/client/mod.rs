@@ -24,6 +24,7 @@ pub(crate) struct Client {
     pub choked: bool,
     pub bitfield: Bitfield,
     pub peer: Peer,
+    // we put handshake here to make it easier to trry to reconnect in restart_con()
     pub handshake: [u8; 68],
     pub info_hash: [u8; 20],
 }

@@ -36,13 +36,13 @@ pub struct PieceProgress<'a> {
 pub fn start(
     torrent: Torrent,
     clients: Vec<Client>,
-    tx: Sender<PieceResult>,
+    tx: Sender<(Option<PieceResult>, f64)>,
 ) -> Result<(), String> {
     let pieces = pieces_workers(&torrent);
     let num_pieces_arc: Arc<usize> = Arc::new(pieces.len());
     let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces));
     let results_counter_arc: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
-    let tx_arc: Arc<Sender<PieceResult>> = Arc::new(tx);
+    let tx_arc: Arc<Sender<(Option<PieceResult>, f64)>> = Arc::new(tx);
     let mut handles = vec![];
 
     for mut client in clients {
@@ -82,15 +82,29 @@ pub fn start(
                         ));
                         match prepare_download(&mut client, piece) {
                             Ok(piece) => {
-                                let _ = tx_clone.send(PieceResult {
-                                    index: piece.index,
-                                    buf: piece.buf,
-                                });
-                                // increment results_counter_clone
+                                // todo: better debugging
+
                                 let mut results_counter_lock = results_counter_clone
                                     .lock()
                                     .expect("Failed to lock results");
                                 *results_counter_lock += 1;
+
+                                error(format!(
+                                    "--------------------------------------------------------- {} {} {:.3}%",
+                                    *results_counter_lock, *num_pieces_clone, (*results_counter_lock as f64 / *num_pieces_clone as f64) * 100.0 ,
+                                ));
+
+                                tx_clone
+                                    .send((
+                                        Some(PieceResult {
+                                            index: piece.index,
+                                            buf: piece.buf,
+                                        }),
+                                        // total number / number done
+                                        ((*results_counter_lock / *num_pieces_clone) * 100) as f64,
+                                    ))
+                                    .unwrap();
+                                // increment results_counter_clone
                                 drop(results_counter_lock);
                             }
                             // todo: still needs debugging not sure if it works

@@ -50,21 +50,30 @@ sources
     - [x] multi files
 - [ ] seeding
 - [ ] resume downloads 
-- [ ] display percetege downloaded + clean up the terminal printing
+- [ ] display percetege downloaded
+- [ ] cli options: download_dir, torrent_file,
+- [ ] add cli interface (TUI)
 
+    -[ ] torrent file info
+    -[ ] peers data
+    -[ ] connections data
+    -[ ] downloade data
+    -[ ] download progress bar
 
-
+    -[ ] interesting TUI features
+        -[ ] could add bars that show how much is downloaded from each peer (barchart/barchart-grouped)
+        -[ ] charts/graphs for amount downloaded for each peer
 
 
 
 ## extra features to implement
-- [ ] refactor the "download" folder
 - [ ] remove clients when they error and refresh and add clients periodically (stop client threads, refresh peers and start new clients)
 - [ ] recovery from all types of errors and disconnections (no unwraps in this app should be left)
 - [ ] no reliance on announce (implementing DHT)
 - [ ] magnet links
 - [ ] when download is interrupted pick off where it started (read the local files that are downloaded already)(remove them from the PieceWorkers Vector)
 - [x] rework getting peers from the tracker (not using udp tho)
+- [ ] download multiple torrents
 
 
 ## Errors:
@@ -110,6 +119,7 @@ d8:intervali900e5:peersld2:ip14:129.146.17.2084:porti6882eed2:ip13:178.92.140.17
 
 could be that the binary data is bytes for ip.ip.ip.ip:port 6bytes total (this is correct)
 
+- [ ] refactor the "download" folder
 - [ ] refactor and improve naming 
 - [ ] divide code to more functions for better testing
 - [x] add connection resets in case of connection errors
