@@ -1,46 +1,57 @@
 use ratatui::{
-    layout::Rect,
+    layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{self, Span},
-    widgets::{Block, Paragraph, Wrap},
+    widgets::{Block, Gauge, Paragraph, Wrap},
     Frame,
 };
 
-// downloade percentage and pieces downloaded
-pub fn download_info(frame: &mut Frame, area: Rect) {
-    let text = vec![
-        text::Line::from("This is a paragraph with several lines. You can change style your text the way you want"),
-        text::Line::from(""),
-        text::Line::from(vec![
-            Span::from("For example: "),
-            Span::styled("under", Style::default().fg(Color::Red)),
-            Span::raw(" "),
-            Span::styled("the", Style::default().fg(Color::Green)),
-            Span::raw(" "),
-            Span::styled("rainbow", Style::default().fg(Color::Blue)),
-            Span::raw("."),
-        ]),
-        text::Line::from(vec![
-            Span::raw("Oh and if you didn't "),
-            Span::styled("notice", Style::default().add_modifier(Modifier::ITALIC)),
-            Span::raw(" you can "),
-            Span::styled("automatically", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(" "),
-            Span::styled("wrap", Style::default().add_modifier(Modifier::REVERSED)),
-            Span::raw(" your "),
-            Span::styled("text", Style::default().add_modifier(Modifier::UNDERLINED)),
-            Span::raw(".")
-        ]),
-        text::Line::from(
-            "One more thing is that it should display unicode characters: 10€"
+use crate::app::App;
+
+// torrent name + downloade directory
+pub fn download_info(frame: &mut Frame, app: &mut App, area: Rect) {
+    let chunks = Layout::vertical([Constraint::Length(18), Constraint::Length(2)])
+        .margin(1)
+        .split(area);
+    let block = Block::bordered().title("IO info");
+    frame.render_widget(block, area);
+
+    let prog = 0.55;
+
+    let label = format!("{:.2}%", prog * 100.0);
+    let gauge = Gauge::default()
+        .block(Block::new())
+        .gauge_style(
+            Style::default()
+                .fg(Color::Magenta)
+                .bg(Color::Black)
+                .add_modifier(Modifier::ITALIC | Modifier::BOLD),
+        )
+        .use_unicode(app.enhanced_graphics)
+        .label(label)
+        .ratio(prog);
+    frame.render_widget(gauge, chunks[1]);
+
+    let progress_text = vec![text::Line::from(vec![
+        Span::styled("download progress: ", Style::default().fg(Color::Green)),
+        Span::styled("20.031%/100.0%", Style::default().fg(Color::Green)),
+    ])];
+    let piecesprogress_text = vec![text::Line::from(vec![
+        Span::styled(
+            "pieces download progress: ",
+            Style::default().fg(Color::Green),
         ),
-    ];
-    let block = Block::bordered().title(Span::styled(
-        "Downloade progress info",
-        Style::default()
-            .fg(Color::Magenta)
-            .add_modifier(Modifier::BOLD),
-    ));
-    let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
-    frame.render_widget(paragraph, area);
+        Span::styled("20/2054", Style::default().fg(Color::Green)),
+    ])];
+
+    let paragraph = Paragraph::new(progress_text).wrap(Wrap { trim: true });
+    let paragraph2 = Paragraph::new(piecesprogress_text)
+        .alignment(ratatui::layout::Alignment::Right)
+        .wrap(Wrap { trim: true });
+
+    let text_chunks = Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(chunks[0]);
+
+    frame.render_widget(paragraph, text_chunks[0]);
+    frame.render_widget(paragraph2, text_chunks[1]);
 }

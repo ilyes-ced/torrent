@@ -50,8 +50,8 @@ sources
     - [x] multi files
 - [ ] seeding
 - [ ] resume downloads 
-- [ ] display percetege downloaded
-- [ ] cli options: download_dir, torrent_file,
+- [x] display percetege downloaded
+- [x] cli options: download_dir, torrent_file,
 - [ ] add cli interface (TUI)
 
     -[ ] torrent file info

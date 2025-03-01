@@ -27,6 +27,7 @@ pub(crate) struct Client {
     // we put handshake here to make it easier to trry to reconnect in restart_con()
     pub handshake: [u8; 68],
     pub info_hash: [u8; 20],
+    // maybe add amount downloaded here: either in pieces or in bytes for the TUI
 }
 
 impl Client {
