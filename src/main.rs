@@ -5,45 +5,38 @@ mod io;
 mod log;
 mod peers;
 mod torrentfile;
+mod ui;
 mod utils;
 
-use std::{fs::File, io::Read};
+use std::{error::Error, fs::File, io::Read, time::Duration};
 use torrentfile::bencode::Decoder;
 use torrentfile::torrent::Torrent;
+use ui::{app, crossterm};
 
-use crossterm::event::{self, Event};
-use ratatui::{
-    layout::{Constraint, Layout},
-    widgets::Block,
-    Frame,
-};
-fn main() -> std::io::Result<()> {
-    //let mut terminal = ratatui::init();
-    //loop {
-    //    terminal.draw(draw).expect("failed to draw frame");
-    //    if matches!(event::read().expect("failed to read event"), Event::Key(_)) {
-    //        break;
-    //    }
-    //}
-    //ratatui::restore();
+use argh::FromArgs;
 
-    println!("testtest");
-    start_torrent().unwrap();
-    Ok(())
+/// Demo
+#[derive(Debug, FromArgs)]
+struct Cli {
+    /// time in ms between two ticks.
+    #[argh(option, default = "250")]
+    tick_rate: u64,
+    /// whether unicode symbols are used to improve the overall look of the app
+    #[argh(option, default = "true")]
+    enhanced_graphics: bool,
+
+    #[argh(option, description = "torrent file path", short = 't')]
+    torrent_path: String,
+    #[argh(option, description = "download directory path", short = 'd')]
+    download_dir: String,
 }
 
-fn draw(frame: &mut Frame) {
-    use Constraint::{Fill, Length, Min};
+fn main() -> Result<(), Box<dyn Error>> {
+    let cli: Cli = argh::from_env();
+    let tick_rate = Duration::from_millis(cli.tick_rate);
+    crate::crossterm::run(tick_rate, cli.enhanced_graphics).unwrap();
 
-    let vertical = Layout::vertical([Length(1), Min(0), Length(1)]);
-    let [title_area, main_area, status_area] = vertical.areas(frame.area());
-    let horizontal = Layout::horizontal([Fill(1); 2]);
-    let [left_area, right_area] = horizontal.areas(main_area);
-
-    frame.render_widget(Block::bordered().title("Title Bar"), title_area);
-    frame.render_widget(Block::bordered().title("Status Bar"), status_area);
-    frame.render_widget(Block::bordered().title("Left"), left_area);
-    frame.render_widget(Block::bordered().title("Right"), right_area);
+    Ok(())
 }
 
 fn start_torrent() -> Result<(), String> {
