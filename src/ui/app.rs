@@ -64,41 +64,26 @@ pub struct App<'a> {
 
     pub connections_logs: StatefulList<(&'a str, &'a str)>,
     pub downloads_logs: StatefulList<(&'a str, &'a str)>,
-    // pub torrent: Torrent,
-    // pub peers: PeersResult,
+    pub torrent: Torrent,
+    pub peers: PeersResult,
 }
 
 impl<'a> App<'a> {
     pub fn new(title: &'a str, cli: Cli) -> Self {
-        // create a new app
-        // maybe start the torrent client here
-
-        //maybe we need a static PeerId
-        let peer_id = utils::new_peer_id();
-        //let path = "debian.torrent";
-        let path = "tests/torrents/many_files.torrent";
-        let mut file = File::open(path).map_err(|e| e.to_string()).unwrap();
-        let mut buf = vec![];
-        file.read_to_end(&mut buf)
-            .map_err(|e| e.to_string())
-            .unwrap();
-
-        //let bencode_data = Decoder::new(&buf).start().unwrap();
-        //let torrent_data = Torrent::new(bencode_data, peer_id).unwrap();
-        //let peers = peers::get_peers(&torrent_data, peer_id).unwrap();
-        //download::start(torrent_data, peers.peers).unwrap();
-
         App {
             title,
             should_quit: false,
             enhanced_graphics: cli.enhanced_graphics,
-            peer_id,
+            peer_id: utils::new_peer_id(),
             torrent_path: cli.torrent_path,
             download_dir: cli.download_dir,
             connections_logs: StatefulList::with_items(vec![]),
             downloads_logs: StatefulList::with_items(vec![]),
-            // torrent: torrent_data,
-            // peers: peers,
+            torrent: Torrent::default(),
+            peers: PeersResult {
+                peers: vec![],
+                _interval: 0,
+            },
         }
     }
 

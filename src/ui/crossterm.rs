@@ -1,6 +1,7 @@
 use std::{
     error::Error,
-    io,
+    fs::File,
+    io::{self, Read},
     time::{Duration, Instant},
 };
 
@@ -14,7 +15,13 @@ use ratatui::{
     Terminal,
 };
 
-use crate::{app::App, ui, Cli};
+use crate::{
+    download, peers,
+    torrentfile::{bencode::Decoder, torrent::Torrent},
+    utils, Cli,
+};
+
+use crate::{app::App, ui};
 
 pub fn run(tick_rate: Duration, cli: Cli) -> Result<(), Box<dyn Error>> {
     // setup terminal
@@ -52,6 +59,23 @@ fn run_app<B: Backend>(
     let mut last_tick = Instant::now();
     loop {
         terminal.draw(|frame| ui::draw(frame, &mut app))?;
+
+        // todo: needs error handling
+        let mut file = File::open(&app.torrent_path)
+            .map_err(|e| e.to_string())
+            .unwrap();
+        let mut buf = vec![];
+        file.read_to_end(&mut buf)
+            .map_err(|e| e.to_string())
+            .unwrap();
+
+        let bencode_data = Decoder::new(&buf).start().unwrap();
+        let torrent_data = Torrent::new(bencode_data, app.peer_id).unwrap();
+        app.torrent = torrent_data;
+
+        let peers = peers::get_peers(&mut app).unwrap();
+        app.peers = peers;
+        //download::start(torrent_data, peers.peers).unwrap();
 
         let timeout = tick_rate.saturating_sub(last_tick.elapsed());
         if event::poll(timeout)? {

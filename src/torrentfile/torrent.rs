@@ -1,4 +1,4 @@
-use crate::{log::info, torrentfile::bencode::DecoderResults};
+use crate::{app::App, log::info, torrentfile::bencode::DecoderResults};
 use serde_json::Value;
 use std::fmt;
 
@@ -42,7 +42,7 @@ pub struct Files {
 }
 
 impl Torrent {
-    pub fn new(data: DecoderResults, peer_id: [u8; 20]) -> Result<Torrent, String> {
+    pub fn new(data: DecoderResults, app: &mut App) -> Result<Torrent, String> {
         let json_object: Value = serde_json::from_str(&data.result).unwrap();
 
         //* for writing the decoded bencode into a json file
@@ -50,11 +50,31 @@ impl Torrent {
         //let mut file = std::fs::File::create("output.json").unwrap();
         //std::io::Write::write_all(&mut file, json_string.as_bytes()).unwrap();
 
-        let result = extract_torrent_data(&json_object, data.info_hash, peer_id).unwrap();
-
-        info(format!("{}", result));
+        let result = extract_torrent_data(&json_object, data.info_hash, app.peer_id).unwrap();
+        app.torrent = result.clone();
+        // info(format!("{}", result));
 
         Ok(result)
+    }
+}
+
+impl Default for Torrent {
+    fn default() -> Self {
+        Torrent {
+            info: TorrentInfo {
+                name: "default".to_string(),
+                piece_length: 0,
+                pieces: Default::default(),
+                files: FileInfo::Single(0),
+            },
+            announce: Default::default(),
+            announce_list: Default::default(),
+            comment: Default::default(),
+            creation_date: Default::default(),
+            created_by: Default::default(),
+            info_hash: Default::default(),
+            peer_id: Default::default(),
+        }
     }
 }
 

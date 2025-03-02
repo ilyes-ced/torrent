@@ -1,3 +1,4 @@
+use crate::app::App;
 use crate::constants;
 use crate::log::{debug, error, info};
 use crate::torrentfile::{
@@ -6,6 +7,7 @@ use crate::torrentfile::{
 };
 use crate::utils::encode_binnary_to_http_chars;
 use bytes::Bytes;
+use color_eyre::owo_colors::OwoColorize;
 use reqwest::blocking::Client;
 use serde_json::Value;
 use std::net::Ipv4Addr;
@@ -23,7 +25,10 @@ pub struct PeersResult {
     pub _interval: u64,
 }
 
-pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResult, String> {
+pub fn get_peers(app: &mut App) -> Result<PeersResult, String> {
+    let torrent_data = &app.torrent;
+    let peer_id = app.peer_id;
+
     // todo: if announce is not https search for one in the announce-list
     // * keeps changing the url in case of errors
     // ! not tested 100% with functioning urls
@@ -35,11 +40,13 @@ pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResul
             match torrent_data.announce_list.clone() {
                 Some(_) => {
                     // idk why so many clones
-                    debug(format!(
+                    let test = format!(
                         "number of urls: {:?}, using: {}",
                         torrent_data.announce_list.clone().unwrap().len(),
                         co - 1
-                    ));
+                    );
+                    app.connections_logs.items.push((&test, "debug"));
+
                     if (co - 1) >= torrent_data.announce_list.clone().unwrap().len() {
                         return Err(String::from("unable to establish network with the tracker URls provided in the torrent file"));
                     }
