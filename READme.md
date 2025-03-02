@@ -50,19 +50,8 @@ sources
     - [x] multi files
 - [ ] seeding
 - [ ] resume downloads 
-- [ ] display percetege downloaded
-- [ ] cli options: download_dir, torrent_file,
-- [ ] add cli interface (TUI)
-
-    -[ ] torrent file info
-    -[ ] peers data
-    -[ ] connections data
-    -[ ] downloade data
-    -[ ] download progress bar
-
-    -[ ] interesting TUI features
-        -[ ] could add bars that show how much is downloaded from each peer (barchart/barchart-grouped)
-        -[ ] charts/graphs for amount downloaded for each peer
+- [x] display percetege downloaded
+- [x] cli options: download_dir, torrent_file,
 
 
 
@@ -82,7 +71,7 @@ sources
   - failed to fill whole buffer ---> (message.rs line:127)
   - Broken pipe (os error 32) ---> (when trying to write to a closed socket)
 - [x] receiving pieces in the wrong order "expected index: 44, got: 9" (used to get this error but not anymore idk why)
-- [ ] when the last piece is finished downloading the receiving MSCP channel throws "error receiving in the receiver thread: receiving on a closed channel"
+- [x] when the last piece is finished downloading the receiving MSCP channel throws "error receiving in the receiver thread: receiving on a closed channel"
 - [ ] fix the connection drop logic its broken 
 - [x] insane CPU usage almost 100% (i5 8600k):
 ```rust

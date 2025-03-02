@@ -14,9 +14,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 reqwest = { version = "0.12.11", features = ["blocking"] }
 bytes = "1.10.0"
-ratatui = "0.29.0"
-crossterm = "0.28.1"
-color-eyre = "0.6"
+clap = { version = "4.5.31", features = ["derive"] }
 
 
 # remove on production

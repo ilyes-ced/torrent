@@ -103,6 +103,7 @@ fn start_download(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> 
                 }
             },
             Err(err) => {
+                // not sure in which case we would end up here
                 error(format!("error receiving in the receiver thread: {}", err));
                 // could be done more gracefully
                 std::process::exit(0);

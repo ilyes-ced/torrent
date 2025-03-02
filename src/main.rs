@@ -7,15 +7,34 @@ mod peers;
 mod torrentfile;
 mod utils;
 
-use std::{fs::File, io::Read};
+use clap::Parser;
+use log::info;
+use std::{env, fs::File, io::Read};
 use torrentfile::bencode::Decoder;
 use torrentfile::torrent::Torrent;
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(short, long)]
+    torrent_file: String,
+
+    #[arg(short, long, default_value = "~/Downloads")]
+    download_dir: String,
+}
+
 fn main() -> std::io::Result<()> {
+    let args = Args::parse();
+    info(format!(
+        "starting downloade for torrent: {}",
+        args.torrent_file
+    ));
+    info(format!("download directory: {}", args.download_dir));
+
     //maybe we need a static PeerId
     let peer_id = utils::new_peer_id();
     //let path = "debian.torrent";
-    let path = "tests/torrents/many_files.torrent";
+    let path = &args.torrent_file;
     let mut file = File::open(path).map_err(|e| e.to_string()).unwrap();
     let mut buf = vec![];
     file.read_to_end(&mut buf)
