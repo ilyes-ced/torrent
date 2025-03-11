@@ -9,7 +9,7 @@ mod utils;
 
 use clap::Parser;
 use log::info;
-use std::{env, fs::File, io::Read};
+use std::{fs::File, io::Read};
 use torrentfile::bencode::Decoder;
 use torrentfile::torrent::Torrent;
 

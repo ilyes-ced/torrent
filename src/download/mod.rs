@@ -134,7 +134,7 @@ fn start_download(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> 
         // todo: here display downloade percentage
     });
 
-    let torrent_guard = torrent_arc.lock().unwrap().to_owned(); // Acquire the lock
+    let torrent_guard = torrent_arc.lock().unwrap().to_owned();
     let _download = download::start(torrent_guard, clients, tx);
 
     handle.join().unwrap();

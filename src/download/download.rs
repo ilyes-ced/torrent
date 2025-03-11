@@ -1,6 +1,7 @@
 use crate::{
     client::Client,
     constants::{MsgId, MAX_BACKLOG, MAX_BLOCK_SIZE},
+    io::reader::read_file,
     log::{debug, error, info, warning},
     torrentfile::torrent::{FileInfo, Torrent},
 };
@@ -17,10 +18,10 @@ pub struct PieceResult {
     pub buf: Vec<u8>,
 }
 #[derive(Debug)]
-struct PieceWork {
-    index: u32,
-    hash: [u8; 20],
-    length: usize,
+pub struct PieceWork {
+    pub index: u32,
+    pub hash: [u8; 20],
+    pub length: usize,
 }
 #[derive(Debug)]
 
@@ -39,6 +40,22 @@ pub fn start(
     tx: Sender<(Option<PieceResult>, f64)>,
 ) -> Result<(), String> {
     let pieces = pieces_workers(&torrent);
+    // here we chack already downloaded pieces
+    let already_downloaded = read_file(&torrent.info.name, &pieces, &torrent).unwrap();
+    // here replace pieces by a new array (new_array = old_pieces_array.remove(already_downloaded))
+    debug(format!(
+        "piece num before excluding downloaded pieces: {:?}",
+        pieces.len()
+    ));
+    let pieces: Vec<PieceWork> = pieces
+        .into_iter()
+        .filter(|piece| !already_downloaded.contains(&piece.index))
+        .collect();
+    debug(format!(
+        "piece num after excluding downloaded pieces: {:?}",
+        pieces.len()
+    ));
+
     let num_pieces_arc: Arc<usize> = Arc::new(pieces.len());
     let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces));
     let results_counter_arc: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
@@ -101,7 +118,8 @@ pub fn start(
                                             buf: piece.buf,
                                         }),
                                         // total number / number done
-                                        ((*results_counter_lock / *num_pieces_clone) * 100) as f64,
+                                        (*results_counter_lock as f64 / *num_pieces_clone as f64)
+                                            * 100.0,
                                     ))
                                     .unwrap();
                                 // increment results_counter_clone
