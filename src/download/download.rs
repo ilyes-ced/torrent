@@ -47,14 +47,18 @@ pub fn start(
         "piece num before excluding downloaded pieces: {:?}",
         pieces.len()
     ));
+
     let pieces: Vec<PieceWork> = pieces
         .into_iter()
         .filter(|piece| !already_downloaded.contains(&piece.index))
         .collect();
+
     debug(format!(
         "piece num after excluding downloaded pieces: {:?}",
         pieces.len()
     ));
+
+    std::process::exit(0);
 
     let num_pieces_arc: Arc<usize> = Arc::new(pieces.len());
     let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces));

@@ -49,8 +49,8 @@ sources
     - [x] single files
     - [x] multi files
 - [ ] seeding
-- [ ] resume downloads 
-- [x] display percetege downloaded
+- [x] resume downloads (for single file downloads) 
+- [x] display percetege downloaded (needs the loading bar)
 - [x] cli options: download_dir, torrent_file,
 
 
