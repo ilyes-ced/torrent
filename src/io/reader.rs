@@ -13,7 +13,7 @@ use super::mapping::{mapping, Mapping};
 
 use crate::{
     download::download::PieceWork,
-    log::{debug, error, info},
+    log::{debug, error, info, warning},
     torrentfile::torrent::{
         FileInfo::{Multiple, Single},
         Files, Torrent,
@@ -99,10 +99,11 @@ pub fn check_piece_multi_file(
             let file = get_file(&file_path).map_err(|e| e.to_string())?;
             match file {
                 Some(mut file) => {
-                    if piece.index as u64 * torrent.info.piece_length
+                    println!("{:?}", file);
+                    if mappings[0].file_write_offset
                         < file.metadata().expect("unable to read metadata").len()
                     {
-                        let start = piece.index as u64 * torrent.info.piece_length;
+                        let start = mappings[0].file_write_offset;
                         file.seek(SeekFrom::Start(start))
                             .map_err(|e| e.to_string())?;
                         let mut buf = vec![0; torrent.info.piece_length.try_into().unwrap()];
@@ -123,9 +124,57 @@ pub fn check_piece_multi_file(
                 None => {}
             }
         } else {
-            // here we read parts of the piece from the files
-            for mapping in mappings {}
             //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+
+            let mut piece_buf = Vec::new();
+
+            for mapping in mappings {
+                let file_path = files[mapping.file_index].clone().paths.join("/");
+                let file = get_file(&file_path).map_err(|e| e.to_string())?;
+                match file {
+                    Some(mut file) => {
+                        warning(format!(
+                            "sizes , {:?} / {:?}",
+                            mapping.file_write_offset,
+                            file.metadata().expect("unable to read metadata").len()
+                        ));
+                        if mapping.file_write_offset
+                            < file.metadata().expect("unable to read metadata").len()
+                        {
+                            let start = mapping.file_write_offset;
+                            file.seek(SeekFrom::Start(start))
+                                .map_err(|e| e.to_string())?;
+                            let mut buf = vec![0; mapping.piece_write_len.try_into().unwrap()];
+                            file.read_exact(&mut buf).map_err(|e| e.to_string())?;
+                            // push buf to piece_buf
+                            error(format!("appending , {:?}", buf.len()));
+                            piece_buf.append(&mut buf)
+                        }
+                    }
+                    None => {}
+                }
+            }
+
+            error(format!("piece buf len, {:?}", piece_buf.len()));
+            if piece_buf.len() == torrent.info.piece_length as usize {
+                // check buf integrity
+                let mut hasher = Sha1::new();
+                hasher.update(piece_buf);
+                let hash = hasher.finalize();
+                if hash == piece.hash.into() {
+                    debug(format!("------------shared piece {:?}", piece.index));
+                    downloaded.push(piece.index);
+                } else {
+                    debug(format!("piece: {} is invalid", piece.index));
+                }
+            }
         }
     }
 
@@ -138,7 +187,6 @@ fn get_file(path: &str) -> Result<Option<File>, String> {
         Ok(Some(
             File::options()
                 .read(true)
-                .write(true)
                 .open(path)
                 .map_err(|e| e.to_string())?,
         ))

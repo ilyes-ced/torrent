@@ -58,8 +58,6 @@ pub fn start(
         pieces.len()
     ));
 
-    std::process::exit(0);
-
     let num_pieces_arc: Arc<usize> = Arc::new(pieces.len());
     let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces));
     let results_counter_arc: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
