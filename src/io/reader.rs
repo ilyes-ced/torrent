@@ -4,7 +4,7 @@
 use std::{
     fs::File,
     io::{Read, Seek, SeekFrom},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use sha1::{Digest, Sha1};
@@ -27,10 +27,11 @@ pub fn read_file(
     path: &String,
     pieces: &Vec<PieceWork>,
     torrent: &Torrent,
+    download_dir: String,
 ) -> Result<Vec<u32>, String> {
     match &torrent.info.files {
-        Single(_) => check_piece_single_file(path, &pieces, torrent),
-        Multiple(files) => check_piece_multi_file(files, path, &pieces, torrent),
+        Single(_) => check_piece_single_file(path, &pieces, torrent, download_dir),
+        Multiple(files) => check_piece_multi_file(files, path, &pieces, torrent, download_dir),
     }
 }
 
@@ -38,9 +39,15 @@ pub fn check_piece_single_file(
     path: &String,
     pieces: &Vec<PieceWork>,
     torrent: &Torrent,
+    download_dir: String,
 ) -> Result<Vec<u32>, String> {
     let mut downloaded: Vec<u32> = Vec::new();
-    let file = get_file(&path).map_err(|e| e.to_string())?;
+    let path = PathBuf::from(download_dir).join(&torrent.info.name);
+    info(format!(
+        "--------------------------------------------------------- {:?}",
+        path
+    ));
+    let file = get_file(path).map_err(|e| e.to_string())?;
     match file {
         Some(mut file) => {
             for piece in pieces {
@@ -80,6 +87,7 @@ pub fn check_piece_multi_file(
     path: &String,
     pieces: &Vec<PieceWork>,
     torrent: &Torrent,
+    download_dir: String,
 ) -> Result<Vec<u32>, String> {
     // find files that have some ofthe piece
     // read the parts and concat them
@@ -95,8 +103,15 @@ pub fn check_piece_multi_file(
 
         if mappings.len() == 1 {
             // here we read piece as is
-            let file_path = files[mappings[0].file_index].clone().paths.join("/");
-            let file = get_file(&file_path).map_err(|e| e.to_string())?;
+
+            let file_path = PathBuf::from(download_dir.clone())
+                .join(&files[mappings[0].file_index].clone().paths.join("/"));
+            info(format!(
+                "--------------------------------------------------------- {:?}",
+                file_path
+            ));
+
+            let file = get_file(file_path).map_err(|e| e.to_string())?;
             match file {
                 Some(mut file) => {
                     println!("{:?}", file);
@@ -136,8 +151,13 @@ pub fn check_piece_multi_file(
             let mut piece_buf = Vec::new();
 
             for mapping in mappings {
-                let file_path = files[mapping.file_index].clone().paths.join("/");
-                let file = get_file(&file_path).map_err(|e| e.to_string())?;
+                let file_path = PathBuf::from(download_dir.clone())
+                    .join(files[mapping.file_index].clone().paths.join("/"));
+                info(format!(
+                    "--------------------------------------------------------- {:?}",
+                    file_path
+                ));
+                let file = get_file(file_path).map_err(|e| e.to_string())?;
                 match file {
                     Some(mut file) => {
                         warning(format!(
@@ -181,8 +201,8 @@ pub fn check_piece_multi_file(
     Ok(downloaded)
 }
 
-fn get_file(path: &str) -> Result<Option<File>, String> {
-    if Path::new(path).exists() {
+fn get_file(path: PathBuf) -> Result<Option<File>, String> {
+    if Path::new(&path).exists() {
         //debug("file exists".to_string());
         Ok(Some(
             File::options()

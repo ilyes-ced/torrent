@@ -1,8 +1,8 @@
 use std::fs::File;
 use std::os::unix::fs::FileExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use super::mapping::{mapping, Mapping};
+use super::mapping::mapping;
 use crate::download::download::PieceResult;
 use crate::log::{debug, info};
 use crate::torrentfile::torrent::{
@@ -12,16 +12,29 @@ use crate::torrentfile::torrent::{
 
 //todo:  needs cleaning up, too many calculations they need to be organized in variables
 
-pub(crate) fn write_file(torrent: &Torrent, piece: PieceResult) -> Result<(), String> {
+pub(crate) fn write_file(
+    torrent: &Torrent,
+    piece: PieceResult,
+    download_dir: String,
+) -> Result<(), String> {
     match &torrent.info.files {
-        Single(_) => write_single_file(torrent, piece),
-        Multiple(files) => write_multi_file(torrent, piece, files),
+        Single(_) => write_single_file(torrent, piece, download_dir),
+        Multiple(files) => write_multi_file(torrent, piece, files, download_dir),
     }
 }
 
-pub(crate) fn write_single_file(torrent: &Torrent, piece: PieceResult) -> Result<(), String> {
+pub(crate) fn write_single_file(
+    torrent: &Torrent,
+    piece: PieceResult,
+    download_dir: String,
+) -> Result<(), String> {
     let ind = piece.index as u64;
-    let file = get_file(&torrent.info.name)?;
+    let path = PathBuf::from(download_dir).join(&torrent.info.name);
+    info(format!(
+        "--------------------------------------------------------- {:?}",
+        path
+    ));
+    let file = get_file(path)?;
     let piece_len = torrent.info.piece_length;
 
     /*
@@ -43,7 +56,12 @@ pub(crate) fn write_single_file(torrent: &Torrent, piece: PieceResult) -> Result
     Ok(())
 }
 
-fn write_multi_file(torrent: &Torrent, piece: PieceResult, files: &[Files]) -> Result<(), String> {
+fn write_multi_file(
+    torrent: &Torrent,
+    piece: PieceResult,
+    files: &[Files],
+    download_dir: String,
+) -> Result<(), String> {
     // we have files in torrent and piece index we can calculate to which file or multiple files each pioece belongs
     let mappings = mapping(torrent, piece.index)?;
 
@@ -53,8 +71,14 @@ fn write_multi_file(torrent: &Torrent, piece: PieceResult, files: &[Files]) -> R
     ));
 
     for (map_ind, mapping) in mappings.iter().enumerate() {
-        let file_path = files[mapping.file_index].clone().paths.join("/");
-        let file = get_file(&file_path)?;
+        let file_path = PathBuf::from(download_dir.clone())
+            .join(&files[mapping.file_index].clone().paths.join("/"));
+        info(format!(
+            "--------------------------------------------------------- {:?}",
+            file_path
+        ));
+
+        let file = get_file(file_path)?;
 
         let piece_len = torrent.info.piece_length;
 
@@ -89,12 +113,12 @@ fn write_multi_file(torrent: &Torrent, piece: PieceResult, files: &[Files]) -> R
     Ok(())
 }
 
-fn get_file(path: &str) -> Result<File, String> {
-    if Path::new(path).exists() {
+fn get_file(path: PathBuf) -> Result<File, String> {
+    if Path::new(&path).exists() {
         info("file exists".to_string())
     } else {
         info("file does not exists. creating . . .".to_string());
-        File::create(path).unwrap();
+        File::create(&path).unwrap();
     }
 
     let file = File::options()

@@ -38,10 +38,12 @@ pub fn start(
     torrent: Torrent,
     clients: Vec<Client>,
     tx: Sender<(Option<PieceResult>, f64)>,
+    download_dir: String,
 ) -> Result<(), String> {
     let pieces = pieces_workers(&torrent);
     // here we chack already downloaded pieces
-    let already_downloaded = read_file(&torrent.info.name, &pieces, &torrent).unwrap();
+    let already_downloaded =
+        read_file(&torrent.info.name, &pieces, &torrent, download_dir).unwrap();
     // here replace pieces by a new array (new_array = old_pieces_array.remove(already_downloaded))
     debug(format!(
         "piece num before excluding downloaded pieces: {:?}",

@@ -11,12 +11,12 @@ pub(crate) mod download;
 use download::PieceResult;
 use writer::write_file;
 
-pub fn start(torrent: Torrent, peers: Vec<Peer>) -> Result<(), String> {
+pub fn start(torrent: Torrent, peers: Vec<Peer>, download_dir: String) -> Result<(), String> {
     info("starting download\n".to_string());
 
     let clients = get_clients(&torrent, &peers)?;
 
-    start_download(torrent, clients)
+    start_download(torrent, clients, download_dir)
 }
 
 fn get_clients(torrent: &Torrent, peers: &[Peer]) -> Result<Vec<Client>, String> {
@@ -73,11 +73,15 @@ fn get_clients(torrent: &Torrent, peers: &[Peer]) -> Result<Vec<Client>, String>
     Ok(clients)
 }
 
-fn start_download(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> {
+fn start_download(
+    torrent: Torrent,
+    clients: Vec<Client>,
+    download_dir: String,
+) -> Result<(), String> {
     /*
         ! very bad with torrent_arc stuff here, needs to be changed
     */
-
+    let cloned_download_dir = download_dir.clone();
     let torrent_arc = Arc::new(Mutex::new(torrent));
     let torrent_arc_clone = Arc::clone(&torrent_arc);
     // receive Some(piece), if it receives "None" it means downloade is over to avoid the error in the end
@@ -126,7 +130,7 @@ fn start_download(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> 
         //  }
         let torrent_guard = torrent_arc_clone.lock().unwrap();
 
-        write_file(&torrent_guard, finished_piece.clone()).unwrap();
+        write_file(&torrent_guard, finished_piece.clone(), download_dir.clone()).unwrap();
         info(format!(
             "!!!!!!--------------------- received completed download of piece {} ---------------------!!!!!!",
             finished_piece.index,
@@ -135,7 +139,7 @@ fn start_download(torrent: Torrent, clients: Vec<Client>) -> Result<(), String> 
     });
 
     let torrent_guard = torrent_arc.lock().unwrap().to_owned();
-    let _download = download::start(torrent_guard, clients, tx);
+    let _download = download::start(torrent_guard, clients, tx, cloned_download_dir);
 
     handle.join().unwrap();
     Ok(())
