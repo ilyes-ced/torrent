@@ -27,6 +27,7 @@ pub(crate) struct Client {
     // we put handshake here to make it easier to trry to reconnect in restart_con()
     pub handshake: [u8; 68],
     pub info_hash: [u8; 20],
+    pub err_co: u8,
 }
 
 impl Client {

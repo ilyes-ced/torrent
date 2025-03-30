@@ -129,7 +129,6 @@ pub fn start(
                                 // increment results_counter_clone
                                 drop(results_counter_lock);
                             }
-                            // todo: still needs debugging not sure if it works
                             Err(err) => {
                                 // todo : change the counter of failure to the struct of client because here we cant keep track of failures because when con is restarted the counter var is in a different loop
                                 if err.1 == "Resource temporarily unavailable (os error 11)"

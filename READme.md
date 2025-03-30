@@ -69,9 +69,9 @@ Note: probably works only on linux
 
 ## Errors:
 - [x] checking pre existing pieces ignore pieces shared between files 
-- [ ] when reading already downloaded pieces they are not added to the progress
-- [ ] final piece smaller than usual isnt detected in the already downloaded
-- [ ] resuming download reader.rs still has some issues (probably when all pieces are downloaded)
+- [x] when reading already downloaded pieces they are not added to the progress
+- [x] final piece smaller than usual isnt detected in the already downloaded (solved by reading by the piece size not the default piece length (eg. 32768)) (not solved only for the last piece of single file downloads)
+- [x] resuming download reader.rs still has some issues (probably when all pieces are downloaded)
 ```
 thread 'main' panicked at src/download/download.rs:46:72:
 called `Result::unwrap()` on an `Err` value: "failed to fill whole buffer"

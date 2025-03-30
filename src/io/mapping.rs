@@ -14,7 +14,16 @@ pub struct Mapping {
 pub fn mapping(torrent: &Torrent, piece_index: u32) -> Result<Vec<Mapping>, String> {
     let files = match &torrent.info.files {
         Multiple(files) => files,
-        Single(_) => return Err(String::from("we cant accept single files here")), // should never happen
+        Single(_) => return Err(String::from("we cant accept single files here")),
+        // should never happen
+        // this was for figuring out the size of the last piece because it was needed for the final piece which is smaller than default piece size for reading already downloaded pieces
+
+        // ugly solution to a small problem yes
+        //Single(len) => &[Files {
+        //    paths: [torrent.info.name.clone()].to_vec(),
+        //    length: *len,
+        //}]
+        //.to_vec(),
     };
 
     let mut piece_to_file_mapping = Vec::new();

@@ -142,7 +142,7 @@ pub fn check_piece_multi_file(
     Ok(downloaded)
 }
 
-fn get_file(path: PathBuf) -> Result<Option<File>, String> {
+pub fn get_file(path: PathBuf) -> Result<Option<File>, String> {
     if Path::new(&path).exists() {
         //debug("file exists".to_string());
         Ok(Some(
