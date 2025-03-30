@@ -30,10 +30,7 @@ pub(crate) fn write_single_file(
 ) -> Result<(), String> {
     let ind = piece.index as u64;
     let path = PathBuf::from(download_dir).join(&torrent.info.name);
-    info(format!(
-        "--------------------------------------------------------- {:?}",
-        path
-    ));
+
     let file = get_file(path)?;
     let piece_len = torrent.info.piece_length;
 
@@ -110,9 +107,7 @@ fn write_multi_file(
 }
 
 fn get_file(path: PathBuf) -> Result<File, String> {
-    if Path::new(&path).exists() {
-        info("file exists".to_string())
-    } else {
+    if !Path::new(&path).exists() {
         info(format!(
             "file \" {:?} \" does not exists. creating . . .",
             path

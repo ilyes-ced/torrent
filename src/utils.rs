@@ -1,4 +1,5 @@
 use rand::distr::{Alphanumeric, SampleString};
+use sha1::{Digest, Sha1};
 
 pub fn new_peer_id() -> [u8; 20] {
     //"-IT0001-"+12 random chars
@@ -39,4 +40,15 @@ pub fn concat(vec: &Vec<u8>) -> usize {
         }
     }
     acc
+}
+
+pub fn check_integrity(buf: &Vec<u8>, expected_hash: [u8; 20]) -> Result<bool, String> {
+    let mut hasher = Sha1::new();
+    hasher.update(buf);
+    let hash = hasher.finalize();
+    if hash == expected_hash.into() {
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }

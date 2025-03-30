@@ -4,6 +4,7 @@ use crate::{
     io::reader::read_file,
     log::{debug, error, info, warning},
     torrentfile::torrent::{FileInfo, Torrent},
+    utils::check_integrity,
 };
 use sha1::{Digest, Sha1};
 use std::sync::mpsc::Sender;
@@ -17,7 +18,7 @@ pub struct PieceResult {
     pub index: u32,
     pub buf: Vec<u8>,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PieceWork {
     pub index: u32,
     pub hash: [u8; 20],
@@ -41,142 +42,41 @@ pub fn start(
     download_dir: String,
 ) -> Result<(), String> {
     info("checking pre downloaded pieces, please be patient . . . .".to_string());
+
     let pieces = pieces_workers(&torrent);
     let all_pieces_len = pieces.len();
-    // here we chack already downloaded pieces
+
+    // chack already downloaded pieces
     let already_downloaded = read_file(&pieces, &torrent, download_dir)?;
-    // here replace pieces by a new array (new_array = old_pieces_array.remove(already_downloaded))
+    // replace pieces by a new array (new_array = old_pieces_array.remove(already_downloaded))
     let pieces: Vec<PieceWork> = pieces
         .into_iter()
         .filter(|piece| !already_downloaded.contains(&piece.index))
         .collect();
 
-    let num_pieces_arc: Arc<usize> = Arc::new(all_pieces_len);
-    let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces));
-    let results_counter_arc: Arc<Mutex<usize>> = Arc::new(Mutex::new(already_downloaded.len()));
-    let tx_arc: Arc<Sender<(Option<PieceResult>, f64)>> = Arc::new(tx);
+    let num_pieces = Arc::new(all_pieces_len);
+    let workers = Arc::new(Mutex::new(pieces));
+    let results_counter = Arc::new(Mutex::new(already_downloaded.len()));
+    let tx = Arc::new(tx);
+
     let mut handles = vec![];
 
     for mut client in clients {
-        client.send_msg_id(MsgId::Unchoke, None)?;
-        client.send_msg_id(MsgId::Interested, None)?;
+        init_client(&mut client)?;
 
-        let workers_clone = Arc::clone(&workers_arc);
-        let results_counter_clone = Arc::clone(&results_counter_arc);
-        let num_pieces_clone = Arc::clone(&num_pieces_arc);
-        let tx_clone = Arc::clone(&tx_arc);
+        let workers_clone = Arc::clone(&workers);
+        let results_counter_clone = Arc::clone(&results_counter);
+        let num_pieces_clone = Arc::clone(&num_pieces);
+        let tx_clone = Arc::clone(&tx);
 
         let handle = thread::spawn(move || {
-            info(format!("----- client {:?} thread starts", client.peer));
-            loop {
-                let mut workers_lock = workers_clone.lock().expect("Failed to lock workers");
-                let results_counter_lock = results_counter_clone
-                    .lock()
-                    .expect("Failed to lock results");
-
-                if *results_counter_lock == *num_pieces_clone {
-                    info(format!(
-                        "all pieces are downloaded | client {:?} is finished",
-                        client.peer
-                    ));
-                    break;
-                }
-                drop(results_counter_lock);
-                if !workers_lock.is_empty() {
-                    debug(format!("number of workers left: {}", workers_lock.len()));
-                    let piece = workers_lock.remove(0);
-                    drop(workers_lock);
-
-                    if client.bitfield.has_piece(piece.index as usize) {
-                        info(format!(
-                            "client {:?} has piece {}",
-                            client.peer, piece.index
-                        ));
-                        match prepare_download(&mut client, piece) {
-                            Ok(piece) => {
-                                // todo: better debugging
-
-                                let mut results_counter_lock = results_counter_clone
-                                    .lock()
-                                    .expect("Failed to lock results");
-                                *results_counter_lock += 1;
-
-                                error(format!(
-                                    "--------------------------------------------------------- {}/{}pieces {:.3}%",
-                                    *results_counter_lock, *num_pieces_clone, (*results_counter_lock as f64 / *num_pieces_clone as f64) * 100.0 ,
-                                ));
-
-                                tx_clone
-                                    .send((
-                                        Some(PieceResult {
-                                            index: piece.index,
-                                            buf: piece.buf,
-                                        }),
-                                        // total number / number done
-                                        (*results_counter_lock as f64 / *num_pieces_clone as f64)
-                                            * 100.0,
-                                    ))
-                                    .unwrap();
-                                // increment results_counter_clone
-                                drop(results_counter_lock);
-                                // when downloading a piece reset error count
-                                client.err_co = 0;
-                            }
-                            Err(err) => {
-                                // todo : change the counter of failure to the struct of client because here we cant keep track of failures because when con is restarted the counter var is in a different loop
-                                error(err.1.clone());
-                                if err.1 == "Resource temporarily unavailable (os error 11)"
-                                    || err.1 == "failed to fill whole buffer"
-                                    || err.1 == "Broken pipe (os error 32)"
-                                {
-                                    client.err_co += 1;
-                                    warning(format!(
-                                        "increased error counter for client {:?} ",
-                                        client.peer
-                                    ));
-
-                                    'outer: loop {
-                                        match client.restart_con() {
-                                            Ok(_) => break 'outer,
-                                            Err(_) => {}
-                                        }
-                                    }
-                                    if client.err_co > 3 {
-                                        error(format!("client {:?} restarted 3 times and it didnt work client will be dropped", client.peer));
-                                        error("************************************************************".to_string());
-                                        error("************************************************************".to_string());
-                                        error("************************************************************".to_string());
-                                        error("************************************************************".to_string());
-                                        error(err.1.clone());
-                                        break;
-                                    }
-                                }
-
-                                let mut workers_lock =
-                                    workers_clone.lock().expect("Failed to lock workers");
-                                // return this later
-                                // workers_lock.insert(0, err.0);
-                                workers_lock.push(err.0);
-                                drop(workers_lock);
-                            }
-                        };
-                    } else {
-                        // put piece back in queue
-                        error("...... client does not have piece".to_string());
-                        let mut workers_lock =
-                            workers_clone.lock().expect("Failed to lock workers");
-                        workers_lock.push(piece);
-                        drop(workers_lock);
-                        // todo:
-                        // to sleep this thread so others would take the piece (temporary solution)
-                        // maybe not temporary but there could be a better solution
-                        thread::sleep(std::time::Duration::from_millis(1000));
-                    }
-                } else {
-                    // we dont end loop here because even tho the workers array is empty there could be one that is being processed
-                    drop(workers_lock);
-                }
-            }
+            client_download(
+                &mut client,
+                workers_clone,
+                results_counter_clone,
+                num_pieces_clone,
+                tx_clone,
+            )
         });
         handles.push(handle);
     }
@@ -188,12 +88,142 @@ pub fn start(
     }
 
     // Display results
-    let results_lock = results_counter_arc.lock().unwrap();
+    let results_lock = results_counter.lock().unwrap();
     debug(format!("Results len(): {}", results_lock));
-    let workers_lock = workers_arc.lock().unwrap();
+    let workers_lock = workers.lock().unwrap();
     debug(format!("workers len(): {}", workers_lock.len()));
 
     Ok(())
+}
+
+fn init_client(client: &mut Client) -> Result<(), String> {
+    client.send_msg_id(MsgId::Unchoke, None)?;
+    client.send_msg_id(MsgId::Interested, None)?;
+    Ok(())
+}
+
+fn client_download(
+    client: &mut Client,
+    workers: Arc<Mutex<Vec<PieceWork>>>,
+    results_counter: Arc<Mutex<usize>>,
+    num_pieces: Arc<usize>,
+    tx: Arc<Sender<(Option<PieceResult>, f64)>>,
+) {
+    info(format!("client {:?} thread starts", client.peer));
+
+    loop {
+        let mut workers_lock = workers.lock().expect("Failed to lock workers");
+        let results_counter_lock = results_counter.lock().expect("Failed to lock results");
+
+        if *results_counter_lock == *num_pieces {
+            info(format!(
+                "all pieces are downloaded | client {:?} is finished",
+                client.peer
+            ));
+            let _ = tx.send((None, 100.00));
+            break;
+        }
+        drop(results_counter_lock);
+
+        if !workers_lock.is_empty() {
+            debug(format!("number of workers left: {}", workers_lock.len()));
+
+            let piece = workers_lock.remove(0);
+            drop(workers_lock);
+
+            if client.bitfield.has_piece(piece.index as usize) {
+                info(format!(
+                    "client {:?} has piece {}",
+                    client.peer, piece.index
+                ));
+
+                match prepare_download(client, piece) {
+                    Ok(piece) => {
+                        // todo: better debugging
+
+                        let mut results_counter_lock =
+                            results_counter.lock().expect("Failed to lock results");
+                        *results_counter_lock += 1;
+
+                        //info(format!(
+                        //    "download progress: {}/{} pieces {:.3}%",
+                        //    *results_counter_lock,
+                        //    *num_pieces,
+                        //    (*results_counter_lock as f64 / *num_pieces as f64) * 100.0,
+                        //));
+
+                        let _ = tx.send((
+                            Some(PieceResult {
+                                index: piece.index,
+                                buf: piece.buf,
+                            }),
+                            // total number / number done
+                            (*results_counter_lock as f64 / *num_pieces as f64) * 100.0,
+                        ));
+
+                        // increment results_counter
+                        drop(results_counter_lock);
+                        // when downloading a piece reset error count
+                        client.err_co = 0;
+                    }
+                    Err(err) => {
+                        error(err.1.clone());
+                        if err.1 == "Resource temporarily unavailable (os error 11)"
+                            || err.1 == "failed to fill whole buffer"
+                            || err.1 == "Broken pipe (os error 32)"
+                        {
+                            client.err_co += 1;
+                            warning(format!(
+                                "increased error counter for client {:?} ",
+                                client.peer
+                            ));
+                            'outer: loop {
+                                match client.restart_con() {
+                                    Ok(_) => break 'outer,
+                                    Err(_) => {}
+                                }
+                            }
+                            if client.err_co > 3 {
+                                error(
+                                    "************************************************************"
+                                        .to_string(),
+                                );
+                                error(format!(
+                                    "client {:?} restarted 3 times and it didnt work client will be dropped",
+                                    client.peer
+                                ));
+                                error(
+                                    "************************************************************"
+                                        .to_string(),
+                                );
+                                // break client loop here
+                                // break;
+                            }
+                        }
+
+                        let mut workers_lock = workers.lock().expect("Failed to lock workers");
+                        // return this later
+                        // workers_lock.insert(0, err.0);
+                        workers_lock.push(err.0);
+                        drop(workers_lock);
+                    }
+                };
+            } else {
+                // put piece back in queue
+                error("client does not have piece".to_string());
+                let mut workers_lock = workers.lock().expect("Failed to lock workers");
+                workers_lock.push(piece);
+                drop(workers_lock);
+                // todo:
+                // to sleep this thread so others would take the piece (temporary solution)
+                // maybe not temporary but there could be a better solution
+                thread::sleep(std::time::Duration::from_millis(1000));
+            }
+        } else {
+            // we dont end loop here because even tho the workers array is empty there could be one that is being processed
+            drop(workers_lock);
+        }
+    }
 }
 
 fn prepare_download(
@@ -218,20 +248,9 @@ fn prepare_download(
     };
 
     // check integrity
-    let mut hasher = Sha1::new();
-    hasher.update(&piece_result.buf);
-    let hash = hasher.finalize();
-    if hash != piece.hash.into() {
+    if !check_integrity(&piece_result.buf, piece.hash).map_err(|e| (piece.clone(), e))? {
         return Err((piece, String::from("integrity check failed")));
     }
-
-    //let mut file = std::fs::OpenOptions::new()
-    //    .write(true)
-    //    .append(true)
-    //    .open("first_piece.txt")
-    //    .unwrap();
-    //writeln!(file, "{:?}", piece_result.buf).unwrap();
-    //std::process::exit(0);
 
     Ok(PieceResult {
         index: piece.index,

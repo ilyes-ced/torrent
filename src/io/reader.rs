@@ -7,17 +7,15 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use sha1::{Digest, Sha1};
-
-use super::mapping::{mapping, Mapping};
+use super::mapping::mapping;
 
 use crate::{
     download::download::PieceWork,
-    log::{debug, error, info, warning},
     torrentfile::torrent::{
         FileInfo::{Multiple, Single},
         Files, Torrent,
     },
+    utils::check_integrity,
 };
 
 // result vector of piece indexes already downloaded
@@ -41,14 +39,14 @@ pub fn check_piece_single_file(
 ) -> Result<Vec<u32>, String> {
     let mut downloaded: Vec<u32> = Vec::new();
     let path = PathBuf::from(download_dir).join(&torrent.info.name);
-    let file = get_file(path).map_err(|e| e.to_string())?;
+    let file = get_file(path)?;
 
     match file {
         Some(file) => {
             for piece in pieces {
                 let start = piece.index as u64 * torrent.info.piece_length;
                 if let Ok(buf) = read_piece(start, torrent.info.piece_length, &file) {
-                    if check_integrity(buf, piece.hash)? {
+                    if check_integrity(&buf, piece.hash)? {
                         downloaded.push(piece.index)
                     };
                 };
@@ -80,13 +78,13 @@ pub fn check_piece_multi_file(
         if mappings.len() == 1 {
             let file_path = PathBuf::from(download_dir.clone())
                 .join(&files[mappings[0].file_index].clone().paths.join("/"));
-            let file = get_file(file_path).map_err(|e| e.to_string())?;
+            let file = get_file(file_path)?;
 
             match file {
                 Some(file) => {
                     let start = mappings[0].file_write_offset;
                     if let Ok(buf) = read_piece(start, mappings[0].piece_write_len, &file) {
-                        if check_integrity(buf, piece.hash)? {
+                        if check_integrity(&buf, piece.hash)? {
                             downloaded.push(piece.index)
                         };
                     } else {
@@ -103,7 +101,7 @@ pub fn check_piece_multi_file(
                 let file_path = PathBuf::from(download_dir.clone())
                     .join(files[mapping.file_index].clone().paths.join("/"));
 
-                let file = get_file(file_path).map_err(|e| e.to_string())?;
+                let file = get_file(file_path)?;
                 match file {
                     Some(file) => {
                         let start = mapping.file_write_offset;
@@ -119,7 +117,7 @@ pub fn check_piece_multi_file(
 
             if piece_buf.len() == torrent.info.piece_length as usize {
                 // check buf integrity
-                if check_integrity(piece_buf, piece.hash)? {
+                if check_integrity(&piece_buf, piece.hash)? {
                     downloaded.push(piece.index);
                 }
             }
@@ -131,7 +129,6 @@ pub fn check_piece_multi_file(
 
 pub fn get_file(path: PathBuf) -> Result<Option<File>, String> {
     if Path::new(&path).exists() {
-        //debug("file exists".to_string());
         Ok(Some(
             File::options()
                 .read(true)
@@ -156,15 +153,4 @@ fn read_piece(start: u64, piece_length: u64, mut file: &File) -> Result<Vec<u8>,
         return Ok(buf);
     }
     Err(String::from("piece does not exist"))
-}
-
-fn check_integrity(buf: Vec<u8>, expected_hash: [u8; 20]) -> Result<bool, String> {
-    let mut hasher = Sha1::new();
-    hasher.update(buf);
-    let hash = hasher.finalize();
-    if hash == expected_hash.into() {
-        Ok(true)
-    } else {
-        Ok(false)
-    }
 }

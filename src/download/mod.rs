@@ -90,16 +90,9 @@ fn start_download(
     let handle = thread::spawn(move || loop {
         // here we write data to file
 
-        let finished_piece = match rx.recv() {
+        let (finished_piece, prog) = match rx.recv() {
             Ok((res, prog)) => match res {
-                Some(res) => {
-                    // print progress
-                    info(format!(
-                        "!----------------------------------------- downloade progress: {:.3}%",
-                        prog
-                    ));
-                    res
-                }
+                Some(res) => (res, prog),
                 None => {
                     info(format!("downloade progress: {}%", prog));
                     info("downloade finished".to_string());
@@ -129,12 +122,15 @@ fn start_download(
         //      }
         //  }
         let torrent_guard = torrent_arc_clone.lock().unwrap();
-
         write_file(&torrent_guard, finished_piece.clone(), download_dir.clone()).unwrap();
+
+        info("-------------------------------------------".to_string());
         info(format!(
-            "!!!!!!--------------------- received completed download of piece {} ---------------------!!!!!!",
-            finished_piece.index,
+            "piece {} successfully downloaded",
+            finished_piece.index
         ));
+        info(format!("download progress {:.3}%", prog));
+        info("-------------------------------------------".to_string());
         // todo: here display downloade percentage
     });
 
