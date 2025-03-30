@@ -22,6 +22,8 @@ sources
 
 
 
+Note: probably works only on linux
+
 
 
 
@@ -48,7 +50,7 @@ sources
 - [x] writing pieces to files
     - [x] single files
     - [x] multi files
-- [ ] seeding
+- [ ] seeding (too lazy to implement)
 - [x] resume downloads (for single file downloads) 
 - [x] display percetege downloaded (needs the loading bar)
 - [x] cli options: download_dir, torrent_file,
@@ -66,6 +68,15 @@ sources
 
 
 ## Errors:
+- [x] checking pre existing pieces ignore pieces shared between files 
+- [ ] when reading already downloaded pieces they are not added to the progress
+- [ ] final piece smaller than usual isnt detected in the already downloaded
+- [ ] resuming download reader.rs still has some issues (probably when all pieces are downloaded)
+```
+thread 'main' panicked at src/download/download.rs:46:72:
+called `Result::unwrap()` on an `Err` value: "failed to fill whole buffer"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+```
 - [x] restart clients (clients keep breaking with): 
   - Resource temporarily unavailable (os error 11) ---> (message.rs line:107)
   - failed to fill whole buffer ---> (message.rs line:127)

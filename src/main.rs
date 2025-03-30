@@ -36,7 +36,6 @@ fn main() -> std::io::Result<()> {
         error(format!("the provided directory does not exist"));
         std::process::exit(0);
     }
-
     //maybe we need a static PeerId
     let peer_id = utils::new_peer_id();
     //let path = "debian.torrent";
@@ -46,7 +45,6 @@ fn main() -> std::io::Result<()> {
     file.read_to_end(&mut buf)
         .map_err(|e| e.to_string())
         .unwrap();
-
     let bencode_data = Decoder::new(&buf).start().unwrap();
     let torrent_data = Torrent::new(bencode_data, peer_id).unwrap();
     let peers = peers::get_peers(&torrent_data, peer_id).unwrap();

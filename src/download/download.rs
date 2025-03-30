@@ -42,8 +42,7 @@ pub fn start(
 ) -> Result<(), String> {
     let pieces = pieces_workers(&torrent);
     // here we chack already downloaded pieces
-    let already_downloaded =
-        read_file(&torrent.info.name, &pieces, &torrent, download_dir).unwrap();
+    let already_downloaded = read_file(&pieces, &torrent, download_dir)?;
     // here replace pieces by a new array (new_array = old_pieces_array.remove(already_downloaded))
     debug(format!(
         "piece num before excluding downloaded pieces: {:?}",
@@ -59,6 +58,7 @@ pub fn start(
         "piece num after excluding downloaded pieces: {:?}",
         pieces.len()
     ));
+    debug(format!("{:?}", pieces));
 
     let num_pieces_arc: Arc<usize> = Arc::new(pieces.len());
     let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces));
