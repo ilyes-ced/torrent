@@ -40,29 +40,20 @@ pub fn start(
     tx: Sender<(Option<PieceResult>, f64)>,
     download_dir: String,
 ) -> Result<(), String> {
+    info("checking pre downloaded pieces, please be patient . . . .".to_string());
     let pieces = pieces_workers(&torrent);
+    let all_pieces_len = pieces.len();
     // here we chack already downloaded pieces
     let already_downloaded = read_file(&pieces, &torrent, download_dir)?;
     // here replace pieces by a new array (new_array = old_pieces_array.remove(already_downloaded))
-    debug(format!(
-        "piece num before excluding downloaded pieces: {:?}",
-        pieces.len()
-    ));
-
     let pieces: Vec<PieceWork> = pieces
         .into_iter()
         .filter(|piece| !already_downloaded.contains(&piece.index))
         .collect();
 
-    debug(format!(
-        "piece num after excluding downloaded pieces: {:?}",
-        pieces.len()
-    ));
-    debug(format!("{:?}", pieces));
-
-    let num_pieces_arc: Arc<usize> = Arc::new(pieces.len());
+    let num_pieces_arc: Arc<usize> = Arc::new(all_pieces_len);
     let workers_arc: Arc<Mutex<Vec<PieceWork>>> = Arc::new(Mutex::new(pieces));
-    let results_counter_arc: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
+    let results_counter_arc: Arc<Mutex<usize>> = Arc::new(Mutex::new(already_downloaded.len()));
     let tx_arc: Arc<Sender<(Option<PieceResult>, f64)>> = Arc::new(tx);
     let mut handles = vec![];
 
@@ -111,7 +102,7 @@ pub fn start(
                                 *results_counter_lock += 1;
 
                                 error(format!(
-                                    "--------------------------------------------------------- {} {} {:.3}%",
+                                    "--------------------------------------------------------- {}/{}pieces {:.3}%",
                                     *results_counter_lock, *num_pieces_clone, (*results_counter_lock as f64 / *num_pieces_clone as f64) * 100.0 ,
                                 ));
 
@@ -128,27 +119,29 @@ pub fn start(
                                     .unwrap();
                                 // increment results_counter_clone
                                 drop(results_counter_lock);
+                                // when downloading a piece reset error count
+                                client.err_co = 0;
                             }
                             Err(err) => {
                                 // todo : change the counter of failure to the struct of client because here we cant keep track of failures because when con is restarted the counter var is in a different loop
+                                error(err.1.clone());
                                 if err.1 == "Resource temporarily unavailable (os error 11)"
                                     || err.1 == "failed to fill whole buffer"
                                     || err.1 == "Broken pipe (os error 32)"
                                 {
-                                    let mut counter = 0;
+                                    client.err_co += 1;
+                                    warning(format!(
+                                        "increased error counter for client {:?} ",
+                                        client.peer
+                                    ));
+
                                     'outer: loop {
                                         match client.restart_con() {
                                             Ok(_) => break 'outer,
-                                            Err(_) => {
-                                                warning(
-                                                    "*************** increased counter "
-                                                        .to_string(),
-                                                );
-                                                counter += 1
-                                            }
+                                            Err(_) => {}
                                         }
                                     }
-                                    if counter > 3 {
+                                    if client.err_co > 3 {
                                         error(format!("client {:?} restarted 3 times and it didnt work client will be dropped", client.peer));
                                         error("************************************************************".to_string());
                                         error("************************************************************".to_string());
@@ -158,7 +151,6 @@ pub fn start(
                                         break;
                                     }
                                 }
-                                error(err.1);
 
                                 let mut workers_lock =
                                     workers_clone.lock().expect("Failed to lock workers");

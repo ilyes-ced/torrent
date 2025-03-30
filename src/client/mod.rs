@@ -48,6 +48,7 @@ impl Client {
             peer: peer.clone(),
             handshake,
             info_hash: torrent.info_hash,
+            err_co: 0,
         })
     }
 

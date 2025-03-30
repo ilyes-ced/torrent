@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::os::unix::fs::FileExt;
 use std::path::{Path, PathBuf};
 
@@ -73,10 +73,6 @@ fn write_multi_file(
     for (map_ind, mapping) in mappings.iter().enumerate() {
         let file_path = PathBuf::from(download_dir.clone())
             .join(&files[mapping.file_index].clone().paths.join("/"));
-        info(format!(
-            "--------------------------------------------------------- {:?}",
-            file_path
-        ));
 
         let file = get_file(file_path)?;
 
@@ -117,7 +113,13 @@ fn get_file(path: PathBuf) -> Result<File, String> {
     if Path::new(&path).exists() {
         info("file exists".to_string())
     } else {
-        info("file does not exists. creating . . .".to_string());
+        info(format!(
+            "file \" {:?} \" does not exists. creating . . .",
+            path
+        ));
+        if let Some(parent) = path.parent() {
+            create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
         File::create(&path).unwrap();
     }
 

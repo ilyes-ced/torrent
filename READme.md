@@ -62,15 +62,16 @@ Note: probably works only on linux
 - [ ] recovery from all types of errors and disconnections (no unwraps in this app should be left)
 - [ ] no reliance on announce (implementing DHT)
 - [ ] magnet links
-- [ ] when download is interrupted pick off where it started (read the local files that are downloaded already)(remove them from the PieceWorkers Vector)
+- [x] when download is interrupted pick off where it started (read the local files that are downloaded already)(remove them from the PieceWorkers Vector)
 - [x] rework getting peers from the tracker (not using udp tho)
 - [ ] download multiple torrents
 
 
 ## Errors:
-- [x] checking pre existing pieces ignore pieces shared between files 
 - [x] when reading already downloaded pieces they are not added to the progress
-- [x] final piece smaller than usual isnt detected in the already downloaded (solved by reading by the piece size not the default piece length (eg. 32768)) (not solved only for the last piece of single file downloads)
+- [x] fix the connection drop logic its broken 
+- [x] checking pre existing pieces ignore pieces shared between files 
+- [x] final piece smaller than usual isnt detected in the already downloaded (solved by reading by the piece size not the default piece length (eg. 32768)) (not solved only for the last piece of single file downloads) (implemented a solution but was very ugly and messy for a very small issue)
 - [x] resuming download reader.rs still has some issues (probably when all pieces are downloaded)
 ```
 thread 'main' panicked at src/download/download.rs:46:72:
@@ -83,7 +84,6 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
   - Broken pipe (os error 32) ---> (when trying to write to a closed socket)
 - [x] receiving pieces in the wrong order "expected index: 44, got: 9" (used to get this error but not anymore idk why)
 - [x] when the last piece is finished downloading the receiving MSCP channel throws "error receiving in the receiver thread: receiving on a closed channel"
-- [ ] fix the connection drop logic its broken 
 - [x] insane CPU usage almost 100% (i5 8600k):
 ```rust
 // this one was caused because of this code block which was ran everytime we received a PIECE message from a peer

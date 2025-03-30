@@ -49,7 +49,6 @@ pub fn check_piece_single_file(
                 let start = piece.index as u64 * torrent.info.piece_length;
                 if let Ok(buf) = read_piece(start, torrent.info.piece_length, &file) {
                     if check_integrity(buf, piece.hash)? {
-                        debug(format!("***** piece already exists: {:?}", piece.index));
                         downloaded.push(piece.index)
                     };
                 };
@@ -77,10 +76,6 @@ pub fn check_piece_multi_file(
     let mut downloaded: Vec<u32> = Vec::new();
     for piece in pieces {
         let mappings = mapping(torrent, piece.index)?;
-        debug(format!(
-            "for piece: {}, mappings {:?}",
-            piece.index, mappings
-        ));
 
         if mappings.len() == 1 {
             let file_path = PathBuf::from(download_dir.clone())
@@ -91,13 +86,10 @@ pub fn check_piece_multi_file(
                 Some(file) => {
                     let start = mappings[0].file_write_offset;
                     if let Ok(buf) = read_piece(start, mappings[0].piece_write_len, &file) {
-                        warning(format!("................ {:?}", piece.index));
                         if check_integrity(buf, piece.hash)? {
-                            debug(format!("***** piece already exists: {:?}", piece.index));
                             downloaded.push(piece.index)
                         };
                     } else {
-                        warning(format!("................ in the else {:?}", piece.index));
                     };
                 }
                 None => {}
@@ -125,16 +117,11 @@ pub fn check_piece_multi_file(
                 }
             }
 
-            error(format!("piece buf len, {:?}", piece_buf.len()));
             if piece_buf.len() == torrent.info.piece_length as usize {
-                warning(format!("1***** piece already exists: {:?}", piece.index));
                 // check buf integrity
                 if check_integrity(piece_buf, piece.hash)? {
-                    warning(format!("2***** piece already exists: {:?}", piece.index));
                     downloaded.push(piece.index);
                 }
-            } else {
-                error(format!("***** shared pieces not found: {:?}", piece.index));
             }
         }
     }
@@ -160,7 +147,6 @@ pub fn get_file(path: PathBuf) -> Result<Option<File>, String> {
 fn read_piece(start: u64, piece_length: u64, mut file: &File) -> Result<Vec<u8>, String> {
     let file_len = file.metadata().expect("unable to read metadata").len();
 
-    warning(format!("......fff.......... {:?}, {:?}", start, file_len));
     if start < file_len {
         file.seek(SeekFrom::Start(start))
             .map_err(|e| e.to_string())?;
@@ -177,17 +163,8 @@ fn check_integrity(buf: Vec<u8>, expected_hash: [u8; 20]) -> Result<bool, String
     hasher.update(buf);
     let hash = hasher.finalize();
     if hash == expected_hash.into() {
-        error(format!(
-            "***** compare hashes: \n{:?} \n{:?}",
-            hash, expected_hash
-        ));
         Ok(true)
     } else {
-        debug(format!("piece is invalid"));
-        error(format!(
-            "***** compare hashes: \n{:?} \n{:?}",
-            hash, expected_hash
-        ));
         Ok(false)
     }
 }
