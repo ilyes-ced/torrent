@@ -121,8 +121,8 @@ d8:intervali900e5:peersld2:ip14:129.146.17.2084:porti6882eed2:ip13:178.92.140.17
 could be that the binary data is bytes for ip.ip.ip.ip:port 6bytes total (this is correct)
 
 - [x] refactor the "download" folder
-- [ ] refactor and improve naming 
-- [ ] divide code to more functions for better testing
+- [x] refactor and improve naming 
+- [x] divide code to more functions for better testing
 - [x] add connection resets in case of connection errors
 - [x] send piece result to a writer thread with MSCP channels
 - [ ] add documentation
