@@ -68,6 +68,7 @@ Note: probably works only on linux
 
 
 ## Errors:
+- [ ] sometimes near the end of the download the programme uses 100% of CPU (cant reproduce) 
 - [x] when reading already downloaded pieces they are not added to the progress
 - [x] fix the connection drop logic its broken 
 - [x] checking pre existing pieces ignore pieces shared between files 
@@ -119,12 +120,11 @@ d8:intervali900e5:peersld2:ip14:129.146.17.2084:porti6882eed2:ip13:178.92.140.17
 
 could be that the binary data is bytes for ip.ip.ip.ip:port 6bytes total (this is correct)
 
-- [ ] refactor the "download" folder
+- [x] refactor the "download" folder
 - [ ] refactor and improve naming 
 - [ ] divide code to more functions for better testing
 - [x] add connection resets in case of connection errors
 - [x] send piece result to a writer thread with MSCP channels
-- [ ] search for more clients regularly
 - [ ] add documentation
 - [ ] add all errors handling (remove all .unwrap())
 - [ ] add all components tests

@@ -52,3 +52,71 @@ pub fn check_integrity(buf: &Vec<u8>, expected_hash: [u8; 20]) -> Result<bool, S
         Ok(false)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sha1::{Digest, Sha1};
+
+    #[test]
+    fn test_new_peer_id() {
+        let peer_id = new_peer_id();
+        // Assert that the peer ID has a length of 20
+        assert_eq!(peer_id.len(), 20);
+        // Assert that the first 8 bytes match the expected "-IT0001-"
+        assert_eq!(&peer_id[0..8], b"-IT0001-");
+        // Assert that the remaining bytes are alphanumeric (random characters)
+        for &byte in &peer_id[8..] {
+            assert!(
+                byte.is_ascii_alphanumeric(),
+                "Invalid byte in peer ID: {}",
+                byte
+            );
+        }
+    }
+
+    #[test]
+    fn test_encode_binary_to_http_chars() {
+        let input = [
+            0x12, 0x34, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x12,
+            0x34, 0x56, 0x78, 0x90, 0x12, 0x34,
+        ];
+        let result = encode_binnary_to_http_chars(input);
+        for byte in input.iter() {
+            assert!(result.contains(&format!("%{:02x}", byte)));
+        }
+    }
+
+    #[test]
+    fn test_concat() {
+        let vec = vec![b'1', b'2', b'3', b'4', b'5'];
+        let result = concat(&vec);
+        assert_eq!(result, 12345);
+    }
+
+    #[test]
+    fn test_check_integrity_success() {
+        let buf = vec![
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+        ];
+        let expected_hash = {
+            let mut hasher = Sha1::new();
+            hasher.update(&buf);
+            hasher.finalize().into()
+        };
+
+        let result = check_integrity(&buf, expected_hash);
+        assert_eq!(result, Ok(true));
+    }
+
+    #[test]
+    fn test_check_integrity_failure() {
+        let buf = vec![
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+        ];
+        let wrong_hash = [0u8; 20];
+
+        let result = check_integrity(&buf, wrong_hash);
+        assert_eq!(result, Ok(false));
+    }
+}

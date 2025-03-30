@@ -132,68 +132,205 @@ fn get_file(path: PathBuf) -> Result<File, String> {
 //////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////
-
-// todo: remove all prints and useless stuff
-// todo: add ability to download pieces to text files and test with them because they are too large to put in github
-#[cfg(test)]
-mod tests {
-    use std::fs;
-
-    use crate::{torrentfile::torrent, Torrent};
-
-    use super::*;
-    #[test]
-    fn it_works() {
-        let torrent = Torrent {
-            info: torrent::TorrentInfo {
-                name: "POLEN23E.zip".to_string(),
-                piece_length: 4190208,
-                pieces: Default::default(),
-                files: torrent::FileInfo::Single(34561190),
-            },
-            announce: Default::default(),
-            announce_list: Default::default(),
-            comment: Default::default(),
-            creation_date: Default::default(),
-            created_by: Default::default(),
-            info_hash: Default::default(),
-            peer_id: Default::default(),
-        };
-
-        let mut files = [
-            (File::open("piece_8.txt").unwrap(), 8),
-            (File::open("piece_4.txt").unwrap(), 4),
-            (File::open("piece_7.txt").unwrap(), 7),
-            (File::open("piece_3.txt").unwrap(), 3),
-            (File::open("piece_6.txt").unwrap(), 6),
-            (File::open("piece_0.txt").unwrap(), 0),
-            (File::open("piece_1.txt").unwrap(), 1),
-            (File::open("piece_2.txt").unwrap(), 2),
-            (File::open("piece_5.txt").unwrap(), 5),
-        ];
-
-        for ind in 0..files.len() {
-            let file_ind = files[ind].1;
-            let mut file = &files[ind].0;
-
-            let metadata = file.metadata().expect("unable to read metadata");
-
-            info(format!(
-                "in iteration: {ind}, for piece: {:?}, with length: {}, index: {}",
-                fs::read_link(std::path::PathBuf::from(format!(
-                    "/proc/self/fd/{}",
-                    std::os::fd::AsRawFd::as_raw_fd(file)
-                )))
-                .unwrap(),
-                metadata.len(),
-                file_ind
-            ));
-            let mut buffer = vec![0; metadata.len() as usize];
-
-            std::io::Read::read(&mut file, &mut buffer).expect("buffer overflow");
-            //let res = write_single_file(&torrent, piece);
-            //std::thread::sleep(Duration::from_secs(10));
-        }
-    }
-}
+////////////////////////////////////////////////////////////
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
+//    use crate::torrentfile::torrent::{FileInfo, Torrent};
+//    use std::fs::{remove_file, OpenOptions};
+//    use std::path::Path;
+//
+//    fn mock_torrent_multiple_files() -> Torrent {
+//        Torrent {
+//            info: crate::torrentfile::torrent::Info {
+//                piece_length: 256, // Example piece length
+//                pieces: vec![],    // Mock, as we don't need actual pieces for the test
+//                files: FileInfo::Multiple(vec![
+//                    crate::torrentfile::torrent::File {
+//                        length: 500, // File 1 length
+//                        paths: vec!["file1.txt".to_string()],
+//                    },
+//                    crate::torrentfile::torrent::File {
+//                        length: 300, // File 2 length
+//                        paths: vec!["file2.txt".to_string()],
+//                    },
+//                    crate::torrentfile::torrent::File {
+//                        length: 700, // File 3 length
+//                        paths: vec!["file3.txt".to_string()],
+//                    },
+//                ]),
+//                name: "test_torrent".to_string(),
+//            },
+//            announce: todo!(),
+//            announce_list: todo!(),
+//            comment: todo!(),
+//            creation_date: todo!(),
+//            created_by: todo!(),
+//            info_hash: todo!(),
+//            peer_id: todo!(),
+//        }
+//    }
+//
+//    fn mock_torrent_single_file() -> Torrent {
+//        Torrent {
+//            info: crate::torrentfile::torrent::Info {
+//                piece_length: 256,
+//                pieces: vec![],
+//                files: FileInfo::Single(1000), // Single file length
+//                name: "single_file_torrent".to_string(),
+//            },
+//        }
+//    }
+//
+//    fn setup_test_file(path: &Path) {
+//        if path.exists() {
+//            remove_file(path).unwrap(); // Clean up if file exists
+//        }
+//    }
+//
+//    #[test]
+//    fn test_write_single_file() {
+//        let torrent = mock_torrent_single_file();
+//        let piece = PieceResult {
+//            index: 0,
+//            buf: vec![1, 2, 3, 4], // Mock piece data
+//        };
+//        let download_dir = "test_dir".to_string();
+//        let path = Path::new(&download_dir).join(&torrent.info.name);
+//
+//        // Setup: Create directory if it doesn't exist
+//        create_dir_all(&download_dir).unwrap();
+//
+//        setup_test_file(&path); // Clean up if file exists
+//
+//        // Call write_file
+//        let result = write_file(&torrent, piece, download_dir.clone());
+//
+//        // Check if the file was written correctly
+//        assert!(result.is_ok());
+//        assert!(path.exists());
+//
+//        // Open file and verify the content
+//        let mut file = OpenOptions::new()
+//            .read(true)
+//            .write(true)
+//            .open(path)
+//            .unwrap();
+//        let mut buffer = vec![0; 4];
+//        file.read_exact(&mut buffer).unwrap();
+//
+//        assert_eq!(buffer, vec![1, 2, 3, 4]); // Verifying the content
+//    }
+//
+//    #[test]
+//    fn test_write_multiple_files() {
+//        let torrent = mock_torrent_multiple_files();
+//        let piece = PieceResult {
+//            index: 1,              // This piece should span across multiple files
+//            buf: vec![5, 6, 7, 8], // Mock piece data
+//        };
+//        let download_dir = "test_dir".to_string();
+//
+//        // Setup: Create directories for files if they don't exist
+//        let file_paths = vec![
+//            Path::new(&download_dir).join("file1.txt"),
+//            Path::new(&download_dir).join("file2.txt"),
+//            Path::new(&download_dir).join("file3.txt"),
+//        ];
+//
+//        for path in &file_paths {
+//            create_dir_all(path.parent().unwrap()).unwrap();
+//            setup_test_file(path);
+//        }
+//
+//        // Call write_file
+//        let result = write_file(&torrent, piece, download_dir.clone());
+//
+//        // Check if the files were written correctly
+//        assert!(result.is_ok());
+//
+//        // Verify that the data was written to the files
+//        for (i, path) in file_paths.iter().enumerate() {
+//            let mut file = OpenOptions::new()
+//                .read(true)
+//                .write(true)
+//                .open(path)
+//                .unwrap();
+//            let mut buffer = vec![0; 4];
+//            file.read_exact(&mut buffer).unwrap();
+//
+//            // Check the content based on the piece index and file offset
+//            if i == 0 {
+//                assert_eq!(buffer, vec![5, 6, 7, 8]); // Verify that piece data is written to the correct file
+//            }
+//        }
+//    }
+//
+//    #[test]
+//    fn test_write_file_error_handling() {
+//        let torrent = mock_torrent_single_file();
+//        let piece = PieceResult {
+//            index: 0,
+//            buf: vec![1, 2, 3, 4], // Mock piece data
+//        };
+//        let download_dir = "non_existent_dir".to_string(); // A non-existent directory
+//
+//        // Call write_file and expect an error due to the invalid directory
+//        let result = write_file(&torrent, piece, download_dir);
+//
+//        assert!(result.is_err());
+//        assert_eq!(
+//            result.err().unwrap(),
+//            "No such file or directory (os error 2)"
+//        );
+//    }
+//
+//    #[test]
+//    fn test_write_multi_file_pieces() {
+//        let torrent = mock_torrent_multiple_files();
+//        let piece = PieceResult {
+//            index: 1,                    // This piece should span across multiple files
+//            buf: vec![1, 2, 3, 4, 5, 6], // Mock piece data
+//        };
+//        let download_dir = "test_dir".to_string();
+//
+//        // Setup: Create directories for files if they don't exist
+//        let file_paths = vec![
+//            Path::new(&download_dir).join("file1.txt"),
+//            Path::new(&download_dir).join("file2.txt"),
+//            Path::new(&download_dir).join("file3.txt"),
+//        ];
+//
+//        for path in &file_paths {
+//            create_dir_all(path.parent().unwrap()).unwrap();
+//            setup_test_file(path);
+//        }
+//
+//        // Call write_file
+//        let result = write_file(&torrent, piece, download_dir.clone());
+//
+//        // Check if the files were written correctly
+//        assert!(result.is_ok());
+//
+//        // Verify that the data was written to the files
+//        for (i, path) in file_paths.iter().enumerate() {
+//            let mut file = OpenOptions::new()
+//                .read(true)
+//                .write(true)
+//                .open(path)
+//                .unwrap();
+//            let mut buffer = vec![0; 6];
+//            file.read_exact(&mut buffer).unwrap();
+//
+//            // Verify the contents of the files
+//            if i == 0 {
+//                assert_eq!(buffer, vec![1, 2]); // Correct portion of piece data
+//            } else if i == 1 {
+//                assert_eq!(buffer, vec![3, 4]); // Correct portion of piece data
+//            } else {
+//                assert_eq!(buffer, vec![5, 6]); // Correct portion of piece data
+//            }
+//        }
+//    }
+//}
+//

@@ -34,7 +34,7 @@ impl Bitfield {
 impl std::fmt::Display for Bitfield {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for byte in &self.bytes {
-            write!(f, "{:08b} ", byte)?; // Format each byte as binary
+            write!(f, "{:08b} ", byte)?;
         }
         Ok(())
     }

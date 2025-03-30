@@ -196,8 +196,8 @@ fn client_download(
                                     "************************************************************"
                                         .to_string(),
                                 );
-                                // break client loop here
-                                // break;
+                                // break client loop here (ending connection with the client)
+                                break;
                             }
                         }
 

@@ -3,7 +3,7 @@ use std::{
     net::TcpStream,
 };
 
-use crate::{constants::MsgId, download::download::PieceProgress, log::debug};
+use crate::{constants::MsgId, download::download::PieceProgress};
 
 #[derive(Debug, PartialEq)]
 pub struct Message {
@@ -20,7 +20,6 @@ impl Message {
                 self.id
             ));
         }
-        debug(format!("+++++++++++++++++++++ {}", self.payload.len()));
         if self.payload.len() != 4 {
             return Err(format!(
                 "expected length to be 4 got: {}",
@@ -111,7 +110,6 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
                 // sometimes causes network errors
                 // Resource temporarily unavailable (os error 11)
                 // failed to fill whole buffer
-                //return Err(format!("{}, {:?}", e.to_string(), con.peer_addr()));
                 return Err(e.to_string());
             }
         }
@@ -125,8 +123,6 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
     // reads the rest of the message: id + payload
     let mut msg_buf: Vec<u8> = vec![0; len as usize];
     match con.read_exact(&mut msg_buf) {
-        // sometimes causes errors
-        // cant read full buffer
         Ok(_) => {}
         Err(e) => {
             if e.kind() == io::ErrorKind::TimedOut {
@@ -139,22 +135,12 @@ pub fn from_buf(mut con: &TcpStream) -> Result<Message, String> {
 
     // here we can read msg id and ignore it if it is none of MsgIds
     match msg_buf[0] {
-        7 => {
-            //println!("+++++++++++PIECE msg buf: {:?}", &msg_buf[0..20]);
-        }
-        0 | 1 | 2 | 3 | 4 | 5 | 6 | 8 => {}
+        0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 => {}
         _ => {
             return Err(format!("unacceptable message id: {}", msg_buf[0]));
         }
     }
 
-    //println!(
-    //    "------------------------size:{:?}/{}, id: {}, len:{}",
-    //    len_buf,
-    //    len,
-    //    msg_buf[0],
-    //    msg_buf.len()
-    //);
     Ok(Message {
         id: msg_buf[0],
         payload: msg_buf[1..].to_vec(),
@@ -229,51 +215,3 @@ mod tests {
         assert_eq!(result, Ok(1));
     }
 }
-
-//
-//mod tests {
-//    use super::*;
-//
-//    #[test]
-//    fn to_buffer() {
-//        let result = to_buf(Some(Message {
-//            id: 5,
-//            payload: [90, 90, 90].to_vec(),
-//        }));
-//        assert_eq!(result, Vec::from([0, 0, 0, 4, 5, 90, 90, 90]));
-//    }
-//
-//    #[test]
-//    fn to_buffer_none() {
-//        let result = to_buf(None);
-//        assert_eq!(result, Vec::from([0, 0, 0, 0]));
-//    }
-//
-//    #[test]
-//    fn from_buffer() {
-//        let result = from_buf(Vec::from([
-//            0, 0, 0, 10, 5, 90, 90, 90, 25, 69, 7, 45, 55, 2,
-//        ]))
-//        .unwrap();
-//        assert_eq!(
-//            result,
-//            Some(Message {
-//                id: 5,
-//                payload: Vec::from([90, 90, 90, 25, 69, 7, 45, 55, 2,])
-//            })
-//        );
-//    }
-//
-//    #[test]
-//    fn from_buffer_none() {
-//        let result = from_buf(Vec::from([0, 0, 0, 0])).unwrap();
-//        assert_eq!(
-//            result,
-//            Some(Message {
-//                id: 5,
-//                payload: Vec::from([90, 90, 90, 25, 69, 7, 45, 55, 2,])
-//            })
-//        );
-//    }
-//}
-//

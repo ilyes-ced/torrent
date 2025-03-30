@@ -94,8 +94,7 @@ fn start_download(
             Ok((res, prog)) => match res {
                 Some(res) => (res, prog),
                 None => {
-                    info(format!("downloade progress: {}%", prog));
-                    info("downloade finished".to_string());
+                    info(format!("download finished. progress: {}%", prog));
                     std::process::exit(0);
                 }
             },
@@ -123,7 +122,6 @@ fn start_download(
         //  }
         let torrent_guard = torrent_arc_clone.lock().unwrap();
         write_file(&torrent_guard, finished_piece.clone(), download_dir.clone()).unwrap();
-
         info("-------------------------------------------".to_string());
         info(format!(
             "piece {} successfully downloaded",

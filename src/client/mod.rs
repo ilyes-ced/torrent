@@ -70,7 +70,6 @@ impl Client {
                 }
             }
         }
-        //  self.con.shutdown(std::net::Shutdown::Both).unwrap();
 
         let con = match connect(&self.peer, self.info_hash, self.handshake) {
             Ok(con) => con,
@@ -82,7 +81,6 @@ impl Client {
             Err(err) => return Err(err),
         };
 
-        // oppsie daisy: implemented the reconnect logic but not actually put it in the client
         self.con = con;
 
         debug(format!("restarted connection with peer: {:?}", self.peer));
@@ -90,10 +88,9 @@ impl Client {
     }
 
     // sends Messages of CHOKE/INTRESTED/REQUEST/.../...
-    pub fn send_msg_id(&mut self, signal: MsgId, payload: Option<Vec<u8>>) -> Result<(), String> {
-        // signal is one of the constants in MsgId
+    pub fn send_msg_id(&mut self, msg: MsgId, payload: Option<Vec<u8>>) -> Result<(), String> {
         let msg = Some(Message {
-            id: signal.to_u8(),
+            id: msg.to_u8(),
             // todo: test this was changed from "unwrap_or_else(Vec::new)" to "unwrap_or_default()" suggested by clippy
             payload: payload.unwrap_or_default(),
         });
@@ -103,8 +100,6 @@ impl Client {
                 if e.kind() == io::ErrorKind::TimedOut {
                     return Err(String::from("Write operation timed out!"));
                 } else {
-                    // error:
-                    // Broken pipe (os error 32)
                     return Err(e.to_string());
                 }
             }
@@ -167,8 +162,6 @@ pub fn complete_handshake(
         }
     };
 
-    // recieve/read response
-    // only reads 68 bytes of responnse // could cause problems i dont know for sure
     let mut buffer = [0; 68];
     match stream.read_exact(&mut buffer) {
         Ok(_) => {}
@@ -197,11 +190,9 @@ pub fn complete_handshake(
     ));
 
     if rec_handshake.info_hash == info_hash {
-        // seccuss continue the cmmunication
         info("successful handshake".to_string());
         Ok(stream)
     } else {
-        //failure
         Err(String::from(
             "info hash received does not match your info hash",
         ))
