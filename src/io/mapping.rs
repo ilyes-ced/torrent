@@ -69,23 +69,22 @@ mod tests {
     use super::*;
     use crate::torrentfile::torrent::{FileInfo, Files, Torrent, TorrentInfo};
 
-    // Helper function to create a Torrent with multiple files
     fn mock_torrent_multiple_files() -> Torrent {
         Torrent {
             info: TorrentInfo {
-                piece_length: 256, // Example piece length
-                pieces: vec![],    // Mock, as we don't need actual pieces for the test
+                piece_length: 256,
+                pieces: vec![],
                 files: FileInfo::Multiple(vec![
                     Files {
-                        length: 500, // File 1 length
+                        length: 500,
                         paths: vec!["file1.txt".to_string()],
                     },
                     Files {
-                        length: 300, // File 2 length
+                        length: 300,
                         paths: vec!["file2.txt".to_string()],
                     },
                     Files {
-                        length: 700, // File 3 length
+                        length: 700,
                         paths: vec!["file3.txt".to_string()],
                     },
                 ]),
@@ -101,13 +100,12 @@ mod tests {
         }
     }
 
-    // Helper function to create a Torrent with a single file
     fn mock_torrent_single_file() -> Torrent {
         Torrent {
             info: TorrentInfo {
                 piece_length: 256,
                 pieces: vec![],
-                files: FileInfo::Single(1000), // Single file length
+                files: FileInfo::Single(1000),
                 name: "single_file_torrent".to_string(),
             },
             announce: Default::default(),
@@ -180,7 +178,6 @@ mod tests {
     fn mapping_single_file_error() {
         let torrent = mock_torrent_single_file();
 
-        // The mapping function should return an error for single file torrents
         let result = mapping(&torrent, 0);
 
         assert!(result.is_err());
@@ -193,7 +190,7 @@ mod tests {
             info: TorrentInfo {
                 piece_length: 256,
                 pieces: vec![],
-                files: FileInfo::Multiple(vec![]), // Empty files list
+                files: FileInfo::Multiple(vec![]),
                 name: "empty_files_torrent".to_string(),
             },
             announce: Default::default(),
@@ -205,7 +202,6 @@ mod tests {
             peer_id: Default::default(),
         };
 
-        // The mapping function should return an empty mapping when there are no files
         let result = mapping(&torrent, 0);
 
         assert!(result.is_ok());
@@ -216,14 +212,7 @@ mod tests {
     fn mapping_out_of_bounds_piece() {
         let torrent = mock_torrent_multiple_files();
 
-        // Piece index that is out of bounds (too high)
         let result = mapping(&torrent, 10).unwrap();
-
-        println!("***************************************");
-        println!("***************************************");
-        println!("***************************************");
-        println!("***************************************");
-        println!("{:?}", result);
 
         // empty vector
         let empty_vec: Vec<Mapping> = Vec::new();
