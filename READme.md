@@ -17,6 +17,7 @@ sources
 
 [torrent specification](https://wiki.theory.org/BitTorrentSpecification#piece:_.3Clen.3D0009.2BX.3E.3Cid.3D7.3E.3Cindex.3E.3Cbegin.3E.3Cblock.3E)
 
+[magnet url](https://github.com/billyb2/magnet-url-rs)
 
 
 
@@ -50,7 +51,7 @@ Note: probably works only on linux
 - [x] writing pieces to files
     - [x] single files
     - [x] multi files
-- [ ] seeding (too lazy to implement)
+- [ ] seeding
 - [x] resume downloads (for single file downloads) 
 - [x] display percetege downloaded (needs the loading bar)
 - [x] cli options: download_dir, torrent_file,
@@ -65,6 +66,7 @@ Note: probably works only on linux
 - [x] when download is interrupted pick off where it started (read the local files that are downloaded already)(remove them from the PieceWorkers Vector)
 - [x] rework getting peers from the tracker (not using udp tho)
 - [ ] download multiple torrents
+- [ ] make it work on windows too
 
 
 ## Errors:
