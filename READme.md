@@ -55,14 +55,17 @@ Note: probably works only on linux
 - [x] resume downloads (for single file downloads) 
 - [x] display percetege downloaded (needs the loading bar)
 - [x] cli options: download_dir, torrent_file,
+- [x] cli options: torrent file, magnet url
+- [ ] TUI
+- [ ] add peers periodically (using mpsc channels)
+- [ ] DHT
+
 
 
 
 ## extra features to implement
 - [ ] remove clients when they error and refresh and add clients periodically (stop client threads, refresh peers and start new clients)
 - [ ] recovery from all types of errors and disconnections (no unwraps in this app should be left)
-- [ ] no reliance on announce (implementing DHT)
-- [ ] magnet links
 - [x] when download is interrupted pick off where it started (read the local files that are downloaded already)(remove them from the PieceWorkers Vector)
 - [x] rework getting peers from the tracker (not using udp tho)
 - [ ] download multiple torrents

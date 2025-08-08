@@ -6,7 +6,6 @@ use crate::{
     torrentfile::torrent::{FileInfo, Torrent},
     utils::check_integrity,
 };
-use sha1::{Digest, Sha1};
 use std::sync::mpsc::Sender;
 use std::{
     sync::{Arc, Mutex},

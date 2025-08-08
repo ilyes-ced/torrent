@@ -64,8 +64,6 @@ pub fn mapping(torrent: &Torrent, piece_index: u32) -> Result<Vec<Mapping>, Stri
 
 #[cfg(test)]
 mod tests {
-    use std::default;
-
     use super::*;
     use crate::torrentfile::torrent::{FileInfo, Files, Torrent, TorrentInfo};
 

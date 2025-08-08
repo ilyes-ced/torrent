@@ -1,9 +1,7 @@
+use crate::bencode::decoder::{Decoder, DecoderResults};
 use crate::constants;
 use crate::log::{debug, error, info};
-use crate::torrentfile::{
-    bencode::{Decoder, DecoderResults},
-    torrent::Torrent,
-};
+use crate::torrentfile::torrent::Torrent;
 use crate::utils::encode_binnary_to_http_chars;
 use bytes::Bytes;
 use reqwest::blocking::Client;

@@ -1,3 +1,4 @@
+mod bencode;
 mod client;
 mod constants;
 mod dht;
@@ -14,9 +15,12 @@ use dht::Dht;
 use log::{error, info};
 use magnet::Magnet;
 use std::path::Path;
+use std::thread::sleep;
+use std::time::Duration;
 use std::{fs::File, io::Read};
-use torrentfile::bencode::Decoder;
 use torrentfile::torrent::Torrent;
+
+use tokio;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -36,10 +40,12 @@ pub struct Source {
     magnet_url: Option<String>,
 }
 
-fn main() -> std::io::Result<()> {
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
     // infohash
     // 6fcf7ef136e73f0fb6186b30fe67d741cc260c5c
-    let dht = Dht::new();
+
+    let dht = Dht::new().await.unwrap();
 
     //let args = Args::parse();
     //

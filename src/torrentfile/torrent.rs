@@ -1,4 +1,4 @@
-use crate::{log::info, torrentfile::bencode::DecoderResults};
+use crate::{bencode::decoder::DecoderResults, log::info};
 use serde_json::Value;
 use std::fmt;
 
