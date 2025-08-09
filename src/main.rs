@@ -14,6 +14,7 @@ use clap::Parser;
 use dht::Dht;
 use log::{error, info};
 use magnet::Magnet;
+use serde_json::Value;
 use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
@@ -21,6 +22,9 @@ use std::{fs::File, io::Read};
 use torrentfile::torrent::Torrent;
 
 use tokio;
+
+use crate::bencode::decoder::Decoder;
+use crate::bencode::encoder::encode;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -48,14 +52,12 @@ async fn main() -> std::io::Result<()> {
     let dht = Dht::new().await.unwrap();
 
     //let args = Args::parse();
-    //
     //// download directory checking
     //info(format!("download directory: {}", args.download_dir));
     //if !Path::new(&args.download_dir).exists() {
     //    error(format!("the provided directory does not exist"));
     //    std::process::exit(0);
     //}
-    //
     //let peer_id = utils::new_peer_id();
     //// get torrent data torrent_file or magnet_url
     //let res = if args.source.magnet_url == None {
@@ -68,7 +70,7 @@ async fn main() -> std::io::Result<()> {
     //    let mut buf = vec![];
     //    file.read_to_end(&mut buf)
     //        .map_err(|e| e.to_string())
-    //        .unwrap();
+    //        .unwrap();d
     //    buf
     //} else {
     //    let magnet_data = Magnet::new(&args.source.magnet_url.unwrap());
@@ -78,7 +80,6 @@ async fn main() -> std::io::Result<()> {
     //};
     //// reading torrent file
     ////maybe we need a static PeerId
-    //
     //// execution
     //let bencode_data = Decoder::new(&res).start().unwrap();
     //let torrent_data = Torrent::new(bencode_data, peer_id).unwrap();
