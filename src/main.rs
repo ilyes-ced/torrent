@@ -14,7 +14,12 @@ use clap::Parser;
 use dht::Dht;
 use log::{error, info};
 use magnet::Magnet;
+use ratatui::layout::{Constraint, Layout};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{self, Span, Text};
+use ratatui::widgets::{Block, BorderType, Borders, Gauge, Paragraph, Wrap};
 use serde_json::Value;
+use std::fmt::format;
 use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
@@ -49,7 +54,7 @@ async fn main() -> std::io::Result<()> {
     // infohash
     // 6fcf7ef136e73f0fb6186b30fe67d741cc260c5c
 
-    let dht = Dht::new().await.unwrap();
+    // let dht = Dht::new().await.unwrap();
 
     //let args = Args::parse();
     //// download directory checking
@@ -85,6 +90,94 @@ async fn main() -> std::io::Result<()> {
     //let torrent_data = Torrent::new(bencode_data, peer_id).unwrap();
     //let peers = peers::get_peers(&torrent_data, peer_id).unwrap();
     //download::start(torrent_data, peers.peers, args.download_dir).unwrap();
-
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    let mut terminal = ratatui::init();
+    loop {
+        terminal.draw(draw).expect("failed to draw frame");
+        if matches!(event::read().expect("failed to read event"), Event::Key(_)) {
+            break;
+        }
+    }
+    ratatui::restore();
     Ok(())
+}
+
+use crossterm::event::{self, Event};
+use ratatui::Frame;
+use Constraint::{Fill, Length, Min, Percentage};
+
+fn draw(frame: &mut Frame) {
+    let vertical = Layout::vertical([Length(4), Min(0), Length(4)]);
+    let [title_area, main_area, status_area] = vertical.areas(frame.area());
+
+    let main_horizontal = Layout::horizontal([Percentage(40), Percentage(60)]);
+    let [top, bottom] = main_horizontal.areas(main_area);
+
+    let main_vertical = Layout::vertical([Fill(1), Fill(1)]);
+    let [top_left, bottom_left] = main_vertical.areas(top);
+    let [top_right, bottom_right] = main_vertical.areas(bottom);
+
+    ///top title bar///////////////////////////////////////////////////////////////
+    let text = vec![
+        text::Line::from(vec![
+            Span::from("torrent: "),
+            Span::styled("torrent_ful_name_here", Style::default().fg(Color::Green)),
+        ]),
+        text::Line::from(vec![
+            Span::from("download dir: "),
+            Span::styled("~/Downloads", Style::default().fg(Color::Green)),
+        ]),
+    ];
+    let title = Paragraph::new(text)
+        .block(Block::bordered().title("Title Bar"))
+        .wrap(Wrap { trim: true });
+
+    frame.render_widget(title, title_area);
+    ///////////////////////////////////////////////////////////////////////////////
+    ///bottom gauge bar////////////////////////////////////////////////////////////
+    let chunks = Layout::vertical([Constraint::Length(1), Constraint::Length(1)])
+        .margin(1)
+        .split(status_area);
+    let block = Block::bordered().title("Graphs");
+    frame.render_widget(block, status_area);
+
+    let label = format!("{:.2}%", 0.12 * 100.0);
+    let gauge = Gauge::default()
+        .block(Block::new())
+        .gauge_style(
+            Style::default()
+                .fg(Color::Magenta)
+                .bg(Color::Black)
+                .add_modifier(Modifier::ITALIC | Modifier::BOLD),
+        )
+        .use_unicode(true)
+        .label(label)
+        .ratio(0.12);
+
+    let total_width = chunks[0].width as usize;
+    let spacing = total_width.saturating_sub(16 + 27);
+
+    let text = vec![text::Line::from(vec![
+        Span::from("progress: "),
+        Span::styled("xx.yy%", Style::default().fg(Color::Blue)),
+        Span::raw(" ".repeat(spacing)).into(),
+        Span::from("Pieces downloaded:"),
+        Span::styled("XXXX/YYYY", Style::default().fg(Color::Blue)),
+    ])];
+
+    let title = Paragraph::new(text)
+        .block(Block::new())
+        .wrap(Wrap { trim: false });
+
+    frame.render_widget(title, chunks[0]);
+    frame.render_widget(gauge, chunks[1]);
+    ///////////////////////////////////////////////////////////////////////////////
+
+    frame.render_widget(Block::bordered().title("Top Left"), top_left);
+    frame.render_widget(Block::bordered().title("Top Right"), top_right);
+    frame.render_widget(Block::bordered().title("Bottom Left"), bottom_left);
+    frame.render_widget(Block::bordered().title("Bottom Right"), bottom_right);
 }
