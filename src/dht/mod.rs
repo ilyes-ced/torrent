@@ -8,9 +8,14 @@ mod routing_table;
 mod rpc;
 mod utils;
 
+use crate::bencode::{
+    decoder::{self, Decoder},
+    encoder::{encode, Input},
+};
 use node::Node;
 use routing_table::RTable;
 use rpc::Rpc;
+use serde_json::json;
 use tokio::net::UdpSocket;
 
 use crate::dht::node::NodeId;
@@ -41,8 +46,10 @@ impl Dht {
         println!("node id:  {:?}", node_id);
 
         let mut buf = [0; 1024];
-        let bencode_nmg = format!("bencoded = d1:ad2:id20:{node_id}e1:q4:ping1:t2:aa1:y1:qe");
-        let msg = bencode_nmg.as_bytes();
+
+        let bencode_msg = json!({"t":"aa", "y":"q", "q":"ping", "a":{"id":node_id}});
+
+        let msg = encode(Input::Json(bencode_msg)).unwrap();
 
         let node_addr = "router.bittorrent.com:6881"
             .to_socket_addrs()
@@ -52,14 +59,23 @@ impl Dht {
         println!("bootstrap ip:  {:?}", node_addr);
 
         loop {
-            socket.send_to(msg, node_addr).await.unwrap();
+            socket.send_to(&msg, node_addr).await.unwrap();
             println!(
                 "{:?} message sent",
-                String::from_utf8_lossy(msg).to_string()
+                String::from_utf8_lossy(&msg).to_string()
             );
 
             let (len, node_addr) = socket.recv_from(&mut buf).await.unwrap();
             println!("{:?} bytes received from {:?}", len, node_addr);
+            println!("-------------");
+            println!("{:?}", buf);
+            let ff = &buf[..len];
+
+            println!("{:?}", ff);
+            println!("{:?}", String::from_utf8_lossy(&ff).to_string());
+            let decoded_res = Decoder::new(ff).start().unwrap().result;
+            println!("{:?}", decoded_res);
+            println!("-------------");
         }
 
         Err(String::new())

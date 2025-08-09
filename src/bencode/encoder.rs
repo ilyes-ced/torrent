@@ -1,7 +1,15 @@
 use serde_json::Value;
 
-pub fn encode(obj: &str) -> Result<Vec<u8>, String> {
-    let json_object: Value = serde_json::from_str(obj).unwrap();
+pub enum Input<'a> {
+    Str(&'a str),
+    Json(Value),
+}
+
+pub fn encode(input: Input) -> Result<Vec<u8>, String> {
+    let json_object = match input {
+        Input::Str(s) => serde_json::from_str(s).map_err(|e| e.to_string())?,
+        Input::Json(v) => v,
+    };
     Ok(get_values(json_object).unwrap())
 }
 
