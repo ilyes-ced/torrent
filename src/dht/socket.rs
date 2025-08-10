@@ -1,7 +1,7 @@
 use std::net::UdpSocket;
 
-pub struct Rpc {
+pub struct Socket {
     pub socket: UdpSocket,
 }
 
-impl Rpc {}
+impl Socket {}

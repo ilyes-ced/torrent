@@ -3,9 +3,10 @@ use std::{
     net::{Ipv4Addr, SocketAddr, ToSocketAddrs},
 };
 
+mod message;
 mod node;
 mod routing_table;
-mod rpc;
+mod socket;
 mod utils;
 
 use crate::bencode::{
@@ -14,8 +15,8 @@ use crate::bencode::{
 };
 use node::Node;
 use routing_table::RTable;
-use rpc::Rpc;
 use serde_json::json;
+use socket::Socket;
 use tokio::net::UdpSocket;
 
 use crate::dht::node::NodeId;
@@ -32,9 +33,8 @@ pub struct Dht {
     my_node: Node,
     routing_table: RTable,
     store: HashMap<String, String>,
-    socket: Rpc,
+    socket: Socket,
 }
-
 impl Dht {
     pub async fn new() -> Result<Dht, String> {
         // let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 9000));
@@ -42,12 +42,15 @@ impl Dht {
 
         let node_id = NodeId::new();
         println!("node id:  {:?}", node_id.0);
-        let node_id = node_id.to_hex_string();
-        println!("node id:  {:?}", node_id);
+
+        // let node_id = node_id.to_hex_string();
+        // println!("node id:  {:?}", node_id);
 
         let mut buf = [0; 1024];
 
-        let bencode_msg = json!({"t":"aa", "y":"q", "q":"ping", "a":{"id":node_id}});
+        let bencode_msg = json!({"t":"aa", "y":"q", "q":"ping", "a":{"id":node_id.0}});
+        // let bencode_msg =
+        //     json!({"id" : node_id, "info_hash" : "6fcf7ef136e73f0fb6186b30fe67d741cc260c5c"});
 
         let msg = encode(Input::Json(bencode_msg)).unwrap();
 
@@ -84,17 +87,3 @@ impl Dht {
     //     Err(String::new())
     // }
 }
-
-//pub enum Message {
-//    // q
-//    //    ping
-//    //    find_node
-//    //    get_peer
-//    //    announce_peer
-//    Query(Query),
-//    // r
-//    Response(Response),
-//    // e
-//    Error(Error),
-//}
-//

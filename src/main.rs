@@ -54,7 +54,7 @@ async fn main() -> std::io::Result<()> {
     // infohash
     // 6fcf7ef136e73f0fb6186b30fe67d741cc260c5c
 
-    // let dht = Dht::new().await.unwrap();
+    let dht = Dht::new().await.unwrap();
 
     //let args = Args::parse();
     //// download directory checking
@@ -90,10 +90,16 @@ async fn main() -> std::io::Result<()> {
     //let torrent_data = Torrent::new(bencode_data, peer_id).unwrap();
     //let peers = peers::get_peers(&torrent_data, peer_id).unwrap();
     //download::start(torrent_data, peers.peers, args.download_dir).unwrap();
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // start_tui();
+    Ok(())
+}
+
+use crossterm::event::{self, Event};
+use ratatui::Frame;
+use Constraint::{Fill, Length, Min, Percentage};
+
+fn start_tui() {
     let mut terminal = ratatui::init();
     loop {
         terminal.draw(draw).expect("failed to draw frame");
@@ -102,18 +108,13 @@ async fn main() -> std::io::Result<()> {
         }
     }
     ratatui::restore();
-    Ok(())
 }
-
-use crossterm::event::{self, Event};
-use ratatui::Frame;
-use Constraint::{Fill, Length, Min, Percentage};
 
 fn draw(frame: &mut Frame) {
     let vertical = Layout::vertical([Length(4), Min(0), Length(4)]);
     let [title_area, main_area, status_area] = vertical.areas(frame.area());
 
-    let main_horizontal = Layout::horizontal([Percentage(40), Percentage(60)]);
+    let main_horizontal = Layout::horizontal([Percentage(50), Percentage(50)]);
     let [top, bottom] = main_horizontal.areas(main_area);
 
     let main_vertical = Layout::vertical([Fill(1), Fill(1)]);
@@ -168,16 +169,66 @@ fn draw(frame: &mut Frame) {
         Span::styled("XXXX/YYYY", Style::default().fg(Color::Blue)),
     ])];
 
-    let title = Paragraph::new(text)
+    let progress = Paragraph::new(text)
         .block(Block::new())
         .wrap(Wrap { trim: false });
 
-    frame.render_widget(title, chunks[0]);
+    frame.render_widget(progress, chunks[0]);
     frame.render_widget(gauge, chunks[1]);
     ///////////////////////////////////////////////////////////////////////////////
+    let logs: Vec<(&str, &str)> = vec![
+        ("INFO", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("INFO", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("INFO", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("ERROR", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("ERROR", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("ERROR", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+        ("ERROR", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
+    ];
+
+    let mut text = vec![];
+
+    for log in logs {
+        let color = match &log.0 {
+            &"INFO" => Color::Blue,
+            &"DEBUG" => Color::Green,
+            &"WARNING" => Color::Yellow,
+            &"ERROR" => Color::Red,
+            _ => Color::White,
+        };
+        text.push(text::Line::from(vec![
+            Span::styled(
+                format!("dd-mm-yyyy hh-mm-ss-mmm [{}] ", log.0),
+                Style::default().fg(color),
+            ),
+            Span::from(log.1),
+        ]));
+    }
+
+    let log = Paragraph::new(text)
+        .block(Block::bordered().title("Top Right"))
+        .wrap(Wrap { trim: false });
+
+    // "dd-mm-yyyy hh-mm-ss-mmm [INFO] lorem ipsum lorem ipsum"
 
     frame.render_widget(Block::bordered().title("Top Left"), top_left);
-    frame.render_widget(Block::bordered().title("Top Right"), top_right);
+    frame.render_widget(log, top_right);
     frame.render_widget(Block::bordered().title("Bottom Left"), bottom_left);
     frame.render_widget(Block::bordered().title("Bottom Right"), bottom_right);
 }

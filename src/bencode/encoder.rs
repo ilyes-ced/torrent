@@ -1,11 +1,16 @@
 use serde_json::Value;
 
+use crate::log::debug;
+
+#[derive(Debug)]
 pub enum Input<'a> {
     Str(&'a str),
     Json(Value),
 }
 
 pub fn encode(input: Input) -> Result<Vec<u8>, String> {
+    debug(format!("node id:  {:?}", input));
+
     let json_object = match input {
         Input::Str(s) => serde_json::from_str(s).map_err(|e| e.to_string())?,
         Input::Json(v) => v,
