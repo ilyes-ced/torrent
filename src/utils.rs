@@ -53,6 +53,15 @@ pub fn check_integrity(buf: &Vec<u8>, expected_hash: [u8; 20]) -> Result<bool, S
     }
 }
 
+// todo: tests
+pub fn hex_str_to_binary(hex: &str) -> Result<Vec<u8>, String> {
+    hex.split_whitespace()
+        .map(|byte| {
+            u8::from_str_radix(byte, 16).map_err(|e| format!("Invalid hex byte '{}': {}", byte, e))
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

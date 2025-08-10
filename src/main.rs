@@ -29,7 +29,6 @@ use torrentfile::torrent::Torrent;
 use tokio;
 
 use crate::bencode::decoder::Decoder;
-use crate::bencode::encoder::encode;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
