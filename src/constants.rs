@@ -19,7 +19,7 @@ impl MsgId {
 
 // tcp connection timeout
 // set to a small value for easier/faster debugging
-// maybe set it to 10 in production
+// maybe set it to 10 in production (or maybe no need it works just fine)
 pub(crate) const TIMEOUT_DURATION: u64 = 5; // in seconds
 
 pub(crate) const PORT: u16 = 6881;

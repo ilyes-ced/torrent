@@ -53,7 +53,15 @@ async fn main() -> std::io::Result<()> {
     // infohash
     // 6fcf7ef136e73f0fb6186b30fe67d741cc260c5c
 
-    let dht = Dht::new().await.unwrap();
+    let dht = Dht::new()
+        .await
+        .unwrap()
+        .bootstrap()
+        .await
+        .unwrap()
+        .search()
+        .await
+        .unwrap();
 
     //let args = Args::parse();
     //// download directory checking

@@ -14,39 +14,39 @@ use std::{
     net::{Ipv4Addr, SocketAddr},
 };
 
-pub enum Message {
+pub enum Message<'a> {
     // q
     //    ping
     //    find_node
     //    get_peer
     //    announce_peer
-    Query(Query),
+    Query(Query<'a>),
     // r
     Response(Response),
     // e
     Error(Error),
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-pub enum Query {
-    Ping(Ping),
-    FindNode(FindNode),
-    GetPeers(GetPeers),
-    AnnouncePeer(AnnouncePeer),
+pub enum Query<'a> {
+    Ping(Ping<'a>),
+    FindNode(FindNode<'a>),
+    GetPeers(GetPeers<'a>),
+    AnnouncePeer(AnnouncePeer<'a>),
 }
 #[derive(Debug)]
-pub struct Ping {
-    pub id: NodeId,
+pub struct Ping<'a> {
+    pub id: &'a NodeId,
 }
-pub struct FindNode {
-    pub id: NodeId,
-    pub target: NodeId,
+pub struct FindNode<'a> {
+    pub id: &'a NodeId,
+    pub target: &'a NodeId,
 }
-pub struct GetPeers {
-    pub id: NodeId,
+pub struct GetPeers<'a> {
+    pub id: &'a NodeId,
     pub info_hash: [u8; 20],
 }
-pub struct AnnouncePeer {
-    pub id: NodeId,
+pub struct AnnouncePeer<'a> {
+    pub id: &'a NodeId,
     pub info_hash: [u8; 20],
     pub port: Option<u16>,
     pub token: Vec<u8>,
@@ -59,8 +59,8 @@ pub struct Error {
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-impl Message {
-    pub fn new(msg_type: Message) -> Result<Vec<u8>, String> {
+impl<'a> Message<'a> {
+    pub fn new(msg_type: Message<'a>) -> Result<Vec<u8>, String> {
         match &msg_type {
             Message::Query(query) => match query {
                 Query::Ping(ping) => {

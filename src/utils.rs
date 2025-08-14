@@ -1,4 +1,7 @@
-use rand::distr::{Alphanumeric, SampleString};
+use rand::{
+    distr::{Alphanumeric, SampleString},
+    Rng,
+};
 use sha1::{Digest, Sha1};
 
 pub fn new_peer_id() -> [u8; 20] {
@@ -8,6 +11,14 @@ pub fn new_peer_id() -> [u8; 20] {
     let string = Alphanumeric.sample_string(&mut rand::rng(), 12);
     id[8..20].copy_from_slice(string.as_bytes());
     id
+}
+
+pub fn new_transaction_id() -> String {
+    rand::rng()
+        .sample_iter(&Alphanumeric)
+        .take(2)
+        .map(char::from)
+        .collect()
 }
 
 pub fn encode_binnary_to_http_chars(input: [u8; 20]) -> String {

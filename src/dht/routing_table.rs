@@ -3,9 +3,17 @@ use crate::dht::node::Node;
 pub const MAX_BUCKET_SIZE: usize = 8;
 
 pub struct Bucket {
-    nodes: [Node; MAX_BUCKET_SIZE],
+    nodes: Vec<Node>,
 }
 
-pub struct RTable {
+pub struct RoutingTable {
     buckets: Vec<Bucket>,
+}
+
+impl RoutingTable {
+    pub fn new() -> Self {
+        RoutingTable {
+            buckets: Vec::new(),
+        }
+    }
 }

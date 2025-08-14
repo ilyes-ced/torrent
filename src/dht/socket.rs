@@ -11,8 +11,7 @@ pub struct Socket {
 }
 
 impl Socket {
-    pub async fn new() -> Result<Self, String> {
-        let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 9000));
+    pub async fn new(addr: SocketAddr) -> Result<Self, String> {
         let socket = UdpSocket::bind(addr)
             .await
             .map_err(|e| format!("bind error: {}", e))?;

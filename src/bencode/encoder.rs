@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+// we create this object because the serde default "Value" type doesnt accept binary values like our node_id
 #[derive(Debug)]
 pub enum JsonObj {
     Dict(HashMap<String, JsonObj>),
@@ -20,6 +21,7 @@ pub fn encode(val: JsonObj) -> Result<Vec<u8>, String> {
                 .split_whitespace()
                 .all(|s| s.len() == 2 && u8::from_str_radix(s, 16).is_ok());
 
+            // not sure if this part is needed, because we have a case for binary values as well now
             // string can be normal text or binary data
             if is_hex {
                 let bytes = string

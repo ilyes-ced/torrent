@@ -6,7 +6,7 @@ use std::net::SocketAddr;
 // so we split in the nodeID lenght of bytes half to get the desired 20char long ASCII nodeID when encoding the bianry to hex
 
 #[derive(Debug)]
-pub struct NodeId(pub(crate) [u8; 20]);
+pub struct NodeId(pub [u8; 20]);
 impl NodeId {
     pub fn new() -> Self {
         let mut rng = rand::rng();
@@ -33,4 +33,10 @@ pub enum NodeStatus {
 pub struct Node {
     pub id: NodeId,
     pub addr: SocketAddr,
+}
+
+impl Node {
+    pub fn new(id: NodeId, addr: SocketAddr) -> Self {
+        Node { id, addr }
+    }
 }
