@@ -1,9 +1,4 @@
-use crate::{
-    bencode::decoder::Decoder,
-    dht::node::Node,
-    log::{debug, error, warning},
-    utils::hex_str_to_binary,
-};
+use crate::{bencode::decoder::Decoder, dht::node::Node, log::error, utils::hex_str_to_binary};
 use crate::{
     bencode::encoder::{encode, JsonObj},
     dht::node::NodeId,
@@ -101,7 +96,6 @@ fn ping_msg(ping: &Ping) -> Result<Vec<u8>, String> {
             )])),
         ),
     ]));
-    println!("{:#?}", msg);
     let res = encode(msg).unwrap();
     return Ok(res);
 }
@@ -124,7 +118,6 @@ fn find_peers_msg(get_peers: &GetPeers) -> Result<Vec<u8>, String> {
             ])),
         ),
     ]));
-    println!("{:#?}", msg);
     let res = encode(msg).unwrap();
     return Ok(res);
 }
@@ -144,7 +137,6 @@ fn find_node_msg(get_peers: &FindNode) -> Result<Vec<u8>, String> {
             ])),
         ),
     ]));
-    println!("{:#?}", msg);
     let res = encode(msg).unwrap();
     return Ok(res);
 }
@@ -152,11 +144,9 @@ fn find_node_msg(get_peers: &FindNode) -> Result<Vec<u8>, String> {
 #[derive(Debug)]
 pub struct Response {
     pub id: NodeId,
-
     // could need ipV6 for this one
     // nodeID:ip:port
     pub nodes: Vec<Node>,
-
     // Only present in responses to GetPeers (IP addresses)
     pub values: Vec<SocketAddr>,
     // Only present in responses to GetPeers
@@ -165,15 +155,7 @@ pub struct Response {
 
 impl Response {
     pub async fn decode_response(response_buf: &[u8]) -> Result<Response, String> {
-        warning("-------------".to_string());
-        warning(format!("Recieved binary response: {:?}", response_buf));
-        warning(format!(
-            "Recieved string response: {:?}",
-            String::from_utf8_lossy(&response_buf).to_string()
-        ));
-
         let decoded_res = Decoder::new(response_buf).start()?.result;
-        warning(format!("Recieved decoded response: {:?}", decoded_res));
         let json_response: Value = serde_json::from_str(&decoded_res)
             .map_err(|e| format!("failed to decode to json with serde: {}", e))?;
 
@@ -191,7 +173,8 @@ impl Response {
                 })?;
 
                 if bytes.len() % 26 != 0 {
-                    warning("wrong format for the nodes address data".to_string());
+                    error("wrong format for the nodes address data".to_string());
+                    return Err("wrong format for the nodes address data".to_string());
                 }
 
                 let mut nodes: Vec<Node> = Vec::new();
@@ -206,13 +189,12 @@ impl Response {
                         )),
                         u16::from_be_bytes([bytes[i * 26 + 24], bytes[i * 26 + 25]]),
                     );
-                    nodes.push(Node { id, addr });
+                    nodes.push(Node::new(id, addr));
                 }
                 nodes
             }
             None => Vec::new(),
         };
-        error(format!("Recieved nodes : {:?}", nodes_addrs));
 
         // get values (Peer addresses) in get_peers Query
         // ! untested
@@ -223,7 +205,8 @@ impl Response {
                 })?;
 
                 if bytes.len() % 6 != 0 {
-                    warning("wrong format for the nodes address data".to_string());
+                    error("wrong format for the nodes address data".to_string());
+                    return Err("wrong format for the nodes address data".to_string());
                 }
 
                 let mut peers: Vec<SocketAddr> = Vec::new();
@@ -243,7 +226,6 @@ impl Response {
             }
             None => Vec::new(),
         };
-        error(format!("Recieved peers : {:?}", peers_addrs));
 
         // * this ip retreival is useless because for example in ping query it returns our own ip address
         // let ip = match json_response["ip"].as_str() {

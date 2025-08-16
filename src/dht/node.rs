@@ -1,5 +1,8 @@
 use rand::Rng;
-use std::net::SocketAddr;
+use std::{
+    net::{Ipv4Addr, SocketAddr},
+    time::{Duration, Instant},
+};
 
 // the documentation says that the nodeID is 160bits long so 20 bytes(u8) but when we do 20 bytes and turn to hex codes each bytes is 2 chars
 // the docs site uses nodeID as a string so its ASCII but turning our hex to ASCII usually generates unreadable chars
@@ -24,6 +27,7 @@ impl NodeId {
     // }
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#[derive(Debug)]
 pub enum NodeStatus {
     Bad,
     Questionable,
@@ -33,10 +37,49 @@ pub enum NodeStatus {
 pub struct Node {
     pub id: NodeId,
     pub addr: SocketAddr,
+    pub last_activity: Instant,
+    // u32 should be enough
+    pub refresh_requests: u32,
 }
 
 impl Node {
     pub fn new(id: NodeId, addr: SocketAddr) -> Self {
-        Node { id, addr }
+        Node {
+            id,
+            addr,
+            last_activity: Instant::now(),
+            refresh_requests: 0,
+        }
+    }
+
+    // initlizer empty node
+    pub fn init() -> Self {
+        Node {
+            id: NodeId([0; 20]),
+            addr: SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0000)),
+            last_activity: Instant::now(),
+            refresh_requests: 0,
+        }
+    }
+
+    pub fn refresh() -> Self {
+        // send ping reauest and update the last 2 attributes
+        todo!()
+    }
+
+    pub fn status(&self) -> NodeStatus {
+        // minutes
+        match self.last_activity.elapsed() > Duration::from_secs(60 * 15) {
+            // questinable
+            true => {
+                // todo: ping the node, if it responds
+                // update the last_activity
+                // return nodestatus::good
+                // if it doesnt repond return nodeststus::bad
+
+                return NodeStatus::Good;
+            }
+            false => return NodeStatus::Good,
+        }
     }
 }

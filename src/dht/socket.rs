@@ -1,11 +1,10 @@
 use serde_json::Value;
 use tokio::net::UdpSocket;
 
-use crate::{
-    bencode::decoder::Decoder, dht::message::Response, log::debug, utils::hex_str_to_binary,
-};
+use crate::{bencode::decoder::Decoder, dht::message::Response, log::debug};
 use std::net::{Ipv4Addr, SocketAddr};
 
+#[derive(Debug)]
 pub struct Socket {
     pub socket: UdpSocket,
 }
@@ -18,7 +17,7 @@ impl Socket {
         Ok(Socket { socket })
     }
 
-    pub async fn send(&self, msg: Vec<u8>, node_addr: SocketAddr) -> Result<Vec<u8>, String> {
+    pub async fn send(&self, msg: Vec<u8>, node_addr: SocketAddr) -> Result<Response, String> {
         let mut buf = [0; 1024];
         loop {
             self.socket
@@ -26,7 +25,7 @@ impl Socket {
                 .await
                 .map_err(|e| format!("failed to send: {}", e))?;
             debug(format!(
-                "{:?} message sent",
+                "message sent: {:?}",
                 String::from_utf8_lossy(&msg).to_string()
             ));
 
@@ -38,10 +37,9 @@ impl Socket {
                 .await
                 .map_err(|e| format!("failed to recieve: {}", e))?;
 
-            let res = Response::decode_response(&buf[..len]).await?;
-            debug(format!("response got from decode response {:?}", res));
+            let res: Response = Response::decode_response(&buf[..len]).await?;
 
-            return Ok(buf.to_vec());
+            return Ok(res);
         }
     }
 }

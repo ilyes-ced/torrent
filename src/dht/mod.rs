@@ -29,6 +29,7 @@ use std::{
     net::{Ipv4Addr, SocketAddr, ToSocketAddrs},
 };
 
+mod bucket;
 mod message;
 mod node;
 mod routing_table;
@@ -53,7 +54,7 @@ const BOOTSTRAP_NODES: [&str; 4] = [
     "dht.transmissionbt.com:6881",
     "router.bittorrent.org:6881",
 ];
-
+#[derive(Debug)]
 pub struct Dht {
     my_node: Node,
     routing_table: RoutingTable,
@@ -73,6 +74,13 @@ impl Dht {
         let routing_table = RoutingTable::new();
         let store = HashMap::new();
         let socket = Socket::new(addr).await?;
+
+        debug(format!("trans_id:  {:?}", my_node));
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+        debug(format!(
+            "how long the object lived:  {:?}",
+            my_node.last_activity.elapsed()
+        ));
 
         Ok(Dht {
             my_node,
@@ -136,7 +144,7 @@ impl Dht {
     }
 
     // in this one we use just one bootstraping node (whichever works first)
-    pub async fn bootstrap(self) -> Result<Dht, String> {
+    pub async fn bootstrap(&mut self) -> Result<Dht, String> {
         /*
             send ping to first bootstrap node
             recieve response (add timeout with doubling duration)
@@ -184,10 +192,34 @@ impl Dht {
 
             // find_nodes request
             match self.socket.send(find_node_msg, bootstrap_node_addr).await {
-                Ok(res) => {
+                Ok(response) => {
                     // TODO: here add the recieved nodes to the routing table
-                    debug(format!("bootstrap find_nodes request response:  {:?}", res));
+                    // ping new nodes to make sure they are good nodes
+                    debug(format!(
+                        "bootstrap find_nodes request response:  {:?}",
+                        response
+                    ));
+
+                    if response.values.len() > 0 {
+                        //we found the peers we need
+                    } else if response.nodes.len() > 0 {
+                        // add the nodes to buckets
+                        for node in response.nodes {
+                            let res =
+                                self.routing_table
+                                    .add(node, self.my_node.id.0)
+                                    .map_err(|e| {
+                                        format!("failed to add node to routing table: {}", e)
+                                    })?;
+                        }
+                    } else {
+                        // not sure what to put here
+                    }
+
+                    debug(format!("DHT object:  {:?}", self));
+
                     todo!("implement thhe adding the recieved nodes to the routing table");
+
                     break;
                 }
                 Err(err) => {

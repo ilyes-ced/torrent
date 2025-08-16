@@ -73,6 +73,32 @@ pub fn hex_str_to_binary(hex: &str) -> Result<Vec<u8>, String> {
         .collect()
 }
 
+// todo: tests
+pub fn xor_distance(node_id1: [u8; 20], node_id2: [u8; 20]) -> Vec<u8> {
+    node_id1
+        .iter()
+        .zip(node_id2.iter())
+        .map(|(&x1, &x2)| x1 ^ x2)
+        .collect()
+}
+
+// todo: tests
+pub fn count_leading_zeros(distance: [u8; 20]) -> u32 {
+    let mut num_zeros: u32 = 0;
+    'test: for byte in distance {
+        let mut bits: [u8; 8] = [0; 8];
+        for i in 0..8 {
+            bits[7 - i] = (byte >> i) & 1;
+            if (byte >> i) & 1 != 0 {
+                // the first 1 bit we find we stop the execution because we only count the leading zeros
+                break 'test;
+            }
+            num_zeros += 1;
+        }
+    }
+    num_zeros
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
