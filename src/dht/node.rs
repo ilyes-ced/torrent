@@ -8,7 +8,7 @@ use std::{
 // the docs site uses nodeID as a string so its ASCII but turning our hex to ASCII usually generates unreadable chars
 // so we split in the nodeID lenght of bytes half to get the desired 20char long ASCII nodeID when encoding the bianry to hex
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct NodeId(pub [u8; 20]);
 impl NodeId {
     pub fn new() -> Self {
@@ -33,7 +33,7 @@ pub enum NodeStatus {
     Questionable,
     Good,
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Node {
     pub id: NodeId,
     pub addr: SocketAddr,
@@ -76,7 +76,7 @@ impl Node {
                 // update the last_activity
                 // return nodestatus::good
                 // if it doesnt repond return nodeststus::bad
-
+                todo!("ping node to check if its good or bad");
                 return NodeStatus::Good;
             }
             false => return NodeStatus::Good,

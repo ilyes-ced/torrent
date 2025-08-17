@@ -66,12 +66,16 @@ impl Dht {
         let node_id = NodeId::new();
         debug(format!("node id:  {:?}", node_id.0));
 
+        let leading_zeros =
+            crate::utils::count_leading_zeros(node_id.0.try_into().unwrap()) as usize;
+        debug(format!("my node id leading zeros:  {:?}", leading_zeros));
+
         let trans_id = new_transaction_id();
         debug(format!("trans_id:  {:?}", trans_id));
 
         let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 9000));
+        let routing_table = RoutingTable::new(node_id.clone());
         let my_node = Node::new(node_id, addr);
-        let routing_table = RoutingTable::new();
         let store = HashMap::new();
         let socket = Socket::new(addr).await?;
 
@@ -204,13 +208,11 @@ impl Dht {
                         //we found the peers we need
                     } else if response.nodes.len() > 0 {
                         // add the nodes to buckets
+                        // todo: choose the 8 closest GOOD nodes. instead of adding them all
                         for node in response.nodes {
-                            let res =
-                                self.routing_table
-                                    .add(node, self.my_node.id.0)
-                                    .map_err(|e| {
-                                        format!("failed to add node to routing table: {}", e)
-                                    })?;
+                            let res = self.routing_table.add(node).map_err(|e| {
+                                format!("failed to add node to routing table: {}", e)
+                            })?;
                         }
                     } else {
                         // not sure what to put here

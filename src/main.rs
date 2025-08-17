@@ -29,6 +29,7 @@ use torrentfile::torrent::Torrent;
 use tokio;
 
 use crate::bencode::decoder::Decoder;
+use crate::log::debug;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -53,15 +54,14 @@ async fn main() -> std::io::Result<()> {
     // infohash
     // 6fcf7ef136e73f0fb6186b30fe67d741cc260c5c
 
-    let dht = Dht::new()
-        .await
-        .unwrap()
-        .bootstrap()
-        .await
-        .unwrap()
-        .search()
-        .await
-        .unwrap();
+    let mut dht = Dht::new().await.unwrap();
+    debug("===========================================================".to_string());
+    debug(format!("dht::  {:#?}", dht));
+    debug("===========================================================".to_string());
+    dht.bootstrap().await.unwrap().search().await.unwrap();
+    debug("===========================================================".to_string());
+    debug(format!("dht::  {:#?}", dht));
+    debug("===========================================================".to_string());
 
     //let args = Args::parse();
     //// download directory checking

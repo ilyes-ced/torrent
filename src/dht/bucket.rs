@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{collections::VecDeque, time::Instant};
 
 use crate::{
     dht::node::{Node, NodeStatus},
@@ -10,14 +10,20 @@ pub const MAX_BUCKETS: usize = 160;
 
 #[derive(Debug)]
 pub struct Bucket {
-    pub nodes: Vec<Node>,
+    pub nodes: VecDeque<Node>,
     pub last_activity: Instant,
 }
 
 impl Bucket {
     pub fn new() -> Self {
         Bucket {
-            nodes: Vec::new(),
+            nodes: VecDeque::new(),
+            last_activity: Instant::now(),
+        }
+    }
+    pub fn from(nodes: Vec<Node>) -> Self {
+        Bucket {
+            nodes: VecDeque::from(nodes),
             last_activity: Instant::now(),
         }
     }
@@ -43,23 +49,39 @@ impl Bucket {
             self.last_activity.elapsed()
         ));
 
-        if self.nodes.len() < MAX_BUCKET_SIZE {
-            // here bucket was not full
-            self.nodes.push(node);
-            // check older nodes
-            for node in &self.nodes {
-                match node.status() {
-                    NodeStatus::Bad => todo!(),
-                    NodeStatus::Good => todo!(),
-                    // should appear here
-                    NodeStatus::Questionable => todo!(),
-                };
-            }
-        } else {
-            // here split the buckets
-            // or return false to split in the routing table instead (better)
+        if self.nodes.contains(&node) {
+            // move it to the start of the list
+            self.nodes.retain(|x| x != &node);
+            self.nodes.push_front(node);
+            return true;
         }
 
+        if self.nodes.len() < MAX_BUCKET_SIZE {
+            // bucket not full push directly
+            self.nodes.push_front(node);
+            return true;
+        }
+
+        // here we check if we split the buckets
+        // or return false to split in the routing table instead (better)
+
+        // ? order is reversed because we need to check the oldest nodes first which are at the end of the vector
+        for node_ind in (0..self.nodes.len()).rev() {
+            match self.nodes[node_ind].status() {
+                NodeStatus::Bad => {
+                    //replace the bad node
+                    self.nodes.remove(node_ind);
+                    self.nodes.push_front(node);
+                    return true;
+                }
+                // should do nothing if the checked node is good
+                NodeStatus::Good => {}
+                // ? should never appear here, because the NODE.status() function send a ping query and returns either Good or Bad
+                NodeStatus::Questionable => todo!(),
+            };
+        }
+
+        // if we reach this point we dont need to add the node and it is discarded
         false
     }
 }
