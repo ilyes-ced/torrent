@@ -159,6 +159,10 @@ impl Response {
         let json_response: Value = serde_json::from_str(&decoded_res)
             .map_err(|e| format!("failed to decode to json with serde: {}", e))?;
 
+        error(format!("#########################################3"));
+        error(format!("response json: : {:?}", json_response));
+        error(format!("#########################################3"));
+
         // get nodeID
         let node_id = match json_response["r"]["id"].as_str() {
             Some(node_id) => node_id,

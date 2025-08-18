@@ -4,6 +4,14 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::{
+    dht::{
+        message::{self, Message},
+        socket::Socket,
+    },
+    log::debug,
+};
+
 // the documentation says that the nodeID is 160bits long so 20 bytes(u8) but when we do 20 bytes and turn to hex codes each bytes is 2 chars
 // the docs site uses nodeID as a string so its ASCII but turning our hex to ASCII usually generates unreadable chars
 // so we split in the nodeID lenght of bytes half to get the desired 20char long ASCII nodeID when encoding the bianry to hex
@@ -80,6 +88,26 @@ impl Node {
                 return NodeStatus::Good;
             }
             false => return NodeStatus::Good,
+        }
+    }
+
+    pub async fn new_status(&self, socket: &mut Socket) -> NodeStatus {
+        // send reauest
+        let ping_msg = Message::new(Message::Query(message::Query::Ping(message::Ping {
+            id: &self.id,
+        })))
+        .unwrap();
+
+        // send ping first
+        match socket.send(ping_msg, self.addr).await {
+            Ok(res) => {
+                debug(format!("bootstrap ping request response:  {:?}", res));
+                NodeStatus::Good
+            }
+            Err(err) => {
+                debug(format!("failed pinging a node to check status: {}", err));
+                NodeStatus::Bad
+            }
         }
     }
 }

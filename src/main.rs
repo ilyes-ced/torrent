@@ -55,13 +55,14 @@ async fn main() -> std::io::Result<()> {
     // 6fcf7ef136e73f0fb6186b30fe67d741cc260c5c
 
     let mut dht = Dht::new().await.unwrap();
-    debug("===========================================================".to_string());
-    debug(format!("dht::  {:#?}", dht));
-    debug("===========================================================".to_string());
-    dht.bootstrap().await.unwrap().search().await.unwrap();
-    debug("===========================================================".to_string());
-    debug(format!("dht::  {:#?}", dht));
-    debug("===========================================================".to_string());
+    error("===========================================================".to_string());
+    error(format!("dht:: {:#?}", dht));
+    error("===========================================================".to_string());
+    dht.bootstrap().await.unwrap();
+    dht.lookup().await.unwrap();
+    error("===========================================================".to_string());
+    error(format!("dht:: {:#?}", dht));
+    error("===========================================================".to_string());
 
     //let args = Args::parse();
     //// download directory checking

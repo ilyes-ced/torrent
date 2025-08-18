@@ -57,8 +57,6 @@ Step-by-step:
     ?   so we can keep the old good nodes which are more likely to be stable
 */
 
-use std::collections::VecDeque;
-
 use crate::{
     dht::{
         bucket::{Bucket, MAX_BUCKETS},
@@ -70,7 +68,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct RoutingTable {
-    buckets: Vec<Bucket>,
+    pub buckets: Vec<Bucket>,
     my_node_id: NodeId,
 }
 
@@ -144,7 +142,8 @@ impl RoutingTable {
                 ));
 
                 // after splitting the buckets, redustribute the nodes in trhe split node
-                for n in split_bucket.nodes {
+                // rev to add the oldest nodes first (not sure if its correct)
+                for n in split_bucket.nodes.into_iter().rev() {
                     self.add(n).unwrap();
                 }
 
@@ -158,13 +157,14 @@ impl RoutingTable {
             }
         } else {
             info(format!(
-                "node: {:?} added to bucket: {}",
-                node, bucket_index
+                "node: {:?} added to bucket: {}, leading zeros: {}",
+                node, bucket_index, leading_zeros
             ));
 
             return Ok(());
         };
 
-        Err(String::from("failed to add the node"))
+        // node is not added but that is ok
+        Ok(())
     }
 }
