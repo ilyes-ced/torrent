@@ -7,18 +7,20 @@ use ratatui::{
 };
 use Constraint::Percentage;
 
-pub fn draw_info(frame: &mut Frame, title_area: Rect) {
+use crate::app::App;
+
+pub fn draw_info(frame: &mut Frame, title_area: Rect, app: &mut App) {
     let main_horizontal = Layout::horizontal([Percentage(50), Percentage(50)]);
     let [left_info, right_info] = main_horizontal.areas(title_area);
 
     let text = vec![
         text::Line::from(vec![
             Span::from("torrent: "),
-            Span::styled("torrent_ful_name_here", Style::default().fg(Color::Green)),
+            Span::styled(app.torrent_name, Style::default().fg(Color::Green)),
         ]),
         text::Line::from(vec![
             Span::from("download dir: "),
-            Span::styled("~/Downloads", Style::default().fg(Color::Green)),
+            Span::styled(app.download_dir, Style::default().fg(Color::Green)),
         ]),
     ];
     let title = Paragraph::new(text)
@@ -30,14 +32,11 @@ pub fn draw_info(frame: &mut Frame, title_area: Rect) {
     let text = vec![
         text::Line::from(vec![
             Span::from("infohash: "),
-            Span::styled(
-                "6fcf7ef136e73f0fb6186b30fe67d741cc260c5c",
-                Style::default().fg(Color::Green),
-            ),
+            Span::styled(app.info_hash, Style::default().fg(Color::Green)),
         ]),
         text::Line::from(vec![
             Span::from("torrent size: "),
-            Span::styled("3.9 GiB", Style::default().fg(Color::Green)),
+            Span::styled(app.size, Style::default().fg(Color::Green)),
         ]),
     ];
     let title = Paragraph::new(text)

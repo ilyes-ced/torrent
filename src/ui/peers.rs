@@ -8,4 +8,6 @@ use ratatui::{
 };
 use Constraint::{Fill, Length, Min, Percentage};
 
-pub fn draw_peers_tab(frame: &mut Frame, main_area: Rect) {}
+use crate::app::App;
+
+pub fn draw_peers_tab(frame: &mut Frame, main_area: Rect, app: &mut App) {}

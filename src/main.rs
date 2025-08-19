@@ -1,3 +1,4 @@
+mod app;
 mod bencode;
 mod client;
 mod constants;
@@ -58,15 +59,15 @@ async fn main() -> std::io::Result<()> {
 
     ////################################################################################
     //* DHT protocol (DHT thread)
-    let mut dht = Dht::new().await.unwrap();
-    error("***********************************************************".to_string());
-    // error(format!("dht:: {:#?}", dht));
-    error("***********************************************************".to_string());
-    dht.bootstrap().await.unwrap();
-    dht.lookup().await.unwrap();
-    error("***********************************************************".to_string());
-    //error(format!("dht:: {:#?}", dht));
-    error("***********************************************************".to_string());
+    // let mut dht = Dht::new().await.unwrap();
+    // error("***********************************************************".to_string());
+    // // error(format!("dht:: {:#?}", dht));
+    // error("***********************************************************".to_string());
+    // dht.bootstrap().await.unwrap();
+    // dht.lookup().await.unwrap();
+    // error("***********************************************************".to_string());
+    // //error(format!("dht:: {:#?}", dht));
+    // error("***********************************************************".to_string());
     ////################################################################################
     //
     //
@@ -109,6 +110,6 @@ async fn main() -> std::io::Result<()> {
     //let peers = peers::get_peers(&torrent_data, peer_id).unwrap();
     //download::start(torrent_data, peers.peers, args.download_dir).unwrap();
 
-    //start_tui();
+    start_tui();
     Ok(())
 }
