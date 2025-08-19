@@ -156,7 +156,10 @@ pub struct Response {
 
 impl Response {
     pub async fn decode_response(response_buf: &[u8]) -> Result<Response, String> {
+        error(format!("res: {:?}", response_buf));
         let decoded_res = Decoder::new(response_buf).start()?.result;
+        error(format!("decoded res: {:?}", decoded_res));
+
         let json_response: Value = serde_json::from_str(&decoded_res)
             .map_err(|e| format!("failed to decode to json with serde: {}", e))?;
 

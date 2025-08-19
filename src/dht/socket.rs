@@ -32,9 +32,11 @@ impl Socket {
             .send_to(&msg, node_addr)
             .await
             .map_err(|e| format!("failed to send: {}", e))?;
+
         debug(format!(
-            "message sent: {:?}",
-            String::from_utf8_lossy(&msg).to_string()
+            "message sent: {:?}, to {}",
+            String::from_utf8_lossy(&msg).to_string(),
+            node_addr
         ));
 
         //let (len, _node_addr) = self
@@ -45,8 +47,6 @@ impl Socket {
 
         match timeout(Duration::from_secs(2), self.socket.recv_from(&mut buf)).await {
             Ok(Ok((len, _node_addr))) => {
-                println!("Received {} bytes: {:?}", len, &buf[..len]);
-
                 let res: Response = Response::decode_response(&buf[..len]).await?;
                 return Ok(res);
             }

@@ -212,7 +212,16 @@ impl Decoder {
                     self.cursor += 1;
                 }
                 let value = match String::from_utf8(string.clone()) {
-                    Ok(val) => val,
+                    Ok(val) => {
+                        // check if all characters are printable: a u8=1 causes problems
+                        if val.chars().all(|c| c.is_ascii_graphic() || c == ' ') {
+                            val.replace("\"", "'")
+                        } else {
+                            let collected: Vec<String> =
+                                string.iter().map(|byte| format!("{:02X}", byte)).collect();
+                            return Ok(collected.join(" "));
+                        }
+                    }
                     Err(_) => {
                         // this case is for the binary data in pieces
                         let collected: Vec<String> = string

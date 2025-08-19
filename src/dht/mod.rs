@@ -146,6 +146,7 @@ impl Dht {
                         let mut good_nodes: Vec<Node> = Vec::new();
 
                         for node in response.nodes {
+                            error(format!("checking node status >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"));
                             match node.new_status(&mut self.socket, &self.my_node.id).await {
                                 node::NodeStatus::Good => good_nodes.push(node),
                                 // dont care discard
@@ -187,78 +188,87 @@ impl Dht {
 
     // search recursivelly untill we find our target
     pub async fn lookup(&mut self) -> Result<(), String> {
-        let ping_msg = Message::new(Message::Query(message::Query::Ping(message::Ping {
-            id: &self.my_node.id,
-        })))?;
-        let find_node_msg = Message::new(Message::Query(message::Query::FindNode(
-            message::FindNode {
+        loop {
+            error(format!(
+                "starting lookup ................................................................. bucket index: {}", self.routing_table.buckets.len() - 1
+            ));
+            std::thread::sleep(std::time::Duration::from_secs(2));
+
+            let ping_msg = Message::new(Message::Query(message::Query::Ping(message::Ping {
                 id: &self.my_node.id,
-                target: &self.my_node.id,
-            },
-        )))?;
+            })))?;
+            let find_node_msg = Message::new(Message::Query(message::Query::FindNode(
+                message::FindNode {
+                    id: &self.my_node.id,
+                    target: &self.my_node.id,
+                },
+            )))?;
 
-        // i dont like the clone
-        let nodes = self.routing_table.buckets[self.routing_table.buckets.len() - 1]
-            .nodes
-            .clone();
-
-        for node in nodes {
             // i dont like the clone
-            debug(format!("=================="));
-            debug(format!("=================="));
-            debug(format!("=================="));
-            debug(format!("sending reauest to node: {:?}", node));
+            let nodes = self.routing_table.buckets[self.routing_table.buckets.len() - 1]
+                .nodes
+                .clone();
 
-            // send ping first
-            let res = match self.socket.send(ping_msg.clone(), node.addr).await {
-                Ok(res) => {
-                    debug(format!("bootstrap ping request response:  {:?}", res));
-                    Ok(())
-                }
-                Err(_) => {
-                    debug(format!("error sending ping request to a node "));
-                    Err(())
-                }
-            };
+            for node in nodes {
+                // i dont like the clone
+                debug(format!("=================="));
+                debug(format!("=================="));
+                debug(format!("=================="));
+                debug(format!("sending reauest to node: {:?}", node));
 
-            match self.socket.send(find_node_msg.clone(), node.addr).await {
-                Ok(response) => {
-                    if response.values.len() > 0 {
-                        //? we found the peers we need
-                        // TODO: send them to peers reciever thread (planned)
-                        panic!("finally found peers")
-                    } else if response.nodes.len() > 0 {
-                        //? ping recieved nodes to make sure they are good than keep the 8 closest to us
-                        let mut good_nodes: Vec<Node> = Vec::new();
+                //? no need to send ping reauest because its already sent when the node was added
+                // send ping first
+                // let res = match self.socket.send(ping_msg.clone(), node.addr).await {
+                //     Ok(res) => {
+                //         debug(format!("node ping request response:  {:?}", res));
+                //         Ok(())
+                //     }
+                //     Err(_) => {
+                //         debug(format!("error sending ping request to a node "));
+                //         Err(())
+                //     }
+                // };
 
-                        for node in response.nodes {
-                            match node.status() {
-                                node::NodeStatus::Good => good_nodes.push(node),
-                                // dont care discard
-                                _ => {}
+                match self.socket.send(find_node_msg.clone(), node.addr).await {
+                    Ok(response) => {
+                        if response.values.len() > 0 {
+                            //? we found the peers we need
+                            // TODO: send them to peers reciever thread (planned)
+                            debug(format!("finally found peers: {:?}", response));
+                            panic!("finally found peers")
+                        } else if response.nodes.len() > 0 {
+                            //? ping recieved nodes to make sure they are good than keep the 8 closest to us
+                            let mut good_nodes: Vec<Node> = Vec::new();
+
+                            for node in response.nodes {
+                                match node.new_status(&mut self.socket, &self.my_node.id).await {
+                                    node::NodeStatus::Good => good_nodes.push(node),
+                                    // dont care discard
+                                    _ => {}
+                                }
                             }
+
+                            // sort by XOR distance
+                            good_nodes
+                                .sort_by_key(|node| xor_distance(self.my_node.id.0, node.id.0));
+
+                            for node in good_nodes.into_iter().take(8).collect::<Vec<Node>>() {
+                                self.routing_table.add(node).map_err(|e| {
+                                    format!("failed to add node to routing table: {}", e)
+                                })?;
+                            }
+                        } else {
+                            // not sure what to put here
                         }
 
-                        // sort by XOR distance
-                        good_nodes.sort_by_key(|node| xor_distance(self.my_node.id.0, node.id.0));
-
-                        for node in good_nodes.into_iter().take(8).collect::<Vec<Node>>() {
-                            self.routing_table.add(node).map_err(|e| {
-                                format!("failed to add node to routing table: {}", e)
-                            })?;
-                        }
-                    } else {
-                        // not sure what to put here
+                        break;
                     }
-
-                    break;
-                }
-                Err(_) => {
-                    debug(format!("error sending find_node request to a node "));
-                }
-            };
+                    Err(e) => {
+                        debug(format!("error sending find_node request to a node: {}", e));
+                    }
+                };
+            }
         }
-
         Ok(())
     }
 }
