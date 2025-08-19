@@ -91,21 +91,25 @@ impl Node {
         }
     }
 
-    pub async fn new_status(&self, socket: &mut Socket) -> NodeStatus {
+    pub async fn new_status(&self, socket: &mut Socket, my_node_id: &NodeId) -> NodeStatus {
         // send reauest
         let ping_msg = Message::new(Message::Query(message::Query::Ping(message::Ping {
-            id: &self.id,
+            id: &my_node_id,
         })))
         .unwrap();
+        debug(format!("sending a ping reauest to a new node:  {:?}", self));
 
         // send ping first
         match socket.send(ping_msg, self.addr).await {
             Ok(res) => {
-                debug(format!("bootstrap ping request response:  {:?}", res));
+                debug(format!("new node ping request response:  {:?}", res));
                 NodeStatus::Good
             }
             Err(err) => {
-                debug(format!("failed pinging a node to check status: {}", err));
+                debug(format!(
+                    "failed pinging a new node to check status: {}",
+                    err
+                ));
                 NodeStatus::Bad
             }
         }

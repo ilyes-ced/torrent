@@ -1,3 +1,4 @@
+use crate::utils::new_transaction_id;
 use crate::{bencode::decoder::Decoder, dht::node::Node, log::error, utils::hex_str_to_binary};
 use crate::{
     bencode::encoder::{encode, JsonObj},
@@ -85,7 +86,7 @@ impl<'a> Message<'a> {
 fn ping_msg(ping: &Ping) -> Result<Vec<u8>, String> {
     let node_id = ping.id.0;
     let msg = JsonObj::Dict(HashMap::from([
-        (String::from("t"), JsonObj::String("aa".to_owned())),
+        (String::from("t"), JsonObj::String(new_transaction_id())),
         (String::from("y"), JsonObj::String("q".to_owned())),
         (String::from("q"), JsonObj::String("ping".to_owned())),
         (
@@ -104,7 +105,7 @@ fn find_peers_msg(get_peers: &GetPeers) -> Result<Vec<u8>, String> {
     let node_id = get_peers.id.0;
     let info_hash = get_peers.info_hash;
     let msg = JsonObj::Dict(HashMap::from([
-        (String::from("t"), JsonObj::String("aa".to_owned())),
+        (String::from("t"), JsonObj::String(new_transaction_id())),
         (String::from("y"), JsonObj::String("q".to_owned())),
         (String::from("q"), JsonObj::String("get_peers".to_owned())),
         (
@@ -126,7 +127,7 @@ fn find_node_msg(get_peers: &FindNode) -> Result<Vec<u8>, String> {
     let node_id = get_peers.id.0;
     let target = get_peers.target.0;
     let msg = JsonObj::Dict(HashMap::from([
-        (String::from("t"), JsonObj::String("aa".to_owned())),
+        (String::from("t"), JsonObj::String(new_transaction_id())),
         (String::from("y"), JsonObj::String("q".to_owned())),
         (String::from("q"), JsonObj::String("find_node".to_owned())),
         (
@@ -160,7 +161,7 @@ impl Response {
             .map_err(|e| format!("failed to decode to json with serde: {}", e))?;
 
         error(format!("#########################################3"));
-        error(format!("response json: : {:?}", json_response));
+        error(format!("response json: {:?}", json_response));
         error(format!("#########################################3"));
 
         // get nodeID
@@ -186,10 +187,10 @@ impl Response {
                     let id = NodeId(bytes[i * 26..i * 26 + 20].try_into().unwrap());
                     let addr = SocketAddr::new(
                         std::net::IpAddr::V4(Ipv4Addr::new(
-                            bytes[i * 20],
-                            bytes[i * 21],
-                            bytes[i * 22],
-                            bytes[i * 23],
+                            bytes[i * 26 + 20],
+                            bytes[i * 26 + 21],
+                            bytes[i * 26 + 22],
+                            bytes[i * 26 + 23],
                         )),
                         u16::from_be_bytes([bytes[i * 26 + 24], bytes[i * 26 + 25]]),
                     );

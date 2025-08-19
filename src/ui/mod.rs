@@ -78,3 +78,15 @@ pub fn draw_tabs(frame: &mut Frame, main_area: Rect) {
     draw_peers_tab(frame, content_area);
     // draw_files_tab(frame, content_area);
 }
+
+/*
+to avoid overloading the RAM with logs
+use VecDeque for logs storage
+
+fn update_logs(logs: &mut VecDeque<String>, new_log: String) {
+    logs.push_back(new_log);
+    if logs.len() > MAX_LOG_LINES {
+        logs.pop_front();
+    }
+}
+*/

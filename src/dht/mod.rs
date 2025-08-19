@@ -79,13 +79,6 @@ impl Dht {
         let store = HashMap::new();
         let socket = Socket::new(addr).await?;
 
-        debug(format!("trans_id:  {:?}", my_node));
-        std::thread::sleep(std::time::Duration::from_millis(1000));
-        debug(format!(
-            "how long the object lived:  {:?}",
-            my_node.last_activity.elapsed()
-        ));
-
         Ok(Dht {
             my_node,
             routing_table,
@@ -101,6 +94,14 @@ impl Dht {
             recieve response (add timeout with doubling duration)
             if it doesnt respond within the 3rd try try the second node and so on
         */
+
+        let bootstrap_node_addr = BOOTSTRAP_NODES[0]
+            .to_socket_addrs()
+            .unwrap()
+            .next()
+            .expect("Failed to resolve address");
+        debug(format!("bootstrap ips:  {:?}", bootstrap_node_addr));
+
         let mut bootstrap_ind = 0;
 
         'bootstraping: loop {
@@ -114,14 +115,7 @@ impl Dht {
                 },
             )))?;
 
-            let bootstrap_node_addr = BOOTSTRAP_NODES[bootstrap_ind]
-                .to_socket_addrs()
-                .unwrap()
-                .next()
-                .expect("Failed to resolve address");
-            debug(format!("bootstrap ip:  {:?}", bootstrap_node_addr));
-
-            // send ping first
+            //* send ping first
             match self.socket.send(ping_msg, bootstrap_node_addr).await {
                 Ok(res) => {
                     debug(format!("bootstrap ping request response:  {:?}", res));
@@ -129,8 +123,8 @@ impl Dht {
                 }
                 Err(err) => {
                     debug(format!(
-                        "error sending ping request to bootstraping node {}:  {:?}",
-                        bootstrap_ind, bootstrap_node_addr
+                        "error sending ping request to bootstraping node {}:  {:?} >>> {}",
+                        bootstrap_ind, bootstrap_node_addr, err
                     ));
                     // repeater logic
                     bootstrap_ind += 1;
@@ -141,7 +135,7 @@ impl Dht {
                 }
             };
 
-            // find_nodes request
+            //* find_nodes request
             match self.socket.send(find_node_msg, bootstrap_node_addr).await {
                 Ok(response) => {
                     if response.values.len() > 0 {
@@ -152,7 +146,7 @@ impl Dht {
                         let mut good_nodes: Vec<Node> = Vec::new();
 
                         for node in response.nodes {
-                            match node.new_status(&mut self.socket).await {
+                            match node.new_status(&mut self.socket, &self.my_node.id).await {
                                 node::NodeStatus::Good => good_nodes.push(node),
                                 // dont care discard
                                 _ => {}
@@ -187,6 +181,7 @@ impl Dht {
                 }
             };
         }
+
         Ok(())
     }
 
