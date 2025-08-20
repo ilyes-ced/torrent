@@ -15,7 +15,7 @@ use crate::torrentfile::torrent::{
 pub(crate) fn write_file(
     torrent: &Torrent,
     piece: PieceResult,
-    download_dir: String,
+    download_dir: &str,
 ) -> Result<(), String> {
     match &torrent.info.files {
         Single(_) => write_single_file(torrent, piece, download_dir),
@@ -26,7 +26,7 @@ pub(crate) fn write_file(
 pub(crate) fn write_single_file(
     torrent: &Torrent,
     piece: PieceResult,
-    download_dir: String,
+    download_dir: &str,
 ) -> Result<(), String> {
     let ind = piece.index as u64;
     let path = PathBuf::from(download_dir).join(&torrent.info.name);
@@ -57,7 +57,7 @@ fn write_multi_file(
     torrent: &Torrent,
     piece: PieceResult,
     files: &[Files],
-    download_dir: String,
+    download_dir: &str,
 ) -> Result<(), String> {
     // we have files in torrent and piece index we can calculate to which file or multiple files each pioece belongs
     let mappings = mapping(torrent, piece.index)?;

@@ -7,8 +7,8 @@ mod download;
 mod io;
 mod log;
 mod magnet;
-mod peers;
 mod torrentfile;
+mod tracker;
 mod ui;
 mod utils;
 
@@ -27,11 +27,13 @@ use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
 use std::{fs::File, io::Read};
+use tokio::sync::mpsc::{self, Sender};
 use torrentfile::torrent::Torrent;
 
 use tokio;
 
 use crate::bencode::decoder::Decoder;
+use crate::tracker::Peer;
 use crate::ui::start_tui;
 
 #[derive(Parser, Debug)]
@@ -68,48 +70,88 @@ async fn main() -> std::io::Result<()> {
     // error("***********************************************************".to_string());
     // //error(format!("dht:: {:#?}", dht));
     // error("***********************************************************".to_string());
-    ////################################################################################
-    //
-    //
-    ////* parsing args (main thread)
-    //let args = Args::parse();
-    //// download directory checking
-    //info(format!("download directory: {}", args.download_dir));
-    //if !Path::new(&args.download_dir).exists() {
-    //    error(format!("the provided directory does not exist"));
-    //    std::process::exit(0);
-    //}
-    //
-    //let peer_id = utils::new_peer_id();
-    //
-    //// get torrent data torrent_file or magnet_url
-    //let res = if args.source.magnet_url == None {
-    //    info(format!(
-    //        "starting downloade for torrent: {}",
-    //        args.source.torrent_file.clone().unwrap()
-    //    ));
-    //    let path = &args.source.torrent_file.unwrap();
-    //    let mut file = File::open(path).map_err(|e| e.to_string()).unwrap();
-    //    let mut buf = vec![];
-    //    file.read_to_end(&mut buf)
-    //        .map_err(|e| e.to_string())
-    //        .unwrap();
-    //    buf
-    //} else {
-    //    let magnet_data = Magnet::new(&args.source.magnet_url.unwrap());
-    //    info(format!("magnet data: {:?}", magnet_data));
-    //    todo!();
-    //    Vec::new()
-    //};
-    //
-    //// reading torrent file
-    ////maybe we need a static PeerId
-    //// execution
-    //let bencode_data = Decoder::new(&res).start().unwrap();
-    //let torrent_data = Torrent::new(bencode_data, peer_id).unwrap();
-    //let peers = peers::get_peers(&torrent_data, peer_id).unwrap();
-    //download::start(torrent_data, peers.peers, args.download_dir).unwrap();
+    //################################################################################
+    let peer_id = utils::new_peer_id();
+    //std::thread::spawn(move || {
+    //    // Start TUI loop here
+    //    start_tui();
+    //});
 
-    start_tui();
+    //* parsing args (main thread)
+    let args = Args::parse();
+    // download directory checking
+    info(format!("download directory: {}", args.download_dir));
+    if !Path::new(&args.download_dir).exists() {
+        error(format!("the provided directory does not exist"));
+        std::process::exit(0);
+    }
+
+    // get torrent data torrent_file or magnet_url
+    // these ones execute fast so no need for async + the data is required by all other components so no need for extra async logic and channels
+    let res = if args.source.magnet_url == None {
+        info(format!(
+            "starting downloade for torrent: {}",
+            args.source.torrent_file.clone().unwrap()
+        ));
+        let path = &args.source.torrent_file.unwrap();
+        let mut file = File::open(path).map_err(|e| e.to_string()).unwrap();
+        let mut buf = vec![];
+        file.read_to_end(&mut buf)
+            .map_err(|e| e.to_string())
+            .unwrap();
+        buf
+    } else {
+        let magnet_data = Magnet::new(&args.source.magnet_url.unwrap());
+        info(format!("magnet data: {:?}", magnet_data));
+        //TODO: here it is supposed to do the get_metadata from the peers we get from dht nodes
+        todo!();
+        Vec::new()
+    };
+    let bencode_data = Decoder::new(&res).start().unwrap();
+    let torrent_data = Torrent::new(bencode_data, peer_id).unwrap();
+    let torrent_data2 = torrent_data.clone();
+
+    let (tx_peers, rx_peers) = mpsc::channel::<Peer>(128);
+
+    // THESE 2 are async
+
+    tokio::spawn(async move {
+        let peers = get_peers_from_tracker(torrent_data, peer_id, tx_peers);
+    });
+
+    tokio::spawn(async move {
+        let res = download::start(torrent_data2, rx_peers, args.download_dir);
+    });
+
+    Ok(())
+}
+
+/*
+channels with tokio:
+
+    //? test
+    use std::sync::mpsc::channel;
+    let (tx, rx) = channel();
+
+*/
+
+async fn get_peers_from_dht() -> Result<(), ()> {
+    Ok(())
+}
+async fn get_peers_from_tracker(
+    torrent_data: Torrent,
+    peer_id: [u8; 20],
+    tx_peers: Sender<Peer>,
+) -> Result<(), ()> {
+    tokio::spawn(async move {
+        loop {
+            let peers = tracker::get_peers(&torrent_data, &peer_id).unwrap();
+            for peer in peers.peers {
+                tx_peers.send(peer).await.unwrap();
+            }
+            tokio::time::sleep(Duration::from_secs(peers.interval)).await;
+        }
+    });
+
     Ok(())
 }

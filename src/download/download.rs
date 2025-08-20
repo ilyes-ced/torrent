@@ -1,3 +1,5 @@
+use tokio::sync::mpsc::Sender;
+
 use crate::{
     client::Client,
     constants::{MsgId, MAX_BACKLOG, MAX_BLOCK_SIZE},
@@ -6,7 +8,6 @@ use crate::{
     torrentfile::torrent::{FileInfo, Torrent},
     utils::check_integrity,
 };
-use std::sync::mpsc::Sender;
 use std::{
     sync::{Arc, Mutex},
     thread,
@@ -35,10 +36,10 @@ pub struct PieceProgress<'a> {
 }
 
 pub fn start(
-    torrent: Torrent,
-    clients: Vec<Client>,
-    tx: Sender<(Option<PieceResult>, f64)>,
-    download_dir: String,
+    torrent: &Torrent,
+    mut client: Client,
+    tx_pieces: Sender<(Option<PieceResult>, f64)>,
+    download_dir: &str,
 ) -> Result<(), String> {
     info("checking pre downloaded pieces, please be patient . . . .".to_string());
 
@@ -47,6 +48,7 @@ pub fn start(
 
     // chack already downloaded pieces
     let already_downloaded = read_file(&pieces, &torrent, download_dir)?;
+
     // replace pieces by a new array (new_array = old_pieces_array.remove(already_downloaded))
     let pieces: Vec<PieceWork> = pieces
         .into_iter()
@@ -56,35 +58,22 @@ pub fn start(
     let num_pieces = Arc::new(all_pieces_len);
     let workers = Arc::new(Mutex::new(pieces));
     let results_counter = Arc::new(Mutex::new(already_downloaded.len()));
-    let tx = Arc::new(tx);
+    let tx_pieces = Arc::new(tx_pieces);
 
-    let mut handles = vec![];
+    init_client(&mut client)?;
 
-    for mut client in clients {
-        init_client(&mut client)?;
+    let workers_clone = Arc::clone(&workers);
+    let results_counter_clone = Arc::clone(&results_counter);
+    let num_pieces_clone = Arc::clone(&num_pieces);
+    let tx_pieces_clone = Arc::clone(&tx_pieces);
 
-        let workers_clone = Arc::clone(&workers);
-        let results_counter_clone = Arc::clone(&results_counter);
-        let num_pieces_clone = Arc::clone(&num_pieces);
-        let tx_clone = Arc::clone(&tx);
-
-        let handle = thread::spawn(move || {
-            client_download(
-                &mut client,
-                workers_clone,
-                results_counter_clone,
-                num_pieces_clone,
-                tx_clone,
-            )
-        });
-        handles.push(handle);
-    }
-
-    for handle in handles {
-        if let Err(e) = handle.join() {
-            error(format!("Thread encountered an error: {:?}", e));
-        }
-    }
+    client_download(
+        &mut client,
+        workers_clone,
+        results_counter_clone,
+        num_pieces_clone,
+        tx_pieces_clone,
+    );
 
     // Display results
     let results_lock = results_counter.lock().unwrap();
@@ -106,7 +95,7 @@ fn client_download(
     workers: Arc<Mutex<Vec<PieceWork>>>,
     results_counter: Arc<Mutex<usize>>,
     num_pieces: Arc<usize>,
-    tx: Arc<Sender<(Option<PieceResult>, f64)>>,
+    tx_pieces: Arc<Sender<(Option<PieceResult>, f64)>>,
 ) {
     info(format!("client {:?} thread starts", client.peer));
 
@@ -119,7 +108,7 @@ fn client_download(
                 "all pieces are downloaded | client {:?} is finished",
                 client.peer
             ));
-            let _ = tx.send((None, 100.00));
+            let _ = tx_pieces.send((None, 100.00));
             break;
         }
         drop(results_counter_lock);
@@ -151,7 +140,7 @@ fn client_download(
                         //    (*results_counter_lock as f64 / *num_pieces as f64) * 100.0,
                         //));
 
-                        let _ = tx.send((
+                        let _ = tx_pieces.send((
                             Some(PieceResult {
                                 index: piece.index,
                                 buf: piece.buf,

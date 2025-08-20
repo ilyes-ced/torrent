@@ -1,8 +1,8 @@
 use crate::{
     constants::{MsgId, TIMEOUT_DURATION},
     log::{debug, error, info},
-    peers::Peer,
     torrentfile::torrent::Torrent,
+    tracker::Peer,
 };
 use std::{
     io::{self, Read, Write},

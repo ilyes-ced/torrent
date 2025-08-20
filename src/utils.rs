@@ -21,7 +21,7 @@ pub fn new_transaction_id() -> String {
         .collect()
 }
 
-pub fn encode_binnary_to_http_chars(input: [u8; 20]) -> String {
+pub fn encode_binnary_to_http_chars(input: &[u8; 20]) -> String {
     let mut return_string = String::new();
     for byte in input {
         return_string.push('%');
@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     fn test_encode_binary_to_http_chars() {
-        let input = [
+        let input = &[
             0x12, 0x34, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x12,
             0x34, 0x56, 0x78, 0x90, 0x12, 0x34,
         ];

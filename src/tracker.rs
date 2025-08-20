@@ -18,10 +18,10 @@ pub struct Peer {
 #[derive(Debug)]
 pub struct PeersResult {
     pub peers: Vec<Peer>,
-    pub _interval: u64,
+    pub interval: u64,
 }
 
-pub fn get_peers(torrent_data: &Torrent, peer_id: [u8; 20]) -> Result<PeersResult, String> {
+pub fn get_peers(torrent_data: &Torrent, peer_id: &[u8; 20]) -> Result<PeersResult, String> {
     // todo: if announce is not https search for one in the announce-list
     // * keeps changing the url in case of errors
     // ! not tested 100% with functioning urls
@@ -100,11 +100,11 @@ fn send_request(url: String) -> Result<Bytes, String> {
 fn build_http_url(
     url: String,
     torrent_data: &Torrent,
-    peer_id: [u8; 20],
+    peer_id: &[u8; 20],
 ) -> Result<String, String> {
     let url = url
         + "?info_hash="
-        + &encode_binnary_to_http_chars(torrent_data.info_hash)
+        + &encode_binnary_to_http_chars(&torrent_data.info_hash)
         + "&peer_id="
         + &encode_binnary_to_http_chars(peer_id)
         + "&port="
@@ -177,10 +177,7 @@ fn parse(decoded_response: DecoderResults) -> Result<PeersResult, String> {
     }
 
     let interval = json_response["interval"].as_u64().unwrap_or(900);
-    Ok(PeersResult {
-        peers,
-        _interval: interval,
-    })
+    Ok(PeersResult { peers, interval })
 }
 
 //fn peers_binary(result: Bytes) -> Result<PeersResult, String> {

@@ -24,7 +24,7 @@ use crate::{
 pub fn read_file(
     pieces: &Vec<PieceWork>,
     torrent: &Torrent,
-    download_dir: String,
+    download_dir: &str,
 ) -> Result<Vec<u32>, String> {
     match &torrent.info.files {
         Single(_) => check_piece_single_file(&pieces, torrent, download_dir),
@@ -35,7 +35,7 @@ pub fn read_file(
 pub fn check_piece_single_file(
     pieces: &Vec<PieceWork>,
     torrent: &Torrent,
-    download_dir: String,
+    download_dir: &str,
 ) -> Result<Vec<u32>, String> {
     let mut downloaded: Vec<u32> = Vec::new();
     let path = PathBuf::from(download_dir).join(&torrent.info.name);
@@ -65,7 +65,7 @@ pub fn check_piece_multi_file(
     files: &Vec<Files>,
     pieces: &Vec<PieceWork>,
     torrent: &Torrent,
-    download_dir: String,
+    download_dir: &str,
 ) -> Result<Vec<u32>, String> {
     // find files that have some ofthe piece
     // read the parts and concat them
