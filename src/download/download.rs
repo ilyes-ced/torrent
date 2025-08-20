@@ -1,4 +1,4 @@
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::{
     client::Client,
@@ -36,52 +36,79 @@ pub struct PieceProgress<'a> {
 }
 
 pub fn start(
-    torrent: &Torrent,
-    mut client: Client,
-    tx_pieces: Sender<(Option<PieceResult>, f64)>,
-    download_dir: &str,
-) -> Result<(), String> {
-    info("checking pre downloaded pieces, please be patient . . . .".to_string());
+    torrent: Torrent,
+    mut tx_clients: Receiver<Client>,
+    mut tx_pieces: Sender<(Option<PieceResult>, f64)>,
+    download_dir: String,
+) {
+    tokio::spawn(async move {
+        info("checking pre downloaded pieces, please be patient . . . .".to_string());
 
-    let pieces = pieces_workers(&torrent);
-    let all_pieces_len = pieces.len();
+        let pieces = pieces_workers(&torrent);
+        let all_pieces_len = pieces.len();
 
-    // chack already downloaded pieces
-    let already_downloaded = read_file(&pieces, &torrent, download_dir)?;
+        // chack already downloaded pieces
+        let already_downloaded = match read_file(&pieces, &torrent, &download_dir) {
+            Ok(res) => res,
+            Err(e) => {
+                error(format!("reading file for already downloaded pieces: {}", e));
+                Vec::new()
+            }
+        };
 
-    // replace pieces by a new array (new_array = old_pieces_array.remove(already_downloaded))
-    let pieces: Vec<PieceWork> = pieces
-        .into_iter()
-        .filter(|piece| !already_downloaded.contains(&piece.index))
-        .collect();
+        // replace pieces by a new array (new_array = old_pieces_array.remove(already_downloaded))
+        let pieces: Vec<PieceWork> = pieces
+            .into_iter()
+            .filter(|piece| !already_downloaded.contains(&piece.index))
+            .collect();
 
-    let num_pieces = Arc::new(all_pieces_len);
-    let workers = Arc::new(Mutex::new(pieces));
-    let results_counter = Arc::new(Mutex::new(already_downloaded.len()));
-    let tx_pieces = Arc::new(tx_pieces);
+        let num_pieces = Arc::new(all_pieces_len);
+        let workers = Arc::new(Mutex::new(pieces));
+        let results_counter = Arc::new(Mutex::new(already_downloaded.len()));
+        let tx_pieces = Arc::new(tx_pieces);
 
-    init_client(&mut client)?;
+        let workers_clone = Arc::clone(&workers);
+        let results_counter_clone = Arc::clone(&results_counter);
+        let num_pieces_clone = Arc::clone(&num_pieces);
+        let tx_pieces_clone = Arc::clone(&tx_pieces);
 
-    let workers_clone = Arc::clone(&workers);
-    let results_counter_clone = Arc::clone(&results_counter);
-    let num_pieces_clone = Arc::clone(&num_pieces);
-    let tx_pieces_clone = Arc::clone(&tx_pieces);
+        while let Some(mut client) = tx_clients.recv().await {
+            match init_client(&mut client) {
+                Ok(_) => {
+                    // Create a new client for the peer
+                    tokio::task::spawn_blocking(move || {
+                        client_download(
+                            &mut client,
+                            workers_clone,
+                            results_counter_clone,
+                            num_pieces_clone,
+                            tx_pieces_clone,
+                        );
+                    });
+                }
+                Err(e) => {
+                    error(format!(
+                        "error occured in the download thread, innit client: {}",
+                        e
+                    ));
+                }
+            };
+        }
 
-    client_download(
-        &mut client,
-        workers_clone,
-        results_counter_clone,
-        num_pieces_clone,
-        tx_pieces_clone,
-    );
+        //client_download(
+        //    &mut client,
+        //    workers_clone,
+        //    results_counter_clone,
+        //    num_pieces_clone,
+        //    tx_pieces_clone,
+        //);
 
-    // Display results
-    let results_lock = results_counter.lock().unwrap();
-    debug(format!("Results len(): {}", results_lock));
-    let workers_lock = workers.lock().unwrap();
-    debug(format!("workers len(): {}", workers_lock.len()));
-
-    Ok(())
+        // Display results
+        let results_lock = results_counter.lock().unwrap();
+        debug(format!("Results len(): {}", results_lock));
+        let workers_lock = workers.lock().unwrap();
+        debug(format!("workers len(): {}", workers_lock.len()));
+    });
 }
 
 fn init_client(client: &mut Client) -> Result<(), String> {

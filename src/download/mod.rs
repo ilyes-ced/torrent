@@ -16,10 +16,12 @@ pub async fn start(
 ) -> Result<(), String> {
     info("starting download\n".to_string());
     let (tx_pieces, rx_pieces) = mpsc::channel::<(Option<PieceResult>, f64)>(128);
+    let (tx_clients, rx_clients) = mpsc::channel::<Client>(128);
 
     //? starting the thread listinign for downloaded pieces
     // fix the cloning issue
     writer_listener(torrent.clone(), download_dir.clone(), rx_pieces);
+    download::start(&torrent, rx_clients, tx_pieces, &download_dir);
 
     tokio::spawn(async move {
         // start threads here for new clients
@@ -31,8 +33,8 @@ pub async fn start(
             // thats why it is also here that we keep track of the downloaded pieces, remaining pieces and workers and what nots
             // or we can manage that in the download::start function
             // in the other function we start a thread for each new client
-
-            let _download = download::start(&torrent, client, tx_pieces.clone(), &download_dir);
+            // maybe start a thread before this one that manages the conccurrency of those variables and wait to recieve the clients
+            tx_clients.send(client);
         }
     });
 
