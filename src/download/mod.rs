@@ -1,7 +1,7 @@
 use crate::client::Client;
 use crate::io::writer;
 use crate::log::{error, info, warning};
-use crate::torrentfile::torrent::Torrent;
+use crate::torrent::Torrent;
 use crate::tracker::Peer;
 
 pub(crate) mod download;

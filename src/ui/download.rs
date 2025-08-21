@@ -10,11 +10,6 @@ use Constraint::{Fill, Length, Min, Percentage};
 use crate::app::App;
 
 pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
-    let info_style = Style::default().fg(Color::Blue);
-    let warning_style = Style::default().fg(Color::Yellow);
-    let error_style = Style::default().fg(Color::Magenta);
-    let critical_style = Style::default().fg(Color::Red);
-
     let mut text = vec![];
     for log in &app.connections_logs.items {
         let color = match &log.0 {

@@ -5,7 +5,7 @@ use crate::{
     constants::{MsgId, MAX_BACKLOG, MAX_BLOCK_SIZE},
     io::reader::read_file,
     log::{debug, error, info, warning},
-    torrentfile::torrent::{FileInfo, Torrent},
+    torrent::{FileInfo, Torrent},
     utils::check_integrity,
 };
 use std::{sync::Arc, thread, time::Duration};

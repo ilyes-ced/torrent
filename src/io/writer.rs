@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use super::mapping::mapping;
 use crate::download::download::PieceResult;
 use crate::log::{debug, info};
-use crate::torrentfile::torrent::{
+use crate::torrent::{
     FileInfo::{Multiple, Single},
     {Files, Torrent},
 };

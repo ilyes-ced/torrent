@@ -1,4 +1,6 @@
 use ratatui::widgets::ListState;
+
+use crate::tracker::Peer;
 const LOGS: [(&str, &str); 23] = [
     ("INFO", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
     ("INFO", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
@@ -100,6 +102,9 @@ pub struct App<'a> {
 
     pub download_logs: StatefulList<(&'a str, &'a str)>,
     pub connections_logs: StatefulList<(&'a str, &'a str)>,
+
+    pub peers: StatefulList<Peer>,
+
     pub tabs: TabsState<'a>,
 }
 
@@ -116,6 +121,9 @@ impl<'a> App<'a> {
 
             download_logs: StatefulList::with_items(LOGS.to_vec()),
             connections_logs: StatefulList::with_items(LOGS.to_vec()),
+
+            peers: StatefulList::with_items(vec![]),
+
             tabs: TabsState::new(vec!["Download", "Peers", "Files"]),
         }
     }
@@ -137,12 +145,11 @@ impl<'a> App<'a> {
     pub fn on_tick(&mut self) {
         self.downloaded_pieces += 1;
 
-        self.download_logs.items.push(("ERROR", "new test values"));
+        // self.download_logs.items.push(("ERROR", "new test values"));
         self.download_logs.end();
-
-        self.connections_logs
-            .items
-            .push(("INFO", "new test values"));
+        // self.connections_logs
+        //     .items
+        //     .push(("INFO", "new test values"));
         self.connections_logs.end();
     }
 }

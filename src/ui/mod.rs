@@ -9,13 +9,14 @@ use ratatui::{
     widgets::{Block, Borders, Gauge, List, ListItem, Paragraph, Tabs, Wrap},
     Frame,
 };
+use tokio::sync::mpsc::Receiver;
 use Constraint::{Fill, Length, Min, Percentage};
 
-use crate::ui::files::draw_files_tab;
 use crate::ui::info::draw_info;
 use crate::ui::peers::draw_peers_tab;
 use crate::ui::progress::draw_progress;
 use crate::{app::App, ui::download::draw_download_tab};
+use crate::{tracker::Peer, ui::files::draw_files_tab};
 
 mod download;
 mod files;
@@ -23,39 +24,47 @@ mod info;
 mod peers;
 mod progress;
 
-/*
+#[derive(Debug)]
+pub enum AppEvent {
+    TorrentName(String),
+    Size(usize),
+    DownloadDir(String),
+    Infohash(String),
+    FileType(String),
 
-enum AppEvent {
-    NewPeer(PeerInfo),
-    PieceDownloaded { index: u32, bytes: Vec<u8> },
+    Files(Vec<String>),
+
+    NewPeer(Peer),
+    RemovePeer(Peer),
+
+    // peer and size to keep track of how much is downloaded from each peer
+    PieceDownloaded { index: u32, peer: Peer, size: usize },
     DownloadLog(String),
     ConnectionLog(String),
+    // add dht events later
 }
-*/
 
-pub fn start_tui() {
+pub fn start_tui(mut rx_app: Receiver<AppEvent>) {
     let mut terminal = ratatui::init();
     let mut app = App::new("Crossterm Demo", true);
     let mut last_tick = Instant::now();
 
     loop {
-        /*
-        tokio::select! {
-            Some(event) = rx.recv() => {
-                match event {
-                    AppEvent::Log(msg) => app_state.logs.push(msg),
-                    AppEvent::NewPeer(peer) => app_state.peers.push(peer),
-                    AppEvent::Tick => { /* maybe update progress */ },
-                    _ => {}
-                }
-            }
-
-            _ = tick_interval.tick() => {
-                // Regular redraws or tick events
-                app_state.should_redraw = true;
+        while let Ok(event) = rx_app.try_recv() {
+            match event {
+                AppEvent::TorrentName(name) => todo!(),
+                AppEvent::Size(size) => todo!(),
+                AppEvent::DownloadDir(dir) => todo!(),
+                AppEvent::Infohash(infohash) => todo!(),
+                AppEvent::FileType(ft) => todo!(),
+                AppEvent::Files(items) => todo!(),
+                AppEvent::NewPeer(peer) => todo!(),
+                AppEvent::RemovePeer(peer) => todo!(),
+                AppEvent::PieceDownloaded { index, peer, size } => todo!(),
+                AppEvent::DownloadLog(log) => todo!(),
+                AppEvent::ConnectionLog(log) => todo!(),
             }
         }
-        */
 
         terminal
             .draw(|frame| draw(frame, &mut app))
@@ -134,10 +143,6 @@ pub fn draw_tabs(frame: &mut Frame, main_area: Rect, app: &mut App) {
         2 => draw_files_tab(frame, content_area, app),
         _ => {}
     };
-
-    // draw_download_tab(frame, content_area);
-    // draw_peers_tab(frame, content_area);
-    // draw_files_tab(frame, content_area);
 }
 
 /*

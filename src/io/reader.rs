@@ -11,7 +11,7 @@ use super::mapping::mapping;
 
 use crate::{
     download::download::PieceWork,
-    torrentfile::torrent::{
+    torrent::{
         FileInfo::{Multiple, Single},
         Files, Torrent,
     },

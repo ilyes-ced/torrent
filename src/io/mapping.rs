@@ -1,7 +1,9 @@
 // mapping to which files each piece belongs to
 
-use crate::torrentfile::torrent::FileInfo::{Multiple, Single};
-use crate::Torrent;
+use crate::torrent::{
+    FileInfo::{Multiple, Single},
+    Torrent,
+};
 use std::cmp::{max, min};
 
 #[derive(Debug, PartialEq)]
@@ -65,7 +67,7 @@ pub fn mapping(torrent: &Torrent, piece_index: u32) -> Result<Vec<Mapping>, Stri
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::torrentfile::torrent::{FileInfo, Files, Torrent, TorrentInfo};
+    use crate::torrent::{FileInfo, Files, Torrent, TorrentInfo};
 
     fn mock_torrent_multiple_files() -> Torrent {
         Torrent {
