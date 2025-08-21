@@ -116,24 +116,17 @@ async fn main() -> std::io::Result<()> {
     // THESE 2 are async
 
     tokio::spawn(async move {
-        let peers = get_peers_from_tracker(torrent_data, peer_id, tx_peers);
+        let _ = get_peers_from_tracker(torrent_data, peer_id, tx_peers).await;
     });
 
     tokio::spawn(async move {
-        let res = download::start(torrent_data2, rx_peers, args.download_dir);
+        let _ = download::start(torrent_data2, rx_peers, args.download_dir).await;
     });
+    // start_tui();
 
+    loop {}
     Ok(())
 }
-
-/*
-channels with tokio:
-
-    //? test
-    use std::sync::mpsc::channel;
-    let (tx, rx) = channel();
-
-*/
 
 async fn get_peers_from_dht() -> Result<(), ()> {
     Ok(())
@@ -145,8 +138,10 @@ async fn get_peers_from_tracker(
 ) -> Result<(), ()> {
     tokio::spawn(async move {
         loop {
-            let peers = tracker::get_peers(&torrent_data, &peer_id).unwrap();
+            let peers = tracker::get_peers(&torrent_data, &peer_id).await.unwrap();
+            info(format!("tracker result: {:?}", peers));
             for peer in peers.peers {
+                info(format!("sending tracker peer: {:?}", peer));
                 tx_peers.send(peer).await.unwrap();
             }
             tokio::time::sleep(Duration::from_secs(peers.interval)).await;

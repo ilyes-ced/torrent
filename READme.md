@@ -57,8 +57,9 @@ Note: probably works only on linux
 - [x] cli options: download_dir, torrent_file,
 - [x] cli options: torrent file, magnet url
 - [ ] TUI
-- [ ] add peers periodically (using mpsc channels)
+- [x] add peers periodically (using mpsc channels)
 - [ ] DHT
+- [x] async app (tokio)
 
 
 
@@ -69,10 +70,11 @@ Note: probably works only on linux
 - [x] when download is interrupted pick off where it started (read the local files that are downloaded already)(remove them from the PieceWorkers Vector)
 - [x] rework getting peers from the tracker (not using udp tho)
 - [ ] download multiple torrents
-- [ ] make it work on windows too
+- [ ] make it work on windows too (non cross platform path creation in the writer.rs file)
 
 
 ## Errors:
+- [ ] when the final piece is occupied by one of the threads, the console displays other threads finding the count of workerpieces to be 0, this can be fixed by increasing the timeout for the threads, but it might make the download unnecessaraly slow (or maybe not because its the final piece and the download is almost over) 
 - [ ] sometimes near the end of the download the programme uses 100% of CPU (cant reproduce) 
 - [x] when reading already downloaded pieces they are not added to the progress
 - [x] fix the connection drop logic its broken 

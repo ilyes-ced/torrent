@@ -4,7 +4,7 @@ use crate::log::{debug, error, info};
 use crate::torrentfile::torrent::Torrent;
 use crate::utils::encode_binnary_to_http_chars;
 use bytes::Bytes;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use serde_json::Value;
 use std::net::Ipv4Addr;
 use std::num::ParseIntError;
@@ -21,7 +21,7 @@ pub struct PeersResult {
     pub interval: u64,
 }
 
-pub fn get_peers(torrent_data: &Torrent, peer_id: &[u8; 20]) -> Result<PeersResult, String> {
+pub async fn get_peers(torrent_data: &Torrent, peer_id: &[u8; 20]) -> Result<PeersResult, String> {
     // todo: if announce is not https search for one in the announce-list
     // * keeps changing the url in case of errors
     // ! not tested 100% with functioning urls
@@ -54,7 +54,7 @@ pub fn get_peers(torrent_data: &Torrent, peer_id: &[u8; 20]) -> Result<PeersResu
         ));
 
         let request = build_http_url(url, torrent_data, peer_id).unwrap();
-        match send_request(request) {
+        match send_request(request).await {
             Ok(res) => break res,
             Err(err) => {
                 co += 1;
@@ -78,19 +78,20 @@ pub fn get_peers(torrent_data: &Torrent, peer_id: &[u8; 20]) -> Result<PeersResu
     Ok(peers)
 }
 
-fn send_request(url: String) -> Result<Bytes, String> {
+async fn send_request(url: String) -> Result<Bytes, String> {
     let client = Client::new();
-    let response = match client.get(url).send() {
-        Ok(res) => res,
-        Err(err) => return Err(format!("Failed to get response from client: {}", err)),
-    };
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|err| format!("Failed to get response from client: {}", err))?;
 
     if response.status().is_success() {
-        let body = match response.bytes() {
-            Ok(res) => res,
-            Err(err) => return Err(format!("Failed to get response data: {}", err)),
-        };
-
+        let body = response
+            .bytes()
+            .await
+            .map_err(|err| format!("Failed to get response data: {}", err))?;
         Ok(body)
     } else {
         Err(format!("Failed to get response: {}", response.status()))

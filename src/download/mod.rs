@@ -1,6 +1,6 @@
 use crate::client::Client;
 use crate::io::writer;
-use crate::log::{error, info};
+use crate::log::{error, info, warning};
 use crate::torrentfile::torrent::Torrent;
 use crate::tracker::Peer;
 
@@ -21,55 +21,83 @@ pub async fn start(
     //? starting the thread listinign for downloaded pieces
     // fix the cloning issue
     writer_listener(torrent.clone(), download_dir.clone(), rx_pieces);
-    download::start(&torrent, rx_clients, tx_pieces, &download_dir);
+    download::start_download(torrent.clone(), download_dir.clone(), rx_clients, tx_pieces);
 
-    tokio::spawn(async move {
-        // start threads here for new clients
-        while let Some(peer) = rx_peers.recv().await {
+    // start threads here for new clients
+    while let Some(peer) = rx_peers.recv().await {
+        let torrent = torrent.clone();
+        let tx_clients = tx_clients.clone();
+
+        tokio::spawn(async move {
             info(format!("starting client: {:?}", peer));
-            let client = get_client(&torrent, &peer).unwrap();
+            let client = match get_client(&torrent, &peer) {
+                Ok(client) => client,
+                // kill the thread
+                Err(err) => {
+                    error(format!(
+                        "connection with peer {:?} was dropped | cause: {}",
+                        peer, err
+                    ));
+                    return;
+                }
+            };
 
-            // here we start a thread for each client
-            // thats why it is also here that we keep track of the downloaded pieces, remaining pieces and workers and what nots
-            // or we can manage that in the download::start function
-            // in the other function we start a thread for each new client
-            // maybe start a thread before this one that manages the conccurrency of those variables and wait to recieve the clients
-            tx_clients.send(client);
-        }
-    });
+            let res = tx_clients.send(client).await;
+        });
+    }
 
     Ok(())
 }
 
 fn get_client(torrent: &Torrent, peer: &Peer) -> Result<Client, String> {
     match Client::new(&torrent, peer) {
-        Ok(client) => {
-            // not sure
-            Ok(client)
-        }
-        Err(err) => {
-            error(format!(
-                "connection with peer {:?} was dropped | cause: {}",
-                peer, err
-            ));
-            Err(format!(
-                "connection with peer {:?} was dropped | cause: {}",
-                peer, err
-            ))
-        }
+        Ok(client) => Ok(client),
+        Err(err) => Err(format!(
+            "connection with peer {:?} was dropped | cause: {}",
+            peer, err
+        )),
     }
 }
 
 fn writer_listener(
     torrent: Torrent,
     download_dir: String,
-    mut tx_pieces: Receiver<(Option<PieceResult>, f64)>,
+    mut rx_pieces: Receiver<(Option<PieceResult>, f64)>,
 ) {
     // here we write data to file
     tokio::spawn(async move {
-        while let Some((piece, prog)) = tx_pieces.recv().await {
+        info("===================================================".to_string());
+        info("===================================================".to_string());
+        info("===================================================".to_string());
+        info("===================================================".to_string());
+        info("===================================================".to_string());
+        info("===================================================".to_string());
+        info("===================================================".to_string());
+        info("===================================================".to_string());
+        info("===================================================".to_string());
+        info("===================================================".to_string());
+        info("===================================================".to_string());
+        info("===================================================".to_string());
+        while let Some((piece, prog)) = rx_pieces.recv().await {
+            info("===================================================".to_string());
+            info("===================================================".to_string());
+            info("===================================================".to_string());
+            info("===================================================".to_string());
+            info(format!(
+                "*********** recieved pieces: {:?}, {}",
+                piece.clone().unwrap().index,
+                prog
+            ));
+            info("===================================================".to_string());
+            info("===================================================".to_string());
+            info("===================================================".to_string());
+            info("===================================================".to_string());
             match piece {
                 Some(finished_piece) => {
+                    warning(format!(
+                        "!!!!!!!!!!!!!!!!!!!!! recieved downloaded piece: {:?}",
+                        finished_piece.index
+                    ));
                     write_file(&torrent, finished_piece.clone(), &download_dir).unwrap();
                     info("-------------------------------------------".to_string());
                     info(format!(
