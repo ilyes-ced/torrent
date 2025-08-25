@@ -1,5 +1,6 @@
 use tokio::sync::mpsc::{Receiver, Sender};
 
+use crate::ui::AppEvent;
 use crate::{
     client::Client,
     constants::{MsgId, MAX_BACKLOG, MAX_BLOCK_SIZE},
@@ -38,9 +39,16 @@ pub fn start_download(
     download_dir: String,
     mut rx_clients: Receiver<Client>,
     tx_pieces: Sender<(Option<PieceResult>, f64)>,
+    tx_tui: &Sender<AppEvent>,
 ) {
+    let tx_tui = tx_tui.clone();
+
     tokio::spawn(async move {
-        info("checking pre downloaded pieces, please be patient . . . .".to_string());
+        info(
+            "checking pre downloaded pieces, please be patient . . . .".to_string(),
+            &tx_tui,
+        )
+        .await;
 
         let pieces = pieces_workers(&torrent);
         let all_pieces_len = pieces.len();
@@ -49,7 +57,11 @@ pub fn start_download(
         let already_downloaded = match read_file(&pieces, &torrent, &download_dir) {
             Ok(res) => res,
             Err(e) => {
-                error(format!("reading file for already downloaded pieces: {}", e));
+                error(
+                    format!("reading file for already downloaded pieces: {}", e),
+                    &tx_tui,
+                )
+                .await;
                 Vec::new()
             }
         };
@@ -66,17 +78,23 @@ pub fn start_download(
         let tx_pieces = Arc::new(tx_pieces);
 
         while let Some(mut client) = rx_clients.recv().await {
-            error(format!("*********** recieved client: {:?}", client));
+            error(
+                format!("*********** recieved client: {:?}", client),
+                &tx_tui,
+            )
+            .await;
             let workers_clone = Arc::clone(&workers);
             let results_counter_clone = Arc::clone(&results_counter);
             let num_pieces_clone = Arc::clone(&num_pieces);
             let tx_pieces_clone = Arc::clone(&tx_pieces);
 
+            let tx_tui_clone = tx_tui.clone();
             tokio::spawn(async move {
-                warning(format!(
-                    "starting new download trhead for client {:?}",
-                    client
-                ));
+                warning(
+                    format!("starting new download trhead for client {:?}", client),
+                    &tx_tui_clone,
+                )
+                .await;
 
                 match init_client(&mut client) {
                     Ok(_) => {
@@ -89,14 +107,16 @@ pub fn start_download(
                             results_counter_clone,
                             num_pieces_clone,
                             tx_pieces_clone,
+                            &tx_tui_clone,
                         )
                         .await;
                     }
                     Err(e) => {
-                        error(format!(
-                            "error occured in the download thread, innit client: {}",
-                            e
-                        ));
+                        error(
+                            format!("error occured in the download thread, innit client: {}", e),
+                            &tx_tui_clone,
+                        )
+                        .await;
                     }
                 };
             });
@@ -112,9 +132,9 @@ pub fn start_download(
 
         // Display results
         let results_lock = results_counter.read().await;
-        debug(format!("Results len(): {}", results_lock));
+        debug(format!("Results len(): {}", results_lock), &tx_tui).await;
         let workers_lock = workers.read().await;
-        debug(format!("workers len(): {}", workers_lock.len()));
+        debug(format!("workers len(): {}", workers_lock.len()), &tx_tui).await;
     });
 }
 
@@ -130,16 +150,21 @@ async fn client_download(
     results_counter: Arc<RwLock<usize>>,
     num_pieces: Arc<usize>,
     tx_pieces: Arc<Sender<(Option<PieceResult>, f64)>>,
+    tx_tui: &Sender<AppEvent>,
 ) {
-    info(format!("client {:?} thread starts", client.peer));
+    info(format!("client {:?} thread starts", client.peer), tx_tui).await;
 
     loop {
         let results_counter_lock = results_counter.read().await;
         if *results_counter_lock == *num_pieces {
-            info(format!(
-                "all pieces are downloaded | client {:?} is finished",
-                client.peer
-            ));
+            info(
+                format!(
+                    "all pieces are downloaded | client {:?} is finished",
+                    client.peer
+                ),
+                tx_tui,
+            )
+            .await;
             let _ = tx_pieces.send((None, 100.00)).await;
             break;
         }
@@ -151,19 +176,24 @@ async fn client_download(
         // change it with
         let mut workers_lock = workers.write().await;
         if workers_lock.len() < 1 {
-            debug(format!("number of workers left: {}", workers_lock.len()));
+            debug(
+                format!("number of workers left: {}", workers_lock.len()),
+                tx_tui,
+            )
+            .await;
             tokio::time::sleep(Duration::from_millis(100)).await;
             continue;
         }
-        info(format!(";;;;;;;;;;;;;;;;;;;;;;;;;;;; : {:?}", workers_lock));
+
         let piece = workers_lock.remove(0);
         drop(workers_lock);
 
         if client.bitfield.has_piece(piece.index as usize) {
-            info(format!(
-                "client {:?} has piece {}",
-                client.peer, piece.index
-            ));
+            info(
+                format!("client {:?} has piece {}", client.peer, piece.index),
+                tx_tui,
+            )
+            .await;
 
             match prepare_download(client, piece) {
                 Ok(piece) => {
@@ -179,32 +209,7 @@ async fn client_download(
                     //    (*results_counter_lock as f64 / *num_pieces as f64) * 100.0,
                     //));
 
-                    info(format!(
-                        "'''''''''''''''''''''''''''''''' here should send piece to reciever: {:?}",
-                        piece.index
-                    ));
-                    info(format!(
-                        "'''''''''''''''''''''''''''''''' here should send piece to reciever: {:?}",
-                        piece.index
-                    ));
-                    info(format!(
-                        "'''''''''''''''''''''''''''''''' here should send piece to reciever: {:?}",
-                        piece.index
-                    ));
-                    info(format!(
-                        "'''''''''''''''''''''''''''''''' here should send piece to reciever: {:?}",
-                        piece.index
-                    ));
-                    info(format!(
-                        "'''''''''''''''''''''''''''''''' here should send piece to reciever: {:?}",
-                        piece.index
-                    ));
-                    info(format!(
-                        "'''''''''''''''''''''''''''''''' here should send piece to reciever: {:?}",
-                        piece.index
-                    ));
-
-                    let res = tx_pieces
+                    let _ = tx_pieces
                         .send((
                             Some(PieceResult {
                                 index: piece.index,
@@ -221,35 +226,29 @@ async fn client_download(
                     client.err_co = 0;
                 }
                 Err(err) => {
-                    error(err.1.clone());
+                    error(err.1.clone(), tx_tui).await;
                     if err.1 == "Resource temporarily unavailable (os error 11)"
                         || err.1 == "failed to fill whole buffer"
                         || err.1 == "Broken pipe (os error 32)"
                     {
                         client.err_co += 1;
-                        warning(format!(
-                            "increased error counter for client {:?} ",
-                            client.peer
-                        ));
+                        warning(
+                            format!("increased error counter for client {:?} ", client.peer),
+                            tx_tui,
+                        )
+                        .await;
                         'outer: loop {
-                            match client.restart_con() {
+                            match client.restart_con(tx_tui) {
                                 Ok(_) => break 'outer,
                                 Err(_) => {}
                             }
                         }
                         if client.err_co > 3 {
-                            error(
-                                "************************************************************"
-                                    .to_string(),
-                            );
                             error(format!(
                                     "client {:?} restarted 3 times and it didnt work client will be dropped",
                                     client.peer
-                                ));
-                            error(
-                                "************************************************************"
-                                    .to_string(),
-                            );
+                                ),tx_tui).await;
+
                             // break client loop here (ending connection with the client)
                             break;
                         }
@@ -264,7 +263,7 @@ async fn client_download(
             };
         } else {
             // put piece back in queue
-            error("client does not have piece".to_string());
+            error("client does not have piece".to_string(), tx_tui).await;
             let mut workers_lock = workers.write().await;
             workers_lock.push(piece);
             drop(workers_lock);

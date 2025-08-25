@@ -9,29 +9,34 @@ use crate::torrent::{
     FileInfo::{Multiple, Single},
     {Files, Torrent},
 };
+use crate::ui::AppEvent;
+use tokio::sync::mpsc::Sender;
 
 //todo:  needs cleaning up, too many calculations they need to be organized in variables
 
-pub(crate) fn write_file(
+pub(crate) async fn write_file(
     torrent: &Torrent,
     piece: PieceResult,
     download_dir: &str,
+    tx_tui: &Sender<AppEvent>,
 ) -> Result<(), String> {
     match &torrent.info.files {
-        Single(_) => write_single_file(torrent, piece, download_dir),
-        Multiple(files) => write_multi_file(torrent, piece, files, download_dir),
+        Single(_) => write_single_file(torrent, piece, download_dir, tx_tui).await,
+        Multiple(files) => write_multi_file(torrent, piece, files, download_dir, tx_tui).await,
     }
 }
 
-pub(crate) fn write_single_file(
+pub(crate) async fn write_single_file(
     torrent: &Torrent,
     piece: PieceResult,
     download_dir: &str,
+
+    tx_tui: &Sender<AppEvent>,
 ) -> Result<(), String> {
     let ind = piece.index as u64;
     let path = PathBuf::from(download_dir).join(&torrent.info.name);
 
-    let file = get_file(path)?;
+    let file = get_file(path, tx_tui).await?;
     let piece_len = torrent.info.piece_length;
 
     /*
@@ -53,25 +58,27 @@ pub(crate) fn write_single_file(
     Ok(())
 }
 
-fn write_multi_file(
+async fn write_multi_file(
     torrent: &Torrent,
     piece: PieceResult,
     files: &[Files],
     download_dir: &str,
+    tx_tui: &Sender<AppEvent>,
 ) -> Result<(), String> {
     // we have files in torrent and piece index we can calculate to which file or multiple files each pioece belongs
     let mappings = mapping(torrent, piece.index)?;
 
-    debug(format!(
-        "for piece: {}, mappings {:?}",
-        piece.index, mappings
-    ));
+    debug(
+        format!("for piece: {}, mappings {:?}", piece.index, mappings),
+        tx_tui,
+    )
+    .await;
 
     for (map_ind, mapping) in mappings.iter().enumerate() {
-        let file_path = PathBuf::from(download_dir.clone())
-            .join(&files[mapping.file_index].clone().paths.join("/"));
+        let file_path =
+            PathBuf::from(download_dir).join(&files[mapping.file_index].clone().paths.join("/"));
 
-        let file = get_file(file_path)?;
+        let file = get_file(file_path, tx_tui).await?;
 
         let piece_len = torrent.info.piece_length;
 
@@ -106,12 +113,13 @@ fn write_multi_file(
     Ok(())
 }
 
-fn get_file(path: PathBuf) -> Result<File, String> {
+async fn get_file(path: PathBuf, tx_tui: &Sender<AppEvent>) -> Result<File, String> {
     if !Path::new(&path).exists() {
-        info(format!(
-            "file \" {:?} \" does not exists. creating . . .",
-            path
-        ));
+        info(
+            format!("file \" {:?} \" does not exists. creating . . .", path),
+            tx_tui,
+        )
+        .await;
         if let Some(parent) = path.parent() {
             create_dir_all(parent).map_err(|e| e.to_string())?;
         }

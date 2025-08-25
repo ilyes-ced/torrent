@@ -3,54 +3,69 @@ use crate::io::writer;
 use crate::log::{error, info, warning};
 use crate::torrent::Torrent;
 use crate::tracker::Peer;
+use crate::ui::AppEvent;
 
 pub(crate) mod download;
 use download::PieceResult;
-use tokio::sync::mpsc::{self, Receiver};
+use tokio::sync::mpsc::{self, Receiver, Sender};
 use writer::write_file;
 
 pub async fn start(
     torrent: Torrent,
     mut rx_peers: Receiver<Peer>,
     download_dir: String,
+    tx_tui: &Sender<AppEvent>,
 ) -> Result<(), String> {
-    info("starting download\n".to_string());
+    info("starting download\n".to_string(), &tx_tui);
     let (tx_pieces, rx_pieces) = mpsc::channel::<(Option<PieceResult>, f64)>(128);
     let (tx_clients, rx_clients) = mpsc::channel::<Client>(128);
 
     //? starting the thread listinign for downloaded pieces
     // fix the cloning issue
-    writer_listener(torrent.clone(), download_dir.clone(), rx_pieces);
-    download::start_download(torrent.clone(), download_dir.clone(), rx_clients, tx_pieces);
+    writer_listener(torrent.clone(), download_dir.clone(), rx_pieces, tx_tui);
+    download::start_download(
+        torrent.clone(),
+        download_dir.clone(),
+        rx_clients,
+        tx_pieces,
+        tx_tui,
+    );
 
     // start threads here for new clients
     while let Some(peer) = rx_peers.recv().await {
         let torrent = torrent.clone();
         let tx_clients = tx_clients.clone();
 
+        let tx_tui_clone = tx_tui.clone();
+        drop(tx_tui);
+
         tokio::spawn(async move {
-            info(format!("starting client: {:?}", peer));
-            let client = match get_client(&torrent, &peer) {
+            info(format!("starting client: {:?}", peer), &tx_tui_clone).await;
+            let client = match get_client(&torrent, &peer, &tx_tui_clone) {
                 Ok(client) => client,
                 // kill the thread
                 Err(err) => {
-                    error(format!(
-                        "connection with peer {:?} was dropped | cause: {}",
-                        peer, err
-                    ));
+                    error(
+                        format!(
+                            "connection with peer {:?} was dropped | cause: {}",
+                            peer, err
+                        ),
+                        &tx_tui_clone,
+                    )
+                    .await;
                     return;
                 }
             };
 
-            let res = tx_clients.send(client).await;
+            let _ = tx_clients.send(client).await;
         });
     }
 
     Ok(())
 }
 
-fn get_client(torrent: &Torrent, peer: &Peer) -> Result<Client, String> {
-    match Client::new(&torrent, peer) {
+fn get_client(torrent: &Torrent, peer: &Peer, tx_tui: &Sender<AppEvent>) -> Result<Client, String> {
+    match Client::new(&torrent, peer, tx_tui) {
         Ok(client) => Ok(client),
         Err(err) => Err(format!(
             "connection with peer {:?} was dropped | cause: {}",
@@ -63,49 +78,30 @@ fn writer_listener(
     torrent: Torrent,
     download_dir: String,
     mut rx_pieces: Receiver<(Option<PieceResult>, f64)>,
+    tx_tui: &Sender<AppEvent>,
 ) {
+    let tx_tui_clone = tx_tui.clone();
+    drop(tx_tui);
+
     // here we write data to file
     tokio::spawn(async move {
-        info("===================================================".to_string());
-        info("===================================================".to_string());
-        info("===================================================".to_string());
-        info("===================================================".to_string());
-        info("===================================================".to_string());
-        info("===================================================".to_string());
-        info("===================================================".to_string());
-        info("===================================================".to_string());
-        info("===================================================".to_string());
-        info("===================================================".to_string());
-        info("===================================================".to_string());
-        info("===================================================".to_string());
         while let Some((piece, prog)) = rx_pieces.recv().await {
-            info("===================================================".to_string());
-            info("===================================================".to_string());
-            info("===================================================".to_string());
-            info("===================================================".to_string());
-            info(format!(
-                "*********** recieved pieces: {:?}, {}",
-                piece.clone().unwrap().index,
-                prog
-            ));
-            info("===================================================".to_string());
-            info("===================================================".to_string());
-            info("===================================================".to_string());
-            info("===================================================".to_string());
             match piece {
                 Some(finished_piece) => {
-                    warning(format!(
-                        "!!!!!!!!!!!!!!!!!!!!! recieved downloaded piece: {:?}",
-                        finished_piece.index
-                    ));
-                    write_file(&torrent, finished_piece.clone(), &download_dir).unwrap();
-                    info("-------------------------------------------".to_string());
-                    info(format!(
-                        "piece {} successfully downloaded",
-                        finished_piece.index
-                    ));
-                    info(format!("download progress {:.3}%", prog));
-                    info("-------------------------------------------".to_string());
+                    write_file(
+                        &torrent,
+                        finished_piece.clone(),
+                        &download_dir,
+                        &tx_tui_clone,
+                    )
+                    .await
+                    .unwrap();
+
+                    info(
+                        format!("piece {} successfully downloaded", finished_piece.index),
+                        &tx_tui_clone.clone(),
+                    )
+                    .await;
                 }
                 None => {}
             }

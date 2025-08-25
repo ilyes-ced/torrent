@@ -1,31 +1,10 @@
 use ratatui::widgets::ListState;
 
-use crate::tracker::Peer;
-const LOGS: [(&str, &str); 23] = [
-    ("INFO", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("INFO", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("INFO", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("ERROR", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("ERROR", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("ERROR", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("WARNING", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("DEBUG", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-    ("ERROR", "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"),
-];
+use crate::{
+    tracker::Peer,
+    ui::{Log, LogType},
+    Source,
+};
 pub struct TabsState<'a> {
     pub titles: Vec<&'a str>,
     pub index: usize,
@@ -87,21 +66,23 @@ impl<T> StatefulList<T> {
         self.state.select(Some(i));
     }
     pub fn end(&mut self) {
-        self.state.select(Some(self.items.len() - 1));
+        if self.items.len() > 0 {
+            self.state.select(Some(self.items.len() - 1));
+        }
     }
 }
 
 pub struct App<'a> {
-    pub torrent_name: &'a str,
-    pub download_dir: &'a str,
-    pub info_hash: &'a str,
-    pub size: &'a str,
+    pub torrent_name: String,
+    pub download_dir: String,
+    pub info_hash: [u8; 20],
+    pub size: usize,
 
     pub pieces: usize,
     pub downloaded_pieces: usize,
 
-    pub download_logs: StatefulList<(&'a str, &'a str)>,
-    pub connections_logs: StatefulList<(&'a str, &'a str)>,
+    pub download_logs: StatefulList<Log>,
+    pub events_logs: StatefulList<Log>,
 
     pub peers: StatefulList<Peer>,
 
@@ -111,23 +92,54 @@ pub struct App<'a> {
 impl<'a> App<'a> {
     pub fn new(title: &'a str, enhanced_graphics: bool) -> Self {
         App {
-            torrent_name: "torrent_name",
-            download_dir: "download_dir",
-            info_hash: "infohash",
-            size: "size GiB",
+            torrent_name: "torrent_name".to_string(),
+            download_dir: "download_dir".to_string(),
+            info_hash: [9; 20],
+            size: 9999,
 
             pieces: 1500,
             downloaded_pieces: 250,
 
-            download_logs: StatefulList::with_items(LOGS.to_vec()),
-            connections_logs: StatefulList::with_items(LOGS.to_vec()),
+            download_logs: StatefulList::with_items(Vec::new()),
+            events_logs: StatefulList::with_items(Vec::new()),
 
             peers: StatefulList::with_items(vec![]),
 
             tabs: TabsState::new(vec!["Download", "Peers", "Files"]),
         }
     }
-
+    ///////////////////////////////////////////////////////////////////////
+    pub fn set_size(&mut self, size: usize) {
+        //todo: here we get size in bytes and transform it to MiB or GiB
+    }
+    pub fn set_source(&mut self, source: Source) {
+        //todo: here set source of .torrent or magnet url
+    }
+    pub fn set_infohash(&mut self, infohash: [u8; 20]) {
+        //todo: here set infohash as array of bytes or as a hex string
+    }
+    ///////////////////////////////////////////////////////////////////////
+    pub fn add_peer(&mut self, peer: Peer) {
+        //todo: add peer to list
+    }
+    pub fn remove_peer(&mut self, peer: Peer) {
+        //todo: remove peer to list
+    }
+    pub fn add_piece_downloaded(&mut self, index: u32, peer: Peer, size: usize) {
+        //todo: add to progress and pieces downloaded, also add data to data downloaded by each peer
+    }
+    ///////////////////////////////////////////////////////////////////////
+    pub fn add_download_logs(&mut self, log: Log) {
+        //todo: logs + add timestamp like in the previous logs
+    }
+    pub fn add_event_logs(&mut self, log: Log) {
+        self.events_logs.items.push(log);
+    }
+    ///////////////////////////////////////////////////////////////////////
+    pub fn set_files(&mut self) {
+        //todo: not yet
+    }
+    ///////////////////////////////////////////////////////////////////////
     pub fn on_right(&mut self) {
         self.tabs.next();
     }
@@ -141,15 +153,13 @@ impl<'a> App<'a> {
             _ => {}
         }
     }
-
+    ///////////////////////////////////////////////////////////////////////
     pub fn on_tick(&mut self) {
-        self.downloaded_pieces += 1;
-
         // self.download_logs.items.push(("ERROR", "new test values"));
         self.download_logs.end();
-        // self.connections_logs
+        // self.events_logs
         //     .items
         //     .push(("INFO", "new test values"));
-        self.connections_logs.end();
+        self.events_logs.end();
     }
 }

@@ -1,57 +1,60 @@
 use ratatui::{
     layout::{Constraint, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Color, Style},
     text::{self, Span},
-    widgets::{Block, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, List, ListItem},
     Frame,
 };
-use Constraint::{Fill, Length, Min, Percentage};
+use Constraint::Fill;
 
-use crate::app::App;
+use crate::{app::App, ui::LogType};
 
 pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
     let mut text = vec![];
-    for log in &app.connections_logs.items {
-        let color = match &log.0 {
-            &"INFO" => Color::Blue,
-            &"DEBUG" => Color::Green,
-            &"WARNING" => Color::Yellow,
-            &"ERROR" => Color::Red,
-            _ => Color::White,
+    for log in &app.events_logs.items {
+        let (fg, log_type) = match log.log_type {
+            LogType::Info => (Color::Blue, "INFO"),
+            LogType::Debug => (Color::Green, "DEBUG"),
+            LogType::Warning => (Color::Yellow, "WARNING"),
+            LogType::Error => (Color::Red, "ERROR"),
+            LogType::Critical => todo!(),
         };
+
         text.push(text::Line::from(vec![
             Span::styled(
-                format!("dd-mm-yyyy hh-mm-ss-mmm [{}] ", log.0),
-                Style::default().fg(color),
+                format!("{} [{}] ", log.timestamp, log_type),
+                Style::default().fg(fg),
             ),
-            Span::from(log.1),
+            Span::from(&log.msg),
         ]));
     }
     let list_items: Vec<ListItem> = text
         .iter()
         .map(|line| ListItem::new(line.clone()))
         .collect();
-    let connections_logs_widget =
+    let events_logs_widget =
         List::new(list_items).block(Block::bordered().title("Connections Logs"));
+
     //? removed the highlight things because we dont need them
     // .highlight_style(Style::default().add_modifier(Modifier::BOLD))
     // .highlight_symbol("> ")
 
     let mut text = vec![];
     for log in &app.download_logs.items {
-        let color = match &log.0 {
-            &"INFO" => Color::Blue,
-            &"DEBUG" => Color::Green,
-            &"WARNING" => Color::Yellow,
-            &"ERROR" => Color::Red,
-            _ => Color::White,
+        let (fg, log_type) = match log.log_type {
+            LogType::Info => (Color::Blue, "INFO"),
+            LogType::Debug => (Color::Green, "DEBUG"),
+            LogType::Warning => (Color::Yellow, "WARNING"),
+            LogType::Error => (Color::Red, "ERROR"),
+            LogType::Critical => todo!(),
         };
+
         text.push(text::Line::from(vec![
             Span::styled(
-                format!("dd-mm-yyyy hh-mm-ss-mmm [{}] ", log.0),
-                Style::default().fg(color),
+                format!("{} [{}] ", log.timestamp, log_type),
+                Style::default().fg(fg).bg(Color::Red),
             ),
-            Span::from(log.1),
+            Span::from(&log.msg),
         ]));
     }
     let list_items: Vec<ListItem> = text
@@ -67,11 +70,7 @@ pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
     let [left, right] = main_tabs.areas(content_area);
 
     frame.render_stateful_widget(download_logs_widget, left, &mut app.download_logs.state);
-    frame.render_stateful_widget(
-        connections_logs_widget,
-        right,
-        &mut app.connections_logs.state,
-    );
+    frame.render_stateful_widget(events_logs_widget, right, &mut app.events_logs.state);
     // frame.render_widget(log, top_right);
     // frame.render_widget(Block::bordered().title("Bottom Left"), bottom_left);
     // frame.render_widget(Block::bordered().title("Bottom Right"), bottom_right);

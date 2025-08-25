@@ -1,52 +1,102 @@
+//? no longer in use because of the TUI change
+
+use crate::ui::{
+    AppEvent::{self, EventLog},
+    Log,
+    LogType::{self, Critical, Debug, Error, Info, Warning},
+};
 use chrono::prelude::{DateTime, Local};
+use tokio::sync::mpsc::Sender;
 
-enum Color {
-    Red,
-    Green,
-    Yellow,
-    Blue,
-}
+//enum Color {
+//    Red,
+//    Green,
+//    Yellow,
+//    Blue,
+//}
+//
+//pub fn info(msg: String) {
+//    println!(
+//        "{} {} {}",
+//        color(time_date(), Color::Blue),
+//        color("[ INFO ]".to_string(), Color::Blue),
+//        color(msg, Color::Blue),
+//    );
+//}
+//pub fn debug(msg: String) {
+//    println!(
+//        "{} {} {}",
+//        color(time_date(), Color::Green),
+//        color("[ DEBUG ]".to_string(), Color::Green),
+//        color(msg, Color::Green),
+//    );
+//}
+//pub fn warning(msg: String) {
+//    println!(
+//        "{} {} {}",
+//        color(time_date(), Color::Yellow),
+//        color("[ WARNING ]".to_string(), Color::Yellow),
+//        color(msg, Color::Yellow),
+//    );
+//}
+//pub fn error(msg: String) {
+//    println!(
+//        "{} {} {}",
+//        color(time_date(), Color::Red),
+//        color("[ ERROR ]".to_string(), Color::Red),
+//        color(msg, Color::Red),
+//    );
+//}
+//
+//fn color(txt: String, color: Color) -> String {
+//    match color {
+//        Color::Red => format!("\x1b[31m{}\x1b[0m", txt),
+//        Color::Green => format!("\x1b[32m{}\x1b[0m", txt),
+//        Color::Yellow => format!("\x1b[33m{}\x1b[0m", txt),
+//        Color::Blue => format!("\x1b[34m{}\x1b[0m", txt),
+//    }
+//}
+//
 
-pub fn info(msg: String) {
-    println!(
-        "{} {} {}",
-        color(time_date(), Color::Blue),
-        color("[ INFO ]".to_string(), Color::Blue),
-        color(msg, Color::Blue),
-    );
+pub async fn info(msg: String, tx_tui: &Sender<AppEvent>) {
+    let log = Log {
+        timestamp: time_date(),
+        log_type: LogType::Info,
+        msg: msg,
+    };
+    let _ = tx_tui.send(EventLog(log)).await;
 }
-pub fn debug(msg: String) {
-    println!(
-        "{} {} {}",
-        color(time_date(), Color::Green),
-        color("[ DEBUG ]".to_string(), Color::Green),
-        color(msg, Color::Green),
-    );
+pub async fn debug(msg: String, tx_tui: &Sender<AppEvent>) {
+    let log = Log {
+        timestamp: time_date(),
+        log_type: LogType::Debug,
+        msg: msg,
+    };
+    let _ = tx_tui.send(EventLog(log)).await;
 }
-pub fn warning(msg: String) {
-    println!(
-        "{} {} {}",
-        color(time_date(), Color::Yellow),
-        color("[ WARNING ]".to_string(), Color::Yellow),
-        color(msg, Color::Yellow),
-    );
+pub async fn warning(msg: String, tx_tui: &Sender<AppEvent>) {
+    let log = Log {
+        timestamp: time_date(),
+        log_type: LogType::Warning,
+        msg: msg,
+    };
+    let _ = tx_tui.send(EventLog(log)).await;
 }
-pub fn error(msg: String) {
-    println!(
-        "{} {} {}",
-        color(time_date(), Color::Red),
-        color("[ ERROR ]".to_string(), Color::Red),
-        color(msg, Color::Red),
-    );
+pub async fn error(msg: String, tx_tui: &Sender<AppEvent>) {
+    let log = Log {
+        timestamp: time_date(),
+        log_type: LogType::Error,
+        msg: msg,
+    };
+    let _ = tx_tui.send(EventLog(log)).await;
 }
-
-fn color(txt: String, color: Color) -> String {
-    match color {
-        Color::Red => format!("\x1b[31m{}\x1b[0m", txt),
-        Color::Green => format!("\x1b[32m{}\x1b[0m", txt),
-        Color::Yellow => format!("\x1b[33m{}\x1b[0m", txt),
-        Color::Blue => format!("\x1b[34m{}\x1b[0m", txt),
-    }
+pub async fn critical(msg: String, tx_tui: &Sender<AppEvent>) {
+    let log = Log {
+        timestamp: time_date(),
+        log_type: LogType::Critical,
+        msg: msg,
+    };
+    let _ = tx_tui.send(EventLog(log)).await;
 }
 
 fn time_date() -> String {

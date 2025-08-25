@@ -3,20 +3,20 @@ use std::time::{Duration, Instant};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
     layout::{Constraint, Layout, Rect},
-    style::{Color, Modifier, Style, Stylize},
-    symbols::{self, block},
+    style::{Color, Style, Stylize},
+    symbols::block,
     text::{self, Line, Span},
-    widgets::{Block, Borders, Gauge, List, ListItem, Paragraph, Tabs, Wrap},
+    widgets::Tabs,
     Frame,
 };
 use tokio::sync::mpsc::Receiver;
-use Constraint::{Fill, Length, Min, Percentage};
+use Constraint::{Fill, Length, Min};
 
-use crate::ui::info::draw_info;
 use crate::ui::peers::draw_peers_tab;
 use crate::ui::progress::draw_progress;
 use crate::{app::App, ui::download::draw_download_tab};
 use crate::{tracker::Peer, ui::files::draw_files_tab};
+use crate::{ui::info::draw_info, Source};
 
 mod download;
 mod files;
@@ -24,13 +24,28 @@ mod info;
 mod peers;
 mod progress;
 
-#[derive(Debug)]
+pub enum LogType {
+    Error,
+    Debug,
+    Info,
+    Warning,
+    Critical,
+}
+
+pub struct Log {
+    //? (timestamp, logtype, msg)
+    pub timestamp: String,
+    pub log_type: LogType,
+    pub msg: String,
+}
 pub enum AppEvent {
     TorrentName(String),
     Size(usize),
     DownloadDir(String),
-    Infohash(String),
-    FileType(String),
+    Infohash([u8; 20]),
+
+    // .torrent OR magnet_url
+    DownloadType(Source),
 
     Files(Vec<String>),
 
@@ -39,8 +54,8 @@ pub enum AppEvent {
 
     // peer and size to keep track of how much is downloaded from each peer
     PieceDownloaded { index: u32, peer: Peer, size: usize },
-    DownloadLog(String),
-    ConnectionLog(String),
+    DownloadLog(Log),
+    EventLog(Log),
     // add dht events later
 }
 
@@ -52,17 +67,19 @@ pub fn start_tui(mut rx_app: Receiver<AppEvent>) {
     loop {
         while let Ok(event) = rx_app.try_recv() {
             match event {
-                AppEvent::TorrentName(name) => todo!(),
-                AppEvent::Size(size) => todo!(),
-                AppEvent::DownloadDir(dir) => todo!(),
-                AppEvent::Infohash(infohash) => todo!(),
-                AppEvent::FileType(ft) => todo!(),
-                AppEvent::Files(items) => todo!(),
-                AppEvent::NewPeer(peer) => todo!(),
-                AppEvent::RemovePeer(peer) => todo!(),
-                AppEvent::PieceDownloaded { index, peer, size } => todo!(),
-                AppEvent::DownloadLog(log) => todo!(),
-                AppEvent::ConnectionLog(log) => todo!(),
+                AppEvent::TorrentName(name) => app.torrent_name = name,
+                AppEvent::Size(size) => app.set_size(size),
+                AppEvent::DownloadDir(dir) => app.download_dir = dir,
+                AppEvent::Infohash(infohash) => app.set_infohash(infohash),
+                AppEvent::DownloadType(source) => app.set_source(source),
+                AppEvent::Files(items) => app.set_files(),
+                AppEvent::NewPeer(peer) => app.add_peer(peer),
+                AppEvent::RemovePeer(peer) => app.remove_peer(peer),
+                AppEvent::PieceDownloaded { index, peer, size } => {
+                    app.add_piece_downloaded(index, peer, size)
+                }
+                AppEvent::DownloadLog(log) => app.add_download_logs(log),
+                AppEvent::EventLog(log) => app.add_event_logs(log),
             }
         }
 
@@ -92,7 +109,8 @@ pub fn start_tui(mut rx_app: Receiver<AppEvent>) {
             Event::Resize(_, _) => todo!(),
         }
     }
-    ratatui::restore();
+
+    // ratatui::restore();
 }
 
 pub fn draw(frame: &mut Frame, app: &mut App) {

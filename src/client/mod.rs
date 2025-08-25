@@ -1,3 +1,4 @@
+use crate::ui::AppEvent;
 use crate::{
     constants::{MsgId, TIMEOUT_DURATION},
     log::{debug, error, info},
@@ -9,6 +10,7 @@ use std::{
     net::{SocketAddr, TcpStream},
     time::Duration,
 };
+use tokio::sync::mpsc::Sender;
 
 mod bitfield;
 mod handshake;
@@ -31,10 +33,10 @@ pub(crate) struct Client {
 }
 
 impl Client {
-    pub fn new(torrent: &Torrent, peer: &Peer) -> Result<Self, String> {
+    pub fn new(torrent: &Torrent, peer: &Peer, tx_tui: &Sender<AppEvent>) -> Result<Self, String> {
         let handshake = Handshake::new(torrent.info_hash, torrent.peer_id).create_handshake();
 
-        let con = connect(peer, torrent.info_hash, handshake)?;
+        let con = connect(peer, torrent.info_hash, handshake, tx_tui)?;
 
         let bitfield = match bitfield(&con) {
             Ok(msg) => msg,
@@ -56,22 +58,28 @@ impl Client {
     //     Ok(())
     // }
 
-    pub fn restart_con(&mut self) -> Result<(), String> {
-        debug(format!("restarting connection with peer: {:?}", self.peer));
+    pub fn restart_con(&mut self, tx_tui: &Sender<AppEvent>) -> Result<(), String> {
+        debug(
+            format!("restarting connection with peer: {:?}", self.peer),
+            tx_tui,
+        );
 
         if let Err(e) = self.con.shutdown(std::net::Shutdown::Both) {
             match e.kind() {
                 io::ErrorKind::NotConnected => {
                     // Already disconnected.  That's fine.
-                    error(format!("peer {:?} is already disconnected", self.peer));
+                    error(
+                        format!("peer {:?} is already disconnected", self.peer),
+                        tx_tui,
+                    );
                 }
                 _ => {
-                    error(format!("Error shutting down connection: {}", e));
+                    error(format!("Error shutting down connection: {}", e), tx_tui);
                 }
             }
         }
 
-        let con = match connect(&self.peer, self.info_hash, self.handshake) {
+        let con = match connect(&self.peer, self.info_hash, self.handshake, tx_tui) {
             Ok(con) => con,
             Err(err) => return Err(err),
         };
@@ -83,7 +91,10 @@ impl Client {
 
         self.con = con;
 
-        debug(format!("restarted connection with peer: {:?}", self.peer));
+        debug(
+            format!("restarted connection with peer: {:?}", self.peer),
+            tx_tui,
+        );
         Ok(())
     }
 
@@ -115,7 +126,12 @@ impl Client {
     }
 }
 
-pub fn connect(peer: &Peer, info_hash: [u8; 20], handshake: [u8; 68]) -> Result<TcpStream, String> {
+pub fn connect(
+    peer: &Peer,
+    info_hash: [u8; 20],
+    handshake: [u8; 68],
+    tx_tui: &Sender<AppEvent>,
+) -> Result<TcpStream, String> {
     //connect to tcp and send handshake
     let stream = match TcpStream::connect_timeout(
         &SocketAddr::new(std::net::IpAddr::V4(peer.ip), peer.port),
@@ -141,7 +157,7 @@ pub fn connect(peer: &Peer, info_hash: [u8; 20], handshake: [u8; 68]) -> Result<
         Err(err) => return Err(err.to_string()),
     };
 
-    complete_handshake(stream, info_hash, peer, handshake)
+    complete_handshake(stream, info_hash, peer, handshake, tx_tui)
 }
 
 pub fn complete_handshake(
@@ -149,6 +165,7 @@ pub fn complete_handshake(
     info_hash: [u8; 20],
     peer: &Peer,
     handshake: [u8; 68],
+    tx_tui: &Sender<AppEvent>,
 ) -> Result<TcpStream, String> {
     // send/write handshake
     match stream.write_all(&handshake) {
@@ -179,18 +196,21 @@ pub fn complete_handshake(
         Err(_) => return Err(String::from("error receiving the handshake")),
     };
 
-    info(format!(
-        "{} {}:{} \n\tprotocol id:{} \n\tinfo hash:{:?}  \n\tpeer id: {}\n",
-        "received handshake from peer:",
-        peer.ip,
-        peer.port,
-        rec_handshake.protocol_id,
-        rec_handshake.info_hash,
-        String::from_utf8_lossy(&rec_handshake.peer_id)
-    ));
+    info(
+        format!(
+            "{} {}:{} \n\tprotocol id:{} \n\tinfo hash:{:?}  \n\tpeer id: {}\n",
+            "received handshake from peer:",
+            peer.ip,
+            peer.port,
+            rec_handshake.protocol_id,
+            rec_handshake.info_hash,
+            String::from_utf8_lossy(&rec_handshake.peer_id)
+        ),
+        tx_tui,
+    );
 
     if rec_handshake.info_hash == info_hash {
-        info("successful handshake".to_string());
+        info("successful handshake".to_string(), tx_tui);
         Ok(stream)
     } else {
         Err(String::from(

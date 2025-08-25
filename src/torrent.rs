@@ -1,4 +1,4 @@
-use crate::{bencode::decoder::DecoderResults, log::info};
+use crate::bencode::decoder::DecoderResults;
 use serde_json::Value;
 use std::fmt;
 
@@ -52,7 +52,7 @@ impl Torrent {
 
         let result = extract_torrent_data(&json_object, data.info_hash, peer_id).unwrap();
 
-        info(format!("{}", result));
+        // info(format!("{}", result));
 
         Ok(result)
     }

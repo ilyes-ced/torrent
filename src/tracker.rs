@@ -2,12 +2,14 @@ use crate::bencode::decoder::{Decoder, DecoderResults};
 use crate::constants;
 use crate::log::{debug, error, info};
 use crate::torrent::Torrent;
+use crate::ui::AppEvent;
 use crate::utils::encode_binnary_to_http_chars;
 use bytes::Bytes;
 use reqwest::Client;
 use serde_json::Value;
 use std::net::Ipv4Addr;
 use std::num::ParseIntError;
+use tokio::sync::mpsc::Sender;
 
 #[derive(Debug, Clone)]
 pub struct Peer {
@@ -21,7 +23,11 @@ pub struct PeersResult {
     pub interval: u64,
 }
 
-pub async fn get_peers(torrent_data: &Torrent, peer_id: &[u8; 20]) -> Result<PeersResult, String> {
+pub async fn get_peers(
+    torrent_data: &Torrent,
+    peer_id: &[u8; 20],
+    tx_tui: Sender<AppEvent>,
+) -> Result<PeersResult, String> {
     // todo: if announce is not https search for one in the announce-list
     // * keeps changing the url in case of errors
     // ! not tested 100% with functioning urls
@@ -33,11 +39,15 @@ pub async fn get_peers(torrent_data: &Torrent, peer_id: &[u8; 20]) -> Result<Pee
             match torrent_data.announce_list.clone() {
                 Some(_) => {
                     // idk why so many clones
-                    debug(format!(
-                        "number of urls: {:?}, using: {}",
-                        torrent_data.announce_list.clone().unwrap().len(),
-                        co - 1
-                    ));
+                    debug(
+                        format!(
+                            "number of urls: {:?}, using: {}",
+                            torrent_data.announce_list.clone().unwrap().len(),
+                            co - 1
+                        ),
+                        &tx_tui,
+                    )
+                    .await;
                     if (co - 1) >= torrent_data.announce_list.clone().unwrap().len() {
                         return Err(String::from("unable to establish network with the tracker URls provided in the torrent file"));
                     }
@@ -47,18 +57,18 @@ pub async fn get_peers(torrent_data: &Torrent, peer_id: &[u8; 20]) -> Result<Pee
             }
         };
 
-        info(format!(
-            "using announce url: {:?} | attempt: {}",
-            url,
-            co + 1
-        ));
+        info(
+            format!("using announce url: {:?} | attempt: {}", url, co + 1),
+            &tx_tui,
+        )
+        .await;
 
         let request = build_http_url(url, torrent_data, peer_id).unwrap();
         match send_request(request).await {
             Ok(res) => break res,
             Err(err) => {
                 co += 1;
-                error(format!("error sending tracker request: {:?}", err));
+                error(format!("error sending tracker request: {:?}", err), &tx_tui).await;
                 continue;
             }
         };
@@ -66,15 +76,15 @@ pub async fn get_peers(torrent_data: &Torrent, peer_id: &[u8; 20]) -> Result<Pee
     //let url = build_http_url(torrent_data, peer_id).unwrap();
     //let result = send_request(url).unwrap();
 
-    debug(format!("{:?}", result));
+    debug(format!("{:?}", result), &tx_tui).await;
 
     let binding = result.to_vec();
     let bytes = binding.as_slice();
 
     let decoded_resp = Decoder::new(bytes).start()?;
-    let peers = parse(decoded_resp)?;
+    let peers = parse(decoded_resp, &tx_tui).await?;
 
-    info(format!("{:?}", peers));
+    info(format!("{:?}", peers), &tx_tui).await;
     Ok(peers)
 }
 
@@ -126,9 +136,12 @@ pub fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
         .collect()
 }
 
-fn parse(decoded_response: DecoderResults) -> Result<PeersResult, String> {
+async fn parse(
+    decoded_response: DecoderResults,
+    tx_tui: &Sender<AppEvent>,
+) -> Result<PeersResult, String> {
     let json_response: Value = serde_json::from_str(&decoded_response.result).unwrap();
-    debug(format!("{}", json_response));
+    debug(format!("{}", json_response), &tx_tui).await;
     let mut peers: Vec<Peer> = Vec::new();
     //extract peers ip addresses from the serde json object and insert them into the list of peers
 
@@ -152,7 +165,7 @@ fn parse(decoded_response: DecoderResults) -> Result<PeersResult, String> {
             let bytes = decode_hex(&str_bytes).unwrap();
 
             if bytes.len() % 3 != 0 {
-                error("wrong format for the peers data".to_string());
+                error("wrong format for the peers data".to_string(), &tx_tui).await;
                 return Err(String::from("wrong format for the peers data"));
             }
 
@@ -166,10 +179,10 @@ fn parse(decoded_response: DecoderResults) -> Result<PeersResult, String> {
                     ),
                     port: u16::from_be_bytes([bytes[i * 6 + 4], bytes[i * 6 + 5]]),
                 };
-                debug(format!("peer: {:?}", peer));
+                debug(format!("peer: {:?}", peer), &tx_tui).await;
                 peers.push(peer);
             }
-            debug(format!("all ppers result:  {:?}", peers));
+            debug(format!("all ppers result:  {:?}", peers), &tx_tui).await;
         } else {
             return Err(String::from(
                 "we couldnt find peers in the tracker response",

@@ -16,11 +16,11 @@ pub fn draw_info(frame: &mut Frame, title_area: Rect, app: &mut App) {
     let text = vec![
         text::Line::from(vec![
             Span::from("torrent: "),
-            Span::styled(app.torrent_name, Style::default().fg(Color::Green)),
+            Span::styled(&app.torrent_name, Style::default().fg(Color::Green)),
         ]),
         text::Line::from(vec![
             Span::from("download dir: "),
-            Span::styled(app.download_dir, Style::default().fg(Color::Green)),
+            Span::styled(&app.download_dir, Style::default().fg(Color::Green)),
         ]),
     ];
     let title = Paragraph::new(text)
@@ -32,11 +32,18 @@ pub fn draw_info(frame: &mut Frame, title_area: Rect, app: &mut App) {
     let text = vec![
         text::Line::from(vec![
             Span::from("infohash: "),
-            Span::styled(app.info_hash, Style::default().fg(Color::Green)),
+            Span::styled(
+                app.info_hash
+                    .iter()
+                    .map(|b| format!("{:02x}", b))
+                    .collect::<String>(),
+                Style::default().fg(Color::Green),
+            ),
         ]),
         text::Line::from(vec![
             Span::from("torrent size: "),
-            Span::styled(app.size, Style::default().fg(Color::Green)),
+            // todo: make the MiB or GiB tranformations
+            Span::styled(app.size.to_string(), Style::default().fg(Color::Green)),
         ]),
     ];
     let title = Paragraph::new(text)
