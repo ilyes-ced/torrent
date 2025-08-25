@@ -37,11 +37,11 @@ pub async fn start(
         let tx_clients = tx_clients.clone();
 
         let tx_tui_clone = tx_tui.clone();
-        drop(tx_tui);
+        let _ = tx_tui;
 
         tokio::spawn(async move {
             info(format!("starting client: {:?}", peer), &tx_tui_clone).await;
-            let client = match get_client(&torrent, &peer, &tx_tui_clone) {
+            let client = match get_client(&torrent, &peer, &tx_tui_clone).await {
                 Ok(client) => client,
                 // kill the thread
                 Err(err) => {
@@ -64,8 +64,12 @@ pub async fn start(
     Ok(())
 }
 
-fn get_client(torrent: &Torrent, peer: &Peer, tx_tui: &Sender<AppEvent>) -> Result<Client, String> {
-    match Client::new(&torrent, peer, tx_tui) {
+async fn get_client(
+    torrent: &Torrent,
+    peer: &Peer,
+    tx_tui: &Sender<AppEvent>,
+) -> Result<Client, String> {
+    match Client::new(&torrent, peer, tx_tui).await {
         Ok(client) => Ok(client),
         Err(err) => Err(format!(
             "connection with peer {:?} was dropped | cause: {}",
@@ -81,7 +85,7 @@ fn writer_listener(
     tx_tui: &Sender<AppEvent>,
 ) {
     let tx_tui_clone = tx_tui.clone();
-    drop(tx_tui);
+    let _ = tx_tui;
 
     // here we write data to file
     tokio::spawn(async move {

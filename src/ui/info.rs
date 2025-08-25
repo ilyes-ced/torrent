@@ -24,7 +24,7 @@ pub fn draw_info(frame: &mut Frame, title_area: Rect, app: &App) {
         ]),
         text::Line::from(vec![
             Span::from("Peer Id: "),
-            Span::styled("&app.peerId", Style::default().fg(Color::Green)),
+            Span::styled(&app.peer_id, Style::default().fg(Color::Green)),
         ]),
     ];
     let title = Paragraph::new(text)

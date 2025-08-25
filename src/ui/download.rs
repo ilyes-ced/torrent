@@ -1,6 +1,6 @@
 use ratatui::{
     layout::{Constraint, Layout, Rect},
-    style::{Color, Style},
+    style::{Color, Modifier, Style, Stylize},
     text::{self, Span},
     widgets::{Block, List, ListItem},
     Frame,
@@ -8,7 +8,7 @@ use ratatui::{
 use Constraint::{Fill, Length};
 
 use crate::{
-    app::App,
+    app::{ActiveBlock, App},
     ui::{info::draw_info, LogType},
 };
 
@@ -31,16 +31,23 @@ pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
             Span::from(&log.msg),
         ]));
     }
+
+    let events_block = if app.active_block == ActiveBlock::EventLog {
+        Block::bordered()
+            .border_style(Style::new().blue().bold())
+            .title("Events Logs")
+    } else {
+        Block::bordered().title("Events Logs")
+    };
+
     let list_items: Vec<ListItem> = text
         .iter()
         .map(|line| ListItem::new(line.clone()))
         .collect();
-    let events_logs_widget =
-        List::new(list_items).block(Block::bordered().title("Connections Logs"));
-
-    //? removed the highlight things because we dont need them
-    // .highlight_style(Style::default().add_modifier(Modifier::BOLD))
-    // .highlight_symbol("> ")
+    let events_logs_widget = List::new(list_items)
+        .block(events_block)
+        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
+        .highlight_symbol(">> ");
 
     let mut text = vec![];
     for log in &app.download_logs.items {
@@ -64,8 +71,19 @@ pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
         .iter()
         .map(|line| ListItem::new(line.clone()))
         .collect();
-    let download_logs_widget =
-        List::new(list_items).block(Block::bordered().title("Download Logs"));
+
+    let downnload_block = if app.active_block == ActiveBlock::DownloadLog {
+        Block::bordered()
+            .border_style(Style::new().blue().bold())
+            .title("Download Logs")
+    } else {
+        Block::bordered().title("Download Logs")
+    };
+
+    let download_logs_widget = List::new(list_items)
+        .block(downnload_block)
+        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
+        .highlight_symbol(">> ");
 
     // "dd-mm-yyyy hh-mm-ss-mmm [INFO] lorem ipsum lorem ipsum"
 

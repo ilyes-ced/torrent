@@ -13,10 +13,10 @@ use tokio::sync::mpsc::Receiver;
 use Constraint::{Fill, Length, Min};
 
 use crate::ui::progress::draw_progress;
+use crate::Source;
 use crate::{app::App, ui::download::draw_download_tab};
 use crate::{torrent::Torrent, ui::peers::draw_peers_tab};
 use crate::{tracker::Peer, ui::files::draw_files_tab};
-use crate::{ui::info::draw_info, Source};
 
 mod download;
 mod files;
@@ -59,10 +59,15 @@ pub enum AppEvent {
     // add dht events later
 }
 
-pub fn start_tui(mut rx_app: Receiver<AppEvent>, torrent_data: Torrent, download_dir: String) {
+pub fn start_tui(
+    mut rx_app: Receiver<AppEvent>,
+    torrent_data: Torrent,
+    download_dir: String,
+    peer_id: [u8; 20],
+) {
     let mut terminal = ratatui::init();
 
-    let mut app = App::new(torrent_data, download_dir);
+    let mut app = App::new(torrent_data, download_dir, peer_id);
     let mut last_tick = Instant::now();
 
     loop {
@@ -102,6 +107,9 @@ pub fn start_tui(mut rx_app: Receiver<AppEvent>, torrent_data: Torrent, download
                 KeyCode::Char('q') => break,
                 KeyCode::Left => app.on_left(),
                 KeyCode::Right => app.on_right(),
+                KeyCode::Down => app.on_down(),
+                KeyCode::Up => app.on_up(),
+
                 KeyCode::Tab => app.on_right(),
                 _ => {}
             },

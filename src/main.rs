@@ -137,7 +137,7 @@ async fn main() -> std::io::Result<()> {
 
     // this being first will block the rest
     // so we need to start everything below first maybe in a thread in another function
-    start_tui(rx_tui, torrent_data, download_dir2);
+    start_tui(rx_tui, torrent_data, download_dir2, peer_id);
 
     Ok(())
 }

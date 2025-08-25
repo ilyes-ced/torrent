@@ -76,7 +76,8 @@ pub fn check_piece_multi_file(
         let mappings = mapping(torrent, piece.index)?;
 
         if mappings.len() == 1 {
-            let file_path = PathBuf::from(download_dir.clone())
+            // todo: fix to be crossplatform
+            let file_path = PathBuf::from(download_dir)
                 .join(&files[mappings[0].file_index].clone().paths.join("/"));
             let file = get_file(file_path)?;
 
@@ -98,7 +99,7 @@ pub fn check_piece_multi_file(
             let mut piece_buf = Vec::new();
 
             for mapping in mappings {
-                let file_path = PathBuf::from(download_dir.clone())
+                let file_path = PathBuf::from(download_dir)
                     .join(files[mapping.file_index].clone().paths.join("/"));
 
                 let file = get_file(file_path)?;

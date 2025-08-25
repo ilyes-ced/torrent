@@ -1,16 +1,13 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style, Stylize},
-    symbols::{self, block},
-    text::{self, Line, Span, Text},
-    widgets::{
-        Bar, BarChart, BarGroup, Block, Borders, Gauge, List, ListItem, Paragraph, Tabs, Wrap,
-    },
+    style::{Color, Style, Stylize},
+    text::Line,
+    widgets::{Bar, BarChart, BarGroup, Block, List, ListItem},
     Frame,
 };
-use Constraint::{Fill, Length, Min, Percentage};
+use Constraint::Fill;
 
-use crate::app::App;
+use crate::app::{ActiveBlock, App};
 
 pub fn draw_peers_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
     let list_items: Vec<ListItem> = app
@@ -20,8 +17,15 @@ pub fn draw_peers_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
         .map(|peer| ListItem::new(format!("{:?}", peer)))
         .collect();
 
-    let peers_widget = List::new(list_items)
-        .block(Block::bordered().title(format!("Peers: {}", app.peers.items.len())));
+    let peers_block = if app.active_block == ActiveBlock::Peers {
+        Block::bordered()
+            .border_style(Style::new().blue().bold())
+            .title(format!("Peers: {}", app.peers.items.len()))
+    } else {
+        Block::bordered().title(format!("Peers: {}", app.peers.items.len()))
+    };
+
+    let peers_widget = List::new(list_items).block(peers_block);
 
     ////////////////////////////////////////////////////////////////////////////
 
@@ -32,7 +36,15 @@ pub fn draw_peers_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
         .map(|peer| ListItem::new(format!("{:?}", peer)))
         .collect();
 
-    let dht_widget = List::new(list_items).block(Block::bordered().title("DHT"));
+    let dht_block = if app.active_block == ActiveBlock::DHT {
+        Block::bordered()
+            .border_style(Style::new().blue().bold())
+            .title("DHT")
+    } else {
+        Block::bordered().title("DHT")
+    };
+
+    let dht_widget = List::new(list_items).block(dht_block);
 
     ////////////////////////////////////////////////////////////////////////////
 

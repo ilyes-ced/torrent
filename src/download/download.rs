@@ -234,7 +234,7 @@ async fn client_download(
                         )
                         .await;
                         'outer: loop {
-                            match client.restart_con(tx_tui) {
+                            match client.restart_con(tx_tui).await {
                                 Ok(_) => break 'outer,
                                 Err(_) => {}
                             }

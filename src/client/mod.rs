@@ -33,10 +33,14 @@ pub(crate) struct Client {
 }
 
 impl Client {
-    pub fn new(torrent: &Torrent, peer: &Peer, tx_tui: &Sender<AppEvent>) -> Result<Self, String> {
+    pub async fn new(
+        torrent: &Torrent,
+        peer: &Peer,
+        tx_tui: &Sender<AppEvent>,
+    ) -> Result<Self, String> {
         let handshake = Handshake::new(torrent.info_hash, torrent.peer_id).create_handshake();
 
-        let con = connect(peer, torrent.info_hash, handshake, tx_tui)?;
+        let con = connect(peer, torrent.info_hash, handshake, tx_tui).await?;
 
         let bitfield = match bitfield(&con) {
             Ok(msg) => msg,
@@ -58,11 +62,12 @@ impl Client {
     //     Ok(())
     // }
 
-    pub fn restart_con(&mut self, tx_tui: &Sender<AppEvent>) -> Result<(), String> {
+    pub async fn restart_con(&mut self, tx_tui: &Sender<AppEvent>) -> Result<(), String> {
         debug(
             format!("restarting connection with peer: {:?}", self.peer),
             tx_tui,
-        );
+        )
+        .await;
 
         if let Err(e) = self.con.shutdown(std::net::Shutdown::Both) {
             match e.kind() {
@@ -71,15 +76,16 @@ impl Client {
                     error(
                         format!("peer {:?} is already disconnected", self.peer),
                         tx_tui,
-                    );
+                    )
+                    .await;
                 }
                 _ => {
-                    error(format!("Error shutting down connection: {}", e), tx_tui);
+                    error(format!("Error shutting down connection: {}", e), tx_tui).await;
                 }
             }
         }
 
-        let con = match connect(&self.peer, self.info_hash, self.handshake, tx_tui) {
+        let con = match connect(&self.peer, self.info_hash, self.handshake, tx_tui).await {
             Ok(con) => con,
             Err(err) => return Err(err),
         };
@@ -94,7 +100,8 @@ impl Client {
         debug(
             format!("restarted connection with peer: {:?}", self.peer),
             tx_tui,
-        );
+        )
+        .await;
         Ok(())
     }
 
@@ -126,7 +133,7 @@ impl Client {
     }
 }
 
-pub fn connect(
+pub async fn connect(
     peer: &Peer,
     info_hash: [u8; 20],
     handshake: [u8; 68],
@@ -157,10 +164,10 @@ pub fn connect(
         Err(err) => return Err(err.to_string()),
     };
 
-    complete_handshake(stream, info_hash, peer, handshake, tx_tui)
+    complete_handshake(stream, info_hash, peer, handshake, tx_tui).await
 }
 
-pub fn complete_handshake(
+pub async fn complete_handshake(
     mut stream: TcpStream,
     info_hash: [u8; 20],
     peer: &Peer,
@@ -207,10 +214,11 @@ pub fn complete_handshake(
             String::from_utf8_lossy(&rec_handshake.peer_id)
         ),
         tx_tui,
-    );
+    )
+    .await;
 
     if rec_handshake.info_hash == info_hash {
-        info("successful handshake".to_string(), tx_tui);
+        info("successful handshake".to_string(), tx_tui).await;
         Ok(stream)
     } else {
         Err(String::from(

@@ -1,5 +1,7 @@
-use ratatui::widgets::ListState;
+use std::collections::VecDeque;
 
+use ratatui::widgets::ListState;
+const LOGS_MAX_LEN: usize = 1000;
 use crate::{
     torrent::Torrent,
     tracker::Peer,
@@ -28,11 +30,11 @@ impl<'a> TabsState<'a> {
 }
 pub struct StatefulList<T> {
     pub state: ListState,
-    pub items: Vec<T>,
+    pub items: VecDeque<T>,
 }
 
 impl<T> StatefulList<T> {
-    pub fn with_items(items: Vec<T>) -> Self {
+    pub fn with_items(items: VecDeque<T>) -> Self {
         Self {
             state: ListState::default(),
             items,
@@ -72,12 +74,20 @@ impl<T> StatefulList<T> {
         }
     }
 }
+#[derive(PartialEq)]
+pub enum ActiveBlock {
+    DownloadLog,
+    EventLog,
+    Peers,
+    DHT,
+    Files,
+}
 
 pub struct App<'a> {
     pub torrent_name: String,
     pub download_dir: String,
     pub info_hash: [u8; 20],
-    pub size: usize,
+    pub size: String,
 
     pub pieces: usize,
     pub downloaded_pieces: usize,
@@ -87,9 +97,10 @@ pub struct App<'a> {
 
     pub peers: StatefulList<Peer>,
 
+    pub active_block: ActiveBlock,
     pub tabs: TabsState<'a>,
 
-    pub peerId: (),
+    pub peer_id: String,
     // .ttorrent or magnet url
     pub torrent_type: (),
     // path of .torrent or magnet url
@@ -97,25 +108,55 @@ pub struct App<'a> {
 }
 
 impl<'a> App<'a> {
-    pub fn new(torrent_data: Torrent, download_dir: String) -> Self {
+    pub fn new(torrent_data: Torrent, download_dir: String, peer_id: [u8; 20]) -> Self {
         // todo: the size conversion, files tree ......
+
+        let size = match torrent_data.info.files {
+            crate::torrent::FileInfo::Single(file) => file,
+            crate::torrent::FileInfo::Multiple(files) => files.iter().map(|f| f.length).sum(),
+        } as f64;
+
+        const KIB: f64 = 1024.0;
+        const MIB: f64 = KIB * 1024.0;
+        const GIB: f64 = MIB * 1024.0;
+        const TIB: f64 = GIB * 1024.0;
+
+        let readable_size = if size < KIB {
+            format!("{:.0} B", size)
+        } else if size < MIB {
+            format!("{:.2} KiB", size / KIB)
+        } else if size < GIB {
+            format!("{:.2} MiB", size / MIB)
+        } else if size < TIB {
+            format!("{:.2} GiB", size / GIB)
+        } else {
+            format!("{:.2} TiB", size / TIB)
+        };
+
+        let num_pieces = (size / torrent_data.info.piece_length as f64).ceil() as usize;
+
         App {
             torrent_name: torrent_data.info.name,
             download_dir: download_dir,
             info_hash: torrent_data.info_hash,
-            size: 9999,
+            size: readable_size,
 
-            pieces: 0,
+            pieces: num_pieces,
             downloaded_pieces: 0,
 
-            download_logs: StatefulList::with_items(Vec::new()),
-            events_logs: StatefulList::with_items(Vec::new()),
+            download_logs: StatefulList::with_items(VecDeque::new()),
+            events_logs: StatefulList::with_items(VecDeque::new()),
 
-            peers: StatefulList::with_items(vec![]),
+            peers: StatefulList::with_items(VecDeque::new()),
 
+            active_block: ActiveBlock::DownloadLog,
             tabs: TabsState::new(vec!["Download", "Peers", "Files"]),
 
-            peerId: (),
+            peer_id: peer_id
+                .iter()
+                .map(|byte| format!("{:02X}", byte))
+                .collect::<Vec<String>>()
+                .join(""),
             torrent_type: (),
             torrent_type_value: (),
         }
@@ -141,23 +182,84 @@ impl<'a> App<'a> {
         //todo: add to progress and pieces downloaded, also add data to data downloaded by each peer
     }
     ///////////////////////////////////////////////////////////////////////
+    //? these 2 are limited to 1000 logs because if there is too many logs it might overflow the RAM
     pub fn add_download_logs(&mut self, log: Log) {
-        self.download_logs.items.push(log);
+        if self.download_logs.items.len() == LOGS_MAX_LEN {
+            self.download_logs.items.pop_front();
+        }
+        self.download_logs.items.push_back(log);
+        //? should this exist because as it is when new logs appear when we are scolling it will force scroll down
+        self.download_logs.end();
     }
     pub fn add_event_logs(&mut self, log: Log) {
-        self.events_logs.items.push(log);
+        if self.events_logs.items.len() == LOGS_MAX_LEN {
+            self.events_logs.items.pop_front();
+        }
+        self.events_logs.items.push_back(log);
+        //? should this exist because as it is when new logs appear when we are scolling it will force scroll down
+        self.events_logs.end();
     }
     ///////////////////////////////////////////////////////////////////////
     pub fn set_files(&mut self) {
         //todo: not yet
     }
     ///////////////////////////////////////////////////////////////////////
+    // todo: change these to change active blocks, if active blocks is last to right change tab and change active block to first block in the new tab
     pub fn on_right(&mut self) {
-        self.tabs.next();
+        match self.active_block {
+            ActiveBlock::DownloadLog => self.active_block = ActiveBlock::EventLog,
+            ActiveBlock::EventLog => {
+                self.tabs.next();
+                self.active_block = ActiveBlock::Peers
+            }
+            ActiveBlock::Peers => self.active_block = ActiveBlock::DHT,
+            ActiveBlock::DHT => {
+                self.tabs.next();
+                self.active_block = ActiveBlock::Files
+            }
+            ActiveBlock::Files => {
+                self.tabs.next();
+                self.active_block = ActiveBlock::DownloadLog
+            }
+        }
+    }
+    pub fn on_left(&mut self) {
+        match self.active_block {
+            ActiveBlock::DownloadLog => {
+                self.tabs.previous();
+                self.active_block = ActiveBlock::Files
+            }
+            ActiveBlock::EventLog => self.active_block = ActiveBlock::DownloadLog,
+            ActiveBlock::Peers => {
+                self.tabs.previous();
+                self.active_block = ActiveBlock::EventLog
+            }
+            ActiveBlock::DHT => self.active_block = ActiveBlock::Peers,
+            ActiveBlock::Files => {
+                self.tabs.previous();
+                self.active_block = ActiveBlock::DHT
+            }
+        }
     }
 
-    pub fn on_left(&mut self) {
-        self.tabs.previous();
+    ///////////////////////////////////////////////////////////////////////
+    pub fn on_down(&mut self) {
+        match self.active_block {
+            ActiveBlock::DownloadLog => self.download_logs.next(),
+            ActiveBlock::EventLog => self.events_logs.next(),
+            ActiveBlock::Peers => self.peers.next(),
+            ActiveBlock::DHT => todo!(),
+            ActiveBlock::Files => todo!(),
+        }
+    }
+    pub fn on_up(&mut self) {
+        match self.active_block {
+            ActiveBlock::DownloadLog => self.download_logs.previous(),
+            ActiveBlock::EventLog => self.events_logs.previous(),
+            ActiveBlock::Peers => self.peers.previous(),
+            ActiveBlock::DHT => todo!(),
+            ActiveBlock::Files => todo!(),
+        }
     }
 
     pub fn on_key(&mut self, c: char) {
@@ -166,12 +268,5 @@ impl<'a> App<'a> {
         }
     }
     ///////////////////////////////////////////////////////////////////////
-    pub fn on_tick(&mut self) {
-        // self.download_logs.items.push(("ERROR", "new test values"));
-        self.download_logs.end();
-        // self.events_logs
-        //     .items
-        //     .push(("INFO", "new test values"));
-        self.events_logs.end();
-    }
+    pub fn on_tick(&mut self) {}
 }

@@ -109,7 +109,6 @@ async fn write_multi_file(
         file.write_at(buffer, mapping.file_write_offset)
             .map_err(|err| err.to_string())?;
     }
-    println!("\n");
     Ok(())
 }
 
