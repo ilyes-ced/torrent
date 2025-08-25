@@ -57,51 +57,56 @@ use tokio::sync::mpsc::Sender;
 //    }
 //}
 //
+pub enum LogTarget {
+    Event,
+    Download,
+}
 
 pub async fn info(msg: String, tx_tui: &Sender<AppEvent>) {
-    let log = Log {
-        timestamp: time_date(),
-        log_type: LogType::Info,
-        msg: msg,
-    };
-    let _ = tx_tui.send(EventLog(log)).await;
+    log_message(msg, LogType::Info, tx_tui, LogTarget::Event).await;
 }
+
+pub async fn info_download(msg: String, tx_tui: &Sender<AppEvent>) {
+    log_message(msg, LogType::Info, tx_tui, LogTarget::Download).await;
+}
+
 pub async fn debug(msg: String, tx_tui: &Sender<AppEvent>) {
-    let log = Log {
-        timestamp: time_date(),
-        log_type: LogType::Debug,
-        msg: msg,
-    };
-    let _ = tx_tui.send(EventLog(log)).await;
+    log_message(msg, LogType::Debug, tx_tui, LogTarget::Event).await;
 }
+
 pub async fn warning(msg: String, tx_tui: &Sender<AppEvent>) {
-    let log = Log {
-        timestamp: time_date(),
-        log_type: LogType::Warning,
-        msg: msg,
-    };
-    let _ = tx_tui.send(EventLog(log)).await;
+    log_message(msg, LogType::Warning, tx_tui, LogTarget::Event).await;
 }
+
 pub async fn error(msg: String, tx_tui: &Sender<AppEvent>) {
-    let log = Log {
-        timestamp: time_date(),
-        log_type: LogType::Error,
-        msg: msg,
-    };
-    let _ = tx_tui.send(EventLog(log)).await;
+    log_message(msg, LogType::Error, tx_tui, LogTarget::Event).await;
 }
+
 pub async fn critical(msg: String, tx_tui: &Sender<AppEvent>) {
+    log_message(msg, LogType::Critical, tx_tui, LogTarget::Event).await;
+}
+
+pub async fn log_message(
+    msg: String,
+    log_type: LogType,
+    tx_tui: &Sender<AppEvent>,
+    target: LogTarget,
+) {
     let log = Log {
         timestamp: time_date(),
-        log_type: LogType::Critical,
-        msg: msg,
+        log_type,
+        msg,
     };
-    let _ = tx_tui.send(EventLog(log)).await;
+
+    let event = match target {
+        LogTarget::Event => AppEvent::EventLog(log),
+        LogTarget::Download => AppEvent::DownloadLog(log),
+    };
+
+    let _ = tx_tui.send(event).await;
 }
 
 fn time_date() -> String {
     // e.g. `2014-11-28T21:45:59.324310806+09:00`
-    let local: DateTime<Local> = Local::now();
-    let formatted = local.format("%Y-%m-%d %H:%M:%S.%3f");
-    format!("{}", formatted)
+    Local::now().format("%Y-%m-%d %H:%M:%S.%3f").to_string()
 }

@@ -5,9 +5,12 @@ use ratatui::{
     widgets::{Block, List, ListItem},
     Frame,
 };
-use Constraint::Fill;
+use Constraint::{Fill, Length};
 
-use crate::{app::App, ui::LogType};
+use crate::{
+    app::App,
+    ui::{info::draw_info, LogType},
+};
 
 pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
     let mut text = vec![];
@@ -69,7 +72,16 @@ pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
     let main_tabs = Layout::horizontal([Fill(1), Fill(1)]);
     let [left, right] = main_tabs.areas(content_area);
 
-    frame.render_stateful_widget(download_logs_widget, left, &mut app.download_logs.state);
+    let left_area = Layout::vertical([Length(5), Fill(1)]);
+    let [info_area, download_area] = left_area.areas(left);
+
+    draw_info(frame, info_area, app);
+
+    frame.render_stateful_widget(
+        download_logs_widget,
+        download_area,
+        &mut app.download_logs.state,
+    );
     frame.render_stateful_widget(events_logs_widget, right, &mut app.events_logs.state);
     // frame.render_widget(log, top_right);
     // frame.render_widget(Block::bordered().title("Bottom Left"), bottom_left);

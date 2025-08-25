@@ -38,7 +38,7 @@ pub fn start_download(
     torrent: Torrent,
     download_dir: String,
     mut rx_clients: Receiver<Client>,
-    tx_pieces: Sender<(Option<PieceResult>, f64)>,
+    tx_pieces: Sender<Option<PieceResult>>,
     tx_tui: &Sender<AppEvent>,
 ) {
     let tx_tui = tx_tui.clone();
@@ -149,7 +149,7 @@ async fn client_download(
     workers: Arc<RwLock<Vec<PieceWork>>>,
     results_counter: Arc<RwLock<usize>>,
     num_pieces: Arc<usize>,
-    tx_pieces: Arc<Sender<(Option<PieceResult>, f64)>>,
+    tx_pieces: Arc<Sender<Option<PieceResult>>>,
     tx_tui: &Sender<AppEvent>,
 ) {
     info(format!("client {:?} thread starts", client.peer), tx_tui).await;
@@ -165,7 +165,7 @@ async fn client_download(
                 tx_tui,
             )
             .await;
-            let _ = tx_pieces.send((None, 100.00)).await;
+            let _ = tx_pieces.send(None).await;
             break;
         }
         drop(results_counter_lock);
@@ -210,14 +210,10 @@ async fn client_download(
                     //));
 
                     let _ = tx_pieces
-                        .send((
-                            Some(PieceResult {
-                                index: piece.index,
-                                buf: piece.buf,
-                            }),
-                            // total number / number done
-                            (*results_counter_lock as f64 / *num_pieces as f64) * 100.0,
-                        ))
+                        .send(Some(PieceResult {
+                            index: piece.index,
+                            buf: piece.buf,
+                        }))
                         .await;
 
                     // increment results_counter

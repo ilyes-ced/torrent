@@ -107,20 +107,18 @@ async fn main() -> std::io::Result<()> {
 
     let bencode_data = Decoder::new(&res).start().unwrap();
     let torrent_data = Torrent::new(bencode_data, peer_id).unwrap();
+    let torrent_data1 = torrent_data.clone();
     let torrent_data2 = torrent_data.clone();
-
-    // todo: send them to app
-    let infohash = torrent_data.info_hash;
-    let name = torrent_data.info_hash;
 
     let (tx_peers, rx_peers) = mpsc::channel::<Peer>(128);
 
-    let download_dir = args.download_dir.clone();
+    let download_dir1 = args.download_dir.clone();
+    let download_dir2 = args.download_dir.clone();
     let tx_tui1 = tx_tui.clone();
     let tx_tui2 = tx_tui.clone();
 
     tokio::spawn(async move {
-        let _ = get_peers_from_tracker(torrent_data, peer_id, tx_peers, tx_tui1.clone()).await;
+        let _ = get_peers_from_tracker(torrent_data1, peer_id, tx_peers, tx_tui1.clone()).await;
     });
 
     tokio::spawn(async move {
@@ -131,7 +129,7 @@ async fn main() -> std::io::Result<()> {
         loop {
             let _ = tx_tui2
                 .clone()
-                .send(DownloadDir(download_dir.clone()))
+                .send(DownloadDir(download_dir1.clone()))
                 .await;
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
@@ -139,7 +137,7 @@ async fn main() -> std::io::Result<()> {
 
     // this being first will block the rest
     // so we need to start everything below first maybe in a thread in another function
-    start_tui(rx_tui);
+    start_tui(rx_tui, torrent_data, download_dir2);
 
     Ok(())
 }

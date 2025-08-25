@@ -1,6 +1,6 @@
 use crate::client::Client;
 use crate::io::writer;
-use crate::log::{error, info, warning};
+use crate::log::{error, info, info_download};
 use crate::torrent::Torrent;
 use crate::tracker::Peer;
 use crate::ui::AppEvent;
@@ -16,8 +16,8 @@ pub async fn start(
     download_dir: String,
     tx_tui: &Sender<AppEvent>,
 ) -> Result<(), String> {
-    info("starting download\n".to_string(), &tx_tui);
-    let (tx_pieces, rx_pieces) = mpsc::channel::<(Option<PieceResult>, f64)>(128);
+    info("starting download\n".to_string(), &tx_tui).await;
+    let (tx_pieces, rx_pieces) = mpsc::channel::<Option<PieceResult>>(128);
     let (tx_clients, rx_clients) = mpsc::channel::<Client>(128);
 
     //? starting the thread listinign for downloaded pieces
@@ -77,7 +77,7 @@ fn get_client(torrent: &Torrent, peer: &Peer, tx_tui: &Sender<AppEvent>) -> Resu
 fn writer_listener(
     torrent: Torrent,
     download_dir: String,
-    mut rx_pieces: Receiver<(Option<PieceResult>, f64)>,
+    mut rx_pieces: Receiver<Option<PieceResult>>,
     tx_tui: &Sender<AppEvent>,
 ) {
     let tx_tui_clone = tx_tui.clone();
@@ -85,7 +85,15 @@ fn writer_listener(
 
     // here we write data to file
     tokio::spawn(async move {
-        while let Some((piece, prog)) = rx_pieces.recv().await {
+        while let Some(piece) = rx_pieces.recv().await {
+            // info(
+            //     format!(
+            //         "================================== {}",
+            //         piece.clone().unwrap().index
+            //     ),
+            //     &tx_tui_clone.clone(),
+            // )
+            // .await;
             match piece {
                 Some(finished_piece) => {
                     write_file(
@@ -98,12 +106,20 @@ fn writer_listener(
                     .unwrap();
 
                     info(
+                        format!("=============================================================================================================================="),
+                        &tx_tui_clone.clone(),
+                    )
+                    .await;
+
+                    info_download(
                         format!("piece {} successfully downloaded", finished_piece.index),
                         &tx_tui_clone.clone(),
                     )
                     .await;
                 }
-                None => {}
+                None => {
+                    info_download(format!("Download finished"), &tx_tui_clone.clone()).await;
+                }
             }
         }
     });

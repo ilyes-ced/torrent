@@ -1,6 +1,7 @@
 use ratatui::widgets::ListState;
 
 use crate::{
+    torrent::Torrent,
     tracker::Peer,
     ui::{Log, LogType},
     Source,
@@ -87,18 +88,25 @@ pub struct App<'a> {
     pub peers: StatefulList<Peer>,
 
     pub tabs: TabsState<'a>,
+
+    pub peerId: (),
+    // .ttorrent or magnet url
+    pub torrent_type: (),
+    // path of .torrent or magnet url
+    pub torrent_type_value: (),
 }
 
 impl<'a> App<'a> {
-    pub fn new(title: &'a str, enhanced_graphics: bool) -> Self {
+    pub fn new(torrent_data: Torrent, download_dir: String) -> Self {
+        // todo: the size conversion, files tree ......
         App {
-            torrent_name: "torrent_name".to_string(),
-            download_dir: "download_dir".to_string(),
-            info_hash: [9; 20],
+            torrent_name: torrent_data.info.name,
+            download_dir: download_dir,
+            info_hash: torrent_data.info_hash,
             size: 9999,
 
-            pieces: 1500,
-            downloaded_pieces: 250,
+            pieces: 0,
+            downloaded_pieces: 0,
 
             download_logs: StatefulList::with_items(Vec::new()),
             events_logs: StatefulList::with_items(Vec::new()),
@@ -106,6 +114,10 @@ impl<'a> App<'a> {
             peers: StatefulList::with_items(vec![]),
 
             tabs: TabsState::new(vec!["Download", "Peers", "Files"]),
+
+            peerId: (),
+            torrent_type: (),
+            torrent_type_value: (),
         }
     }
     ///////////////////////////////////////////////////////////////////////
@@ -130,7 +142,7 @@ impl<'a> App<'a> {
     }
     ///////////////////////////////////////////////////////////////////////
     pub fn add_download_logs(&mut self, log: Log) {
-        //todo: logs + add timestamp like in the previous logs
+        self.download_logs.items.push(log);
     }
     pub fn add_event_logs(&mut self, log: Log) {
         self.events_logs.items.push(log);

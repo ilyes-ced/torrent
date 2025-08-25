@@ -9,7 +9,7 @@ use Constraint::Percentage;
 
 use crate::app::App;
 
-pub fn draw_info(frame: &mut Frame, title_area: Rect, app: &mut App) {
+pub fn draw_info(frame: &mut Frame, title_area: Rect, app: &App) {
     let main_horizontal = Layout::horizontal([Percentage(50), Percentage(50)]);
     let [left_info, right_info] = main_horizontal.areas(title_area);
 
@@ -21,6 +21,10 @@ pub fn draw_info(frame: &mut Frame, title_area: Rect, app: &mut App) {
         text::Line::from(vec![
             Span::from("download dir: "),
             Span::styled(&app.download_dir, Style::default().fg(Color::Green)),
+        ]),
+        text::Line::from(vec![
+            Span::from("Peer Id: "),
+            Span::styled("&app.peerId", Style::default().fg(Color::Green)),
         ]),
     ];
     let title = Paragraph::new(text)
@@ -44,6 +48,10 @@ pub fn draw_info(frame: &mut Frame, title_area: Rect, app: &mut App) {
             Span::from("torrent size: "),
             // todo: make the MiB or GiB tranformations
             Span::styled(app.size.to_string(), Style::default().fg(Color::Green)),
+        ]),
+        text::Line::from(vec![
+            Span::from("&app.torrent_type"),
+            Span::styled("&app.torrent_type_value", Style::default().fg(Color::Green)),
         ]),
     ];
     let title = Paragraph::new(text)

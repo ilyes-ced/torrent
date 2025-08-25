@@ -12,9 +12,9 @@ use ratatui::{
 use tokio::sync::mpsc::Receiver;
 use Constraint::{Fill, Length, Min};
 
-use crate::ui::peers::draw_peers_tab;
 use crate::ui::progress::draw_progress;
 use crate::{app::App, ui::download::draw_download_tab};
+use crate::{torrent::Torrent, ui::peers::draw_peers_tab};
 use crate::{tracker::Peer, ui::files::draw_files_tab};
 use crate::{ui::info::draw_info, Source};
 
@@ -59,9 +59,10 @@ pub enum AppEvent {
     // add dht events later
 }
 
-pub fn start_tui(mut rx_app: Receiver<AppEvent>) {
+pub fn start_tui(mut rx_app: Receiver<AppEvent>, torrent_data: Torrent, download_dir: String) {
     let mut terminal = ratatui::init();
-    let mut app = App::new("Crossterm Demo", true);
+
+    let mut app = App::new(torrent_data, download_dir);
     let mut last_tick = Instant::now();
 
     loop {
@@ -110,14 +111,14 @@ pub fn start_tui(mut rx_app: Receiver<AppEvent>) {
         }
     }
 
-    // ratatui::restore();
+    ratatui::restore();
 }
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
-    let vertical = Layout::vertical([Length(4), Min(0), Length(4)]);
-    let [title_area, main_area, progress_area] = vertical.areas(frame.area());
+    let vertical = Layout::vertical([Min(0), Length(4)]);
+    let [main_area, progress_area] = vertical.areas(frame.area());
 
-    draw_info(frame, title_area, app);
+    // draw_info(frame, title_area, app);
     draw_tabs(frame, main_area, app);
     draw_progress(frame, progress_area, app);
 }

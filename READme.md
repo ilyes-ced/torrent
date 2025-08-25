@@ -57,6 +57,8 @@ Note: probably works only on linux
 - [x] cli options: download_dir, torrent_file,
 - [x] cli options: torrent file, magnet url
 - [ ] TUI
+    - [ ] make log areas scrollable
+    - [ ] text lines overflow
 - [x] add peers periodically (using mpsc channels)
 - [ ] DHT
 - [x] async app (tokio)
