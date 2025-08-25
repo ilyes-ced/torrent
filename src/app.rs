@@ -6,6 +6,7 @@ use crate::{
     torrent::Torrent,
     tracker::Peer,
     ui::{Log, LogType},
+    utils::readable_size,
     Source,
 };
 pub struct TabsState<'a> {
@@ -116,22 +117,7 @@ impl<'a> App<'a> {
             crate::torrent::FileInfo::Multiple(files) => files.iter().map(|f| f.length).sum(),
         } as f64;
 
-        const KIB: f64 = 1024.0;
-        const MIB: f64 = KIB * 1024.0;
-        const GIB: f64 = MIB * 1024.0;
-        const TIB: f64 = GIB * 1024.0;
-
-        let readable_size = if size < KIB {
-            format!("{:.0} B", size)
-        } else if size < MIB {
-            format!("{:.2} KiB", size / KIB)
-        } else if size < GIB {
-            format!("{:.2} MiB", size / MIB)
-        } else if size < TIB {
-            format!("{:.2} GiB", size / GIB)
-        } else {
-            format!("{:.2} TiB", size / TIB)
-        };
+        let readable_size = readable_size(size);
 
         let num_pieces = (size / torrent_data.info.piece_length as f64).ceil() as usize;
 

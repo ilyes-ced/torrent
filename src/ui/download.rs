@@ -15,20 +15,20 @@ use crate::{
 pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
     let mut text = vec![];
     for log in &app.events_logs.items {
-        let (fg, log_type) = match log.log_type {
-            LogType::Info => (Color::Blue, "INFO"),
-            LogType::Debug => (Color::Green, "DEBUG"),
-            LogType::Warning => (Color::Yellow, "WARNING"),
-            LogType::Error => (Color::Red, "ERROR"),
-            LogType::Critical => todo!(),
+        let (fg, bg, log_type) = match log.log_type {
+            LogType::Info => (Color::Blue, Color::Reset, "INFO"),
+            LogType::Debug => (Color::Green, Color::Reset, "DEBUG"),
+            LogType::Warning => (Color::Yellow, Color::Reset, "WARNING"),
+            LogType::Error => (Color::Red, Color::Reset, "ERROR"),
+            LogType::Critical => (Color::Black, Color::Red, "ERROR"),
         };
 
         text.push(text::Line::from(vec![
             Span::styled(
-                format!("{} [{}] ", log.timestamp, log_type),
-                Style::default().fg(fg),
+                format!("{} [{}]", log.timestamp, log_type),
+                Style::default().fg(fg).bg(bg),
             ),
-            Span::from(&log.msg),
+            Span::from(format!(" {}", &log.msg)),
         ]));
     }
 
@@ -51,20 +51,20 @@ pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
 
     let mut text = vec![];
     for log in &app.download_logs.items {
-        let (fg, log_type) = match log.log_type {
-            LogType::Info => (Color::Blue, "INFO"),
-            LogType::Debug => (Color::Green, "DEBUG"),
-            LogType::Warning => (Color::Yellow, "WARNING"),
-            LogType::Error => (Color::Red, "ERROR"),
-            LogType::Critical => todo!(),
+        let (fg, bg, log_type) = match log.log_type {
+            LogType::Info => (Color::Blue, Color::Reset, "INFO"),
+            LogType::Debug => (Color::Green, Color::Reset, "DEBUG"),
+            LogType::Warning => (Color::Yellow, Color::Reset, "WARNING"),
+            LogType::Error => (Color::Red, Color::Reset, "ERROR"),
+            LogType::Critical => (Color::Reset, Color::Red, "ERROR"),
         };
 
         text.push(text::Line::from(vec![
             Span::styled(
                 format!("{} [{}] ", log.timestamp, log_type),
-                Style::default().fg(fg).bg(Color::Red),
+                Style::default().fg(fg).bg(bg),
             ),
-            Span::from(&log.msg),
+            Span::from(format!(" {}", &log.msg)),
         ]));
     }
     let list_items: Vec<ListItem> = text

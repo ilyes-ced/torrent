@@ -51,18 +51,18 @@ Note: probably works only on linux
 - [x] writing pieces to files
     - [x] single files
     - [x] multi files
+    - [x] continue interrupted downloads
 - [ ] seeding
 - [x] resume downloads (for single file downloads) 
 - [x] display percetege downloaded (needs the loading bar)
 - [x] cli options: download_dir, torrent_file,
 - [x] cli options: torrent file, magnet url
 - [ ] TUI
-    - [ ] make log areas scrollable
+    - [x] make log areas scrollable (no scroll bar tho)
     - [ ] text lines overflow
 - [x] add peers periodically (using mpsc channels)
 - [ ] DHT
 - [x] async app (tokio)
-
 
 
 
@@ -76,6 +76,7 @@ Note: probably works only on linux
 
 
 ## Errors:
+- [ ] when continuing interrupted downloads, the last piece which is smaller than the given piece size is not detected as finished so the downlaod starts just for it
 - [ ] when the final piece is occupied by one of the threads, the console displays other threads finding the count of workerpieces to be 0, this can be fixed by increasing the timeout for the threads, but it might make the download unnecessaraly slow (or maybe not because its the final piece and the download is almost over) 
 - [ ] sometimes near the end of the download the programme uses 100% of CPU (cant reproduce) 
 - [x] when reading already downloaded pieces they are not added to the progress

@@ -99,6 +99,26 @@ pub fn count_leading_zeros(distance: [u8; 20]) -> u32 {
     num_zeros
 }
 
+pub fn readable_size(size: f64) -> String {
+    const KIB: f64 = 1024.0;
+    const MIB: f64 = KIB * 1024.0;
+    const GIB: f64 = MIB * 1024.0;
+    const TIB: f64 = GIB * 1024.0;
+
+    let readable_size = if size < KIB {
+        format!("{:.0} B", size)
+    } else if size < MIB {
+        format!("{:.2} KiB", size / KIB)
+    } else if size < GIB {
+        format!("{:.2} MiB", size / MIB)
+    } else if size < TIB {
+        format!("{:.2} GiB", size / GIB)
+    } else {
+        format!("{:.2} TiB", size / TIB)
+    };
+    readable_size
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

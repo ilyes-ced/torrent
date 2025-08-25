@@ -1,6 +1,8 @@
 use tokio::sync::mpsc::{Receiver, Sender};
 
+use crate::log::critical;
 use crate::ui::AppEvent;
+use crate::utils::readable_size;
 use crate::{
     client::Client,
     constants::{MsgId, MAX_BACKLOG, MAX_BLOCK_SIZE},
@@ -65,6 +67,20 @@ pub fn start_download(
                 Vec::new()
             }
         };
+
+        info(
+            format!("Already downloaded {} pieces", already_downloaded.len()),
+            &tx_tui,
+        )
+        .await;
+        info(
+            format!(
+                "Already downloaded : {:?}",
+                readable_size(already_downloaded.len() as f64 * torrent.info.piece_length as f64)
+            ),
+            &tx_tui,
+        )
+        .await;
 
         // replace pieces by a new array (new_array = old_pieces_array.remove(already_downloaded))
         let pieces: Vec<PieceWork> = pieces
@@ -215,7 +231,6 @@ async fn client_download(
                             buf: piece.buf,
                         }))
                         .await;
-
                     // increment results_counter
                     drop(results_counter_lock);
                     // when downloading a piece reset error count

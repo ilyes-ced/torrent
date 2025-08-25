@@ -90,11 +90,8 @@ fn writer_listener(
     // here we write data to file
     tokio::spawn(async move {
         while let Some(piece) = rx_pieces.recv().await {
-            // info(
-            //     format!(
-            //         "================================== {}",
-            //         piece.clone().unwrap().index
-            //     ),
+            // error(
+            //     format!("================================== recieved piece"),
             //     &tx_tui_clone.clone(),
             // )
             // .await;
@@ -122,9 +119,14 @@ fn writer_listener(
                     .await;
                 }
                 None => {
-                    info_download(format!("Download finished"), &tx_tui_clone.clone()).await;
+                    break;
                 }
             }
         }
+        info_download(
+            format!("Download finished. press <q> to exit the application"),
+            &tx_tui_clone.clone(),
+        )
+        .await;
     });
 }
