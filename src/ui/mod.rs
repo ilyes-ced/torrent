@@ -39,16 +39,6 @@ pub struct Log {
     pub msg: String,
 }
 pub enum AppEvent {
-    TorrentName(String),
-    Size(usize),
-    DownloadDir(String),
-    Infohash([u8; 20]),
-
-    // .torrent OR magnet_url
-    DownloadType(Source),
-
-    Files(Vec<String>),
-
     NewPeer(Peer),
     RemovePeer(Peer),
 
@@ -73,12 +63,6 @@ pub fn start_tui(
     loop {
         while let Ok(event) = rx_app.try_recv() {
             match event {
-                AppEvent::TorrentName(name) => app.torrent_name = name,
-                AppEvent::Size(size) => app.set_size(size),
-                AppEvent::DownloadDir(dir) => app.download_dir = dir,
-                AppEvent::Infohash(infohash) => app.set_infohash(infohash),
-                AppEvent::DownloadType(source) => app.set_source(source),
-                AppEvent::Files(items) => app.set_files(),
                 AppEvent::NewPeer(peer) => app.add_peer(peer),
                 AppEvent::RemovePeer(peer) => app.remove_peer(peer),
                 AppEvent::PieceDownloaded { index, peer, size } => {
@@ -115,6 +99,7 @@ pub fn start_tui(
             },
             Event::Mouse(mouse_event) => todo!(),
             Event::Paste(_) => todo!(),
+            //todo: here we could choose which windowe are visible when window is too small
             Event::Resize(_, _) => todo!(),
         }
     }

@@ -7,22 +7,25 @@ use ratatui::{
 };
 use Constraint::Fill;
 
-use crate::app::{ActiveBlock, App};
+use crate::{
+    app::{ActiveBlock, App},
+    tracker::Peer,
+    utils::readable_size,
+};
 
 pub fn draw_peers_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
     let list_items: Vec<ListItem> = app
         .peers
-        .items
-        .iter()
+        .keys()
         .map(|peer| ListItem::new(format!("{:?}", peer)))
         .collect();
 
     let peers_block = if app.active_block == ActiveBlock::Peers {
         Block::bordered()
             .border_style(Style::new().blue().bold())
-            .title(format!("Peers: {}", app.peers.items.len()))
+            .title(format!("Peers: {}", app.peers.keys().len()))
     } else {
-        Block::bordered().title(format!("Peers: {}", app.peers.items.len()))
+        Block::bordered().title(format!("Peers: {}", app.peers.keys().len()))
     };
 
     let peers_widget = List::new(list_items).block(peers_block);
@@ -31,8 +34,7 @@ pub fn draw_peers_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
 
     let list_items: Vec<ListItem> = app
         .peers
-        .items
-        .iter()
+        .keys()
         .map(|peer| ListItem::new(format!("{:?}", peer)))
         .collect();
 
@@ -48,16 +50,17 @@ pub fn draw_peers_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
 
     ////////////////////////////////////////////////////////////////////////////
 
-    let mut rng = rand::rng();
-    let temps: Vec<u8> = (0..24)
-        .map(|_| rand::Rng::random_range(&mut rng, 50..90))
-        .collect();
-    let bars: Vec<Bar> = temps
+    //let mut rng = rand::rng();
+    //let temps: Vec<u8> = (0..24)
+    //    .map(|_| rand::Rng::random_range(&mut rng, 50..90))
+    //    .collect();
+    let bars: Vec<Bar> = app
+        .peers
         .iter()
         .enumerate()
-        .map(|(hour, value)| horizontal_bar(hour, value))
+        .map(|(hour, (peer, bytes))| horizontal_bar(peer, bytes))
         .collect();
-    let title = Line::from("Weather (Horizontal)");
+    let title = Line::from("Bytes Downlaoded / Peer");
     let graphs_widget = BarChart::default()
         .block(Block::bordered().title(title))
         .data(BarGroup::default().bars(&bars))
@@ -74,21 +77,23 @@ pub fn draw_peers_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
     let [top, bottom] = new.areas(right);
 
     frame.render_stateful_widget(peers_widget, left, &mut app.download_logs.state);
-    frame.render_stateful_widget(dht_widget, top, &mut app.peers.state);
+    frame.render_widget(dht_widget, top);
     frame.render_widget(graphs_widget, bottom);
 }
 
-fn horizontal_bar(hour: usize, temperature: &u8) -> Bar {
-    let style = temperature_style(*temperature);
+fn horizontal_bar(peer: &Peer, bytes: &usize) -> Bar<'static> {
+    let (size, style) = bytes_style(*bytes);
     Bar::default()
-        .value(u64::from(*temperature))
-        .label(Line::from(format!("{hour:>02}:00")))
-        .text_value(format!("{temperature:>3}°"))
+        .value(bytes.clone().try_into().unwrap())
+        // .label(Line::from(format!("{:?}", peer)))
+        .text_value(format!("{:?} => {}", peer, size))
         .style(style)
         .value_style(style.reversed())
 }
-fn temperature_style(value: u8) -> Style {
-    let green = (255.0 * (1.0 - f64::from(value - 50) / 40.0)) as u8;
-    let color = Color::Rgb(255, green, 0);
-    Style::new().fg(color)
+fn bytes_style(value: usize) -> (String, Style) {
+    let green = (255.0 * (1.0 - f64::from(value as f64 - 50.0) / 40.0)) as u8;
+    let color = Color::Rgb(16, green, 32);
+    let style = Style::new().fg(color);
+
+    (readable_size(value as f64), style)
 }

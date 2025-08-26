@@ -17,7 +17,7 @@ pub async fn start(
     tx_tui: &Sender<AppEvent>,
 ) -> Result<(), String> {
     info("starting download\n".to_string(), &tx_tui).await;
-    let (tx_pieces, rx_pieces) = mpsc::channel::<Option<PieceResult>>(128);
+    let (tx_pieces, rx_pieces) = mpsc::channel::<Option<(PieceResult, Peer)>>(128);
     let (tx_clients, rx_clients) = mpsc::channel::<Client>(128);
 
     //? starting the thread listinign for downloaded pieces
@@ -81,7 +81,7 @@ async fn get_client(
 fn writer_listener(
     torrent: Torrent,
     download_dir: String,
-    mut rx_pieces: Receiver<Option<PieceResult>>,
+    mut rx_pieces: Receiver<Option<(PieceResult, Peer)>>,
     tx_tui: &Sender<AppEvent>,
 ) {
     let tx_tui_clone = tx_tui.clone();
@@ -90,13 +90,8 @@ fn writer_listener(
     // here we write data to file
     tokio::spawn(async move {
         while let Some(piece) = rx_pieces.recv().await {
-            // error(
-            //     format!("================================== recieved piece"),
-            //     &tx_tui_clone.clone(),
-            // )
-            // .await;
             match piece {
-                Some(finished_piece) => {
+                Some((finished_piece, peer)) => {
                     write_file(
                         &torrent,
                         finished_piece.clone(),
@@ -106,17 +101,25 @@ fn writer_listener(
                     .await
                     .unwrap();
 
-                    info(
-                        format!("=============================================================================================================================="),
+                    // todo: add piece with peer info and piece size, than over there log the downloaded piece
+                    info_download(
+                        format!(
+                            "piece {} successfully downloaded, with size: {}",
+                            finished_piece.index,
+                            finished_piece.buf.len()
+                        ),
                         &tx_tui_clone.clone(),
                     )
                     .await;
 
-                    info_download(
-                        format!("piece {} successfully downloaded", finished_piece.index),
-                        &tx_tui_clone.clone(),
-                    )
-                    .await;
+                    //? send add data to peer download counter
+                    let _ = tx_tui_clone
+                        .send(AppEvent::PieceDownloaded {
+                            index: finished_piece.index,
+                            peer: peer,
+                            size: finished_piece.buf.len(),
+                        })
+                        .await;
                 }
                 None => {
                     break;

@@ -1,9 +1,9 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 use ratatui::widgets::ListState;
 const LOGS_MAX_LEN: usize = 1000;
 use crate::{
-    torrent::Torrent,
+    torrent::{self, FileInfo, Torrent},
     tracker::Peer,
     ui::{Log, LogType},
     utils::readable_size,
@@ -43,31 +43,35 @@ impl<T> StatefulList<T> {
     }
 
     pub fn next(&mut self) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i >= self.items.len() - 1 {
-                    0
-                } else {
-                    i + 1
+        if self.items.len() > 0 {
+            let i = match self.state.selected() {
+                Some(i) => {
+                    if i >= self.items.len() - 1 {
+                        0
+                    } else {
+                        i + 1
+                    }
                 }
-            }
-            None => 0,
-        };
-        self.state.select(Some(i));
+                None => 0,
+            };
+            self.state.select(Some(i));
+        }
     }
 
     pub fn previous(&mut self) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.items.len() - 1
-                } else {
-                    i - 1
+        if self.items.len() > 0 {
+            let i = match self.state.selected() {
+                Some(i) => {
+                    if i == 0 {
+                        self.items.len() - 1
+                    } else {
+                        i - 1
+                    }
                 }
-            }
-            None => 0,
-        };
-        self.state.select(Some(i));
+                None => 0,
+            };
+            self.state.select(Some(i));
+        }
     }
     pub fn end(&mut self) {
         if self.items.len() > 0 {
@@ -96,7 +100,7 @@ pub struct App<'a> {
     pub download_logs: StatefulList<Log>,
     pub events_logs: StatefulList<Log>,
 
-    pub peers: StatefulList<Peer>,
+    pub peers: HashMap<Peer, usize>,
 
     pub active_block: ActiveBlock,
     pub tabs: TabsState<'a>,
@@ -106,13 +110,15 @@ pub struct App<'a> {
     pub torrent_type: (),
     // path of .torrent or magnet url
     pub torrent_type_value: (),
+
+    pub files: FileInfo,
 }
 
 impl<'a> App<'a> {
     pub fn new(torrent_data: Torrent, download_dir: String, peer_id: [u8; 20]) -> Self {
         // todo: the size conversion, files tree ......
 
-        let size = match torrent_data.info.files {
+        let size = match torrent_data.info.files.clone() {
             crate::torrent::FileInfo::Single(file) => file,
             crate::torrent::FileInfo::Multiple(files) => files.iter().map(|f| f.length).sum(),
         } as f64;
@@ -133,7 +139,7 @@ impl<'a> App<'a> {
             download_logs: StatefulList::with_items(VecDeque::new()),
             events_logs: StatefulList::with_items(VecDeque::new()),
 
-            peers: StatefulList::with_items(VecDeque::new()),
+            peers: HashMap::new(),
 
             active_block: ActiveBlock::DownloadLog,
             tabs: TabsState::new(vec!["Download", "Peers", "Files"]),
@@ -145,27 +151,26 @@ impl<'a> App<'a> {
                 .join(""),
             torrent_type: (),
             torrent_type_value: (),
+
+            files: torrent_data.info.files,
         }
     }
     ///////////////////////////////////////////////////////////////////////
-    pub fn set_size(&mut self, size: usize) {
-        //todo: here we get size in bytes and transform it to MiB or GiB
-    }
-    pub fn set_source(&mut self, source: Source) {
-        //todo: here set source of .torrent or magnet url
-    }
-    pub fn set_infohash(&mut self, infohash: [u8; 20]) {
-        //todo: here set infohash as array of bytes or as a hex string
-    }
-    ///////////////////////////////////////////////////////////////////////
     pub fn add_peer(&mut self, peer: Peer) {
-        //todo: add peer to list
+        //todo: add peer to hashmap with value of 0
     }
     pub fn remove_peer(&mut self, peer: Peer) {
         //todo: remove peer to list
     }
     pub fn add_piece_downloaded(&mut self, index: u32, peer: Peer, size: usize) {
         //todo: add to progress and pieces downloaded, also add data to data downloaded by each peer
+
+        self.peers
+            .entry(peer)
+            .and_modify(|count| *count += size)
+            .or_insert(0);
+
+        //println!(" peers object {:?}", self.peers);
     }
     ///////////////////////////////////////////////////////////////////////
     //? these 2 are limited to 1000 logs because if there is too many logs it might overflow the RAM
@@ -175,6 +180,7 @@ impl<'a> App<'a> {
         }
         self.download_logs.items.push_back(log);
         //? should this exist because as it is when new logs appear when we are scolling it will force scroll down
+        //TODO: a good solution would be to only go to end if already at end, if user is sscrolling dont do it, and wwhem user press Enter, we go back to end
         self.download_logs.end();
     }
     pub fn add_event_logs(&mut self, log: Log) {
@@ -184,10 +190,6 @@ impl<'a> App<'a> {
         self.events_logs.items.push_back(log);
         //? should this exist because as it is when new logs appear when we are scolling it will force scroll down
         self.events_logs.end();
-    }
-    ///////////////////////////////////////////////////////////////////////
-    pub fn set_files(&mut self) {
-        //todo: not yet
     }
     ///////////////////////////////////////////////////////////////////////
     // todo: change these to change active blocks, if active blocks is last to right change tab and change active block to first block in the new tab
@@ -233,7 +235,10 @@ impl<'a> App<'a> {
         match self.active_block {
             ActiveBlock::DownloadLog => self.download_logs.next(),
             ActiveBlock::EventLog => self.events_logs.next(),
-            ActiveBlock::Peers => self.peers.next(),
+            ActiveBlock::Peers => {
+                //? cuz peers is now a list not statefull cant select
+                // self.peers.next()
+            }
             ActiveBlock::DHT => todo!(),
             ActiveBlock::Files => todo!(),
         }
@@ -242,7 +247,10 @@ impl<'a> App<'a> {
         match self.active_block {
             ActiveBlock::DownloadLog => self.download_logs.previous(),
             ActiveBlock::EventLog => self.events_logs.previous(),
-            ActiveBlock::Peers => self.peers.previous(),
+            ActiveBlock::Peers => {
+                //? cuz peers is now a list not statefull cant select
+                // self.peers.previous()
+            }
             ActiveBlock::DHT => todo!(),
             ActiveBlock::Files => todo!(),
         }

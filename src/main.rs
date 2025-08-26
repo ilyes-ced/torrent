@@ -28,7 +28,7 @@ use crate::log::{error, info};
 use crate::tracker::Peer;
 use crate::ui::{
     start_tui, AppEvent,
-    AppEvent::{DownloadDir, EventLog},
+    AppEvent::EventLog,
     LogType::{Error, Info},
 };
 
@@ -112,10 +112,8 @@ async fn main() -> std::io::Result<()> {
 
     let (tx_peers, rx_peers) = mpsc::channel::<Peer>(128);
 
-    let download_dir1 = args.download_dir.clone();
     let download_dir2 = args.download_dir.clone();
     let tx_tui1 = tx_tui.clone();
-    let tx_tui2 = tx_tui.clone();
 
     tokio::spawn(async move {
         let _ = get_peers_from_tracker(torrent_data1, peer_id, tx_peers, tx_tui1.clone()).await;
@@ -127,10 +125,6 @@ async fn main() -> std::io::Result<()> {
 
     tokio::spawn(async move {
         loop {
-            let _ = tx_tui2
-                .clone()
-                .send(DownloadDir(download_dir1.clone()))
-                .await;
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
     });
