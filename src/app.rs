@@ -100,6 +100,9 @@ pub struct App<'a> {
     pub download_logs: StatefulList<Log>,
     pub events_logs: StatefulList<Log>,
 
+    //? maybe we should add active peers list, regardless of data downloaded from them and keep the data counter even for dropped clients
+    //? we can remove peer from activePeers list and keep thier contriburtions in the peers hashmap object to display in the chart
+    //? appEvent for dropping a peer can be put at the end of the loop in the download.rs file
     pub peers: HashMap<Peer, usize>,
 
     pub active_block: ActiveBlock,
@@ -162,15 +165,17 @@ impl<'a> App<'a> {
     pub fn remove_peer(&mut self, peer: Peer) {
         //todo: remove peer to list
     }
-    pub fn add_piece_downloaded(&mut self, index: u32, peer: Peer, size: usize) {
-        //todo: add to progress and pieces downloaded, also add data to data downloaded by each peer
-
-        self.peers
-            .entry(peer)
-            .and_modify(|count| *count += size)
-            .or_insert(0);
-
-        //println!(" peers object {:?}", self.peers);
+    pub fn add_piece_downloaded(&mut self, index: u32, peer: Option<Peer>, size: usize) {
+        self.downloaded_pieces += 1;
+        match peer {
+            Some(peer) => {
+                self.peers
+                    .entry(peer)
+                    .and_modify(|count| *count += size)
+                    .or_insert(0);
+            }
+            None => {}
+        }
     }
     ///////////////////////////////////////////////////////////////////////
     //? these 2 are limited to 1000 logs because if there is too many logs it might overflow the RAM

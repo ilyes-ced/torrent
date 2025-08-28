@@ -43,7 +43,11 @@ pub enum AppEvent {
     RemovePeer(Peer),
 
     // peer and size to keep track of how much is downloaded from each peer
-    PieceDownloaded { index: u32, peer: Peer, size: usize },
+    PieceDownloaded {
+        index: u32,
+        peer: Option<Peer>,
+        size: usize,
+    },
     DownloadLog(Log),
     EventLog(Log),
     // add dht events later

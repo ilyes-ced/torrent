@@ -94,12 +94,20 @@ pub fn start_download(
         let results_counter = Arc::new(RwLock::new(already_downloaded.len()));
         let tx_pieces = Arc::new(tx_pieces);
 
+        //? we add to progress the pieces already downloaded
+        for piece in already_downloaded {
+            let _ = tx_tui
+                .send(AppEvent::PieceDownloaded {
+                    index: piece,
+                    peer: None,
+                    size: 0,
+                })
+                .await;
+        }
+
         while let Some(mut client) = rx_clients.recv().await {
-            error(
-                format!("*********** recieved client: {:?}", client),
-                &tx_tui,
-            )
-            .await;
+            error(format!("recieved client: {:?}", client), &tx_tui).await;
+
             let workers_clone = Arc::clone(&workers);
             let results_counter_clone = Arc::clone(&results_counter);
             let num_pieces_clone = Arc::clone(&num_pieces);

@@ -1,11 +1,13 @@
+use std::path::Prefix;
+
 use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
-    text::{self, Span},
-    widgets::{Block, List, ListItem},
+    text::{self, Line, Span},
+    widgets::{Block, List, ListItem, Paragraph},
     Frame,
 };
-use Constraint::{Fill, Length};
+use Constraint::{Fill, Length, Percentage};
 
 use crate::{
     app::{ActiveBlock, App},
@@ -13,84 +15,18 @@ use crate::{
 };
 
 pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
-    let mut text = vec![];
-    for log in &app.events_logs.items {
-        let (fg, bg, log_type) = match log.log_type {
-            LogType::Info => (Color::Blue, Color::Reset, "INFO"),
-            LogType::Debug => (Color::Green, Color::Reset, "DEBUG"),
-            LogType::Warning => (Color::Yellow, Color::Reset, "WARNING"),
-            LogType::Error => (Color::Red, Color::Reset, "ERROR"),
-            LogType::Critical => (Color::Black, Color::Red, "ERROR"),
-        };
+    let events_logs_widget = log_blocks(content_area, app, ActiveBlock::EventLog);
+    let download_logs_widget = log_blocks(content_area, app, ActiveBlock::DownloadLog);
 
-        text.push(text::Line::from(vec![
-            Span::styled(
-                format!("{} [{}]", log.timestamp, log_type),
-                Style::default().fg(fg).bg(bg),
-            ),
-            Span::from(format!(" {}", &log.msg)),
-        ]));
-    }
+    ////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////
 
-    let events_block = if app.active_block == ActiveBlock::EventLog {
-        Block::bordered()
-            .border_style(Style::new().blue().bold())
-            .title("Events Logs")
-    } else {
-        Block::bordered().title("Events Logs")
-    };
-
-    let list_items: Vec<ListItem> = text
-        .iter()
-        .map(|line| ListItem::new(line.clone()))
-        .collect();
-    let events_logs_widget = List::new(list_items)
-        .block(events_block)
-        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
-        .highlight_symbol(">> ");
-
-    let mut text = vec![];
-    for log in &app.download_logs.items {
-        let (fg, bg, log_type) = match log.log_type {
-            LogType::Info => (Color::Blue, Color::Reset, "INFO"),
-            LogType::Debug => (Color::Green, Color::Reset, "DEBUG"),
-            LogType::Warning => (Color::Yellow, Color::Reset, "WARNING"),
-            LogType::Error => (Color::Red, Color::Reset, "ERROR"),
-            LogType::Critical => (Color::Reset, Color::Red, "ERROR"),
-        };
-
-        text.push(text::Line::from(vec![
-            Span::styled(
-                format!("{} [{}] ", log.timestamp, log_type),
-                Style::default().fg(fg).bg(bg),
-            ),
-            Span::from(format!(" {}", &log.msg)),
-        ]));
-    }
-    let list_items: Vec<ListItem> = text
-        .iter()
-        .map(|line| ListItem::new(line.clone()))
-        .collect();
-
-    let downnload_block = if app.active_block == ActiveBlock::DownloadLog {
-        Block::bordered()
-            .border_style(Style::new().blue().bold())
-            .title("Download Logs")
-    } else {
-        Block::bordered().title("Download Logs")
-    };
-
-    let download_logs_widget = List::new(list_items)
-        .block(downnload_block)
-        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
-        .highlight_symbol(">> ");
-
-    // "dd-mm-yyyy hh-mm-ss-mmm [INFO] lorem ipsum lorem ipsum"
-
-    let main_tabs = Layout::horizontal([Fill(1), Fill(1)]);
+    let main_tabs = Layout::horizontal([Percentage(30), Percentage(70)]);
     let [left, right] = main_tabs.areas(content_area);
 
-    let left_area = Layout::vertical([Length(5), Fill(1)]);
+    let left_area = Layout::vertical([Length(8), Fill(1)]);
     let [info_area, download_area] = left_area.areas(left);
 
     draw_info(frame, info_area, app);
@@ -104,4 +40,103 @@ pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
     // frame.render_widget(log, top_right);
     // frame.render_widget(Block::bordered().title("Bottom Left"), bottom_left);
     // frame.render_widget(Block::bordered().title("Bottom Right"), bottom_right);
+}
+
+fn log_blocks(content_area: Rect, app: &mut App, active_block: ActiveBlock) -> List<'static> {
+    let logs = log_lines(content_area, app, &active_block);
+
+    let name = if active_block == ActiveBlock::EventLog {
+        "Event Log"
+    } else if active_block == ActiveBlock::DownloadLog {
+        "Downlaod Log"
+    } else {
+        panic!("should never happen")
+    };
+
+    let events_block = if app.active_block == active_block {
+        Block::bordered()
+            .border_style(Style::new().blue().bold())
+            .title(name)
+    } else {
+        Block::bordered().title(name)
+    };
+
+    let list_items: Vec<ListItem> = logs
+        .iter()
+        .map(|line| ListItem::new(line.clone()))
+        .collect();
+    List::new(list_items)
+        .block(events_block)
+        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
+        .highlight_symbol(">> ")
+}
+
+fn log_lines(content_area: Rect, app: &mut App, active_block: &ActiveBlock) -> Vec<Line<'static>> {
+    let mut text = vec![];
+
+    let logs = if active_block == &ActiveBlock::EventLog {
+        &app.events_logs.items
+    } else if active_block == &ActiveBlock::DownloadLog {
+        &app.download_logs.items
+    } else {
+        panic!("should never happen")
+    };
+
+    for log in logs {
+        let (fg, bg, log_type) = match log.log_type {
+            LogType::Info => (Color::Blue, Color::Reset, "INFO"),
+            LogType::Debug => (Color::Green, Color::Reset, "DEBUG"),
+            LogType::Warning => (Color::Yellow, Color::Reset, "WARNING"),
+            LogType::Error => (Color::Red, Color::Reset, "ERROR"),
+            LogType::Critical => (Color::Reset, Color::Red, "ERROR"),
+        };
+
+        let log_prefix = format!("{} [{}]", log.timestamp, log_type);
+
+        let (first_line, lines) =
+            truncate_lines(content_area.width as usize, log_prefix.len(), &log.msg);
+
+        text.push(text::Line::from(vec![
+            Span::styled(log_prefix, Style::default().fg(fg).bg(bg)),
+            Span::from(format!(" {}", first_line)),
+        ]));
+
+        for line in lines {
+            text.push(text::Line::from(vec![Span::from(format!(" {}", line))]));
+        }
+    }
+    text
+}
+
+fn truncate_lines(
+    widget_width: usize,
+    log_prefix_len: usize,
+    log_msg: &str,
+) -> (String, Vec<String>) {
+    let mut lines: Vec<String> = Vec::new();
+    let mut line = String::new();
+    let mut first_line = String::new();
+    let mut used_words = 0;
+
+    let words: Vec<&str> = log_msg.split_whitespace().collect();
+
+    for word in words.iter() {
+        if first_line.len() + word.len() > (widget_width as usize - log_prefix_len) as usize {
+            break;
+        }
+        first_line.push_str(word);
+        first_line.push(' ');
+        used_words += 1;
+    }
+
+    for word in &words[used_words..] {
+        if line.len() + word.len() > widget_width {
+            lines.push(line.trim().to_string());
+            line = String::new();
+        }
+        line.push_str(word);
+        line.push(' ');
+    }
+
+    (first_line, lines)
 }

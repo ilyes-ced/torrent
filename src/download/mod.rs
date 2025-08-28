@@ -116,7 +116,7 @@ fn writer_listener(
                     let _ = tx_tui_clone
                         .send(AppEvent::PieceDownloaded {
                             index: finished_piece.index,
-                            peer: peer,
+                            peer: Some(peer),
                             size: finished_piece.buf.len(),
                         })
                         .await;

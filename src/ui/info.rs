@@ -10,9 +10,6 @@ use Constraint::Percentage;
 use crate::app::App;
 
 pub fn draw_info(frame: &mut Frame, title_area: Rect, app: &App) {
-    let main_horizontal = Layout::horizontal([Percentage(50), Percentage(50)]);
-    let [left_info, right_info] = main_horizontal.areas(title_area);
-
     let text = vec![
         text::Line::from(vec![
             Span::from("torrent: "),
@@ -26,14 +23,6 @@ pub fn draw_info(frame: &mut Frame, title_area: Rect, app: &App) {
             Span::from("Peer Id: "),
             Span::styled(&app.peer_id, Style::default().fg(Color::Green)),
         ]),
-    ];
-    let title = Paragraph::new(text)
-        .block(Block::bordered().title("torrent info"))
-        .wrap(Wrap { trim: true });
-
-    frame.render_widget(title, left_info);
-
-    let text = vec![
         text::Line::from(vec![
             Span::from("infohash: "),
             Span::styled(
@@ -54,9 +43,10 @@ pub fn draw_info(frame: &mut Frame, title_area: Rect, app: &App) {
             Span::styled("&app.torrent_type_value", Style::default().fg(Color::Green)),
         ]),
     ];
+
     let title = Paragraph::new(text)
         .block(Block::bordered().title("torrent info"))
         .wrap(Wrap { trim: true });
 
-    frame.render_widget(title, right_info);
+    frame.render_widget(title, title_area);
 }

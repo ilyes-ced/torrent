@@ -203,19 +203,40 @@ pub async fn complete_handshake(
         Err(_) => return Err(String::from("error receiving the handshake")),
     };
 
+    // info(
+    //     format!(
+    //         "{} {}:{} \n\tprotocol id:{} \n\tinfo hash:{:?}  \n\tpeer id: {}\n",
+    //         "received handshake from peer:",
+    //         peer.ip,
+    //         peer.port,
+    //         rec_handshake.protocol_id,
+    //         rec_handshake.info_hash,
+    //         String::from_utf8_lossy(&rec_handshake.peer_id)
+    //     ),
+    //     tx_tui,
+    // )
+    // .await;
+    info(format!("============"), tx_tui).await;
+    info(
+        format!("received handshake from peer: {}:{} ", peer.ip, peer.port,),
+        tx_tui,
+    )
+    .await;
+    info(
+        format!("protocol id:{} ", rec_handshake.protocol_id,),
+        tx_tui,
+    )
+    .await;
+    info(format!("info hash: {:?}", rec_handshake.info_hash,), tx_tui).await;
     info(
         format!(
-            "{} {}:{} \n\tprotocol id:{} \n\tinfo hash:{:?}  \n\tpeer id: {}\n",
-            "received handshake from peer:",
-            peer.ip,
-            peer.port,
-            rec_handshake.protocol_id,
-            rec_handshake.info_hash,
+            "peer id: {}",
             String::from_utf8_lossy(&rec_handshake.peer_id)
         ),
         tx_tui,
     )
     .await;
+    info(format!("============"), tx_tui).await;
 
     if rec_handshake.info_hash == info_hash {
         info("successful handshake".to_string(), tx_tui).await;
