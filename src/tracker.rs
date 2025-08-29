@@ -179,7 +179,6 @@ async fn parse(
                     ),
                     port: u16::from_be_bytes([bytes[i * 6 + 4], bytes[i * 6 + 5]]),
                 };
-                debug(format!("peer: {:?}", peer), &tx_tui).await;
                 peers.push(peer);
             }
             debug(format!("all ppers result:  {:?}", peers), &tx_tui).await;

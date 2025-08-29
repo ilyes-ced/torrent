@@ -60,7 +60,7 @@ pub fn start_download(
         let already_downloaded = match read_file(&pieces, &torrent, &download_dir) {
             Ok(res) => res,
             Err(e) => {
-                error(
+                debug(
                     format!("reading file for already downloaded pieces: {}", e),
                     &tx_tui,
                 )
@@ -106,7 +106,7 @@ pub fn start_download(
         }
 
         while let Some(mut client) = rx_clients.recv().await {
-            error(format!("recieved client: {:?}", client), &tx_tui).await;
+            // error(format!("recieved client: {:?}", client), &tx_tui).await;
 
             let workers_clone = Arc::clone(&workers);
             let results_counter_clone = Arc::clone(&results_counter);
@@ -116,7 +116,7 @@ pub fn start_download(
             let tx_tui_clone = tx_tui.clone();
             tokio::spawn(async move {
                 warning(
-                    format!("starting new download trhead for client {:?}", client),
+                    format!("starting new download trhead for client {:?}", client.peer),
                     &tx_tui_clone,
                 )
                 .await;
@@ -286,7 +286,14 @@ async fn client_download(
             };
         } else {
             // put piece back in queue
-            error("client does not have piece".to_string(), tx_tui).await;
+            error(
+                format!(
+                    "client {:?} does not have piece {}",
+                    client.peer, piece.index
+                ),
+                tx_tui,
+            )
+            .await;
             let mut workers_lock = workers.write().await;
             workers_lock.push(piece);
             drop(workers_lock);

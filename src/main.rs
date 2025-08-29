@@ -53,90 +53,54 @@ pub struct Source {
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let (tx_tui, rx_tui) = mpsc::channel::<AppEvent>(128);
+    let (tx_peers, rx_peers) = mpsc::channel::<Peer>(128);
     let peer_id = utils::new_peer_id();
-
-    info(
-        format!("you can use the standard iterator methods like .take_while() and .skip_while(). However, these are both lazy and don't share the same iterator, meaning you'd need to clone it (if it's cloneable) or consume it manually."),
-        &tx_tui,
-    )
-    .await;
+    let args = Args::parse();
 
     //* parsing args (main thread)
-    let args = Args::parse();
-    // download directory checking
-    // info(format!("download directory: {}", args.download_dir)).await;
-    info(
-        format!("download directory: {}", args.download_dir),
-        &tx_tui,
-    )
-    .await;
     if !Path::new(&args.download_dir).exists() {
         //error(format!("the provided directory does not exist"));
         error("the provided directory does not exist".to_string(), &tx_tui).await;
         // todo: maybe replace this by telling the use to close the application, because it cant proceed
         std::process::exit(0);
     }
+    info(
+        format!("download directory: {}", args.download_dir),
+        &tx_tui,
+    )
+    .await;
 
     // get torrent data torrent_file or magnet_url
     // these ones execute fast so no need for async + the data is required by all other components so no need for extra async logic and channels
-    let res = if args.source.magnet_url == None {
-        //info(format!(
-        //    "starting download for torrent: {}",
-        //    args.source.torrent_file.clone().unwrap()
-        //)).await;
-
-        info(
-            format!(
-                "starting download for torrent: {}",
-                args.source.torrent_file.clone().unwrap()
-            ),
-            &tx_tui,
-        )
-        .await;
-
-        let path = &args.source.torrent_file.unwrap();
-        let mut file = File::open(path).map_err(|e| e.to_string()).unwrap();
-        let mut buf = vec![];
-        file.read_to_end(&mut buf)
-            .map_err(|e| e.to_string())
-            .unwrap();
-        buf
+    let torrent_data = if args.source.magnet_url == None {
+        //? read .torrent file
+        let buf = read_file(&args.source.torrent_file.unwrap());
+        let bencode_data = Decoder::new(&buf).start().unwrap();
+        let torrent_data = Torrent::new(bencode_data, peer_id).unwrap();
+        torrent_data
     } else {
         let magnet_data = Magnet::new(&args.source.magnet_url.unwrap());
-        // info(format!("magnet data: {:?}", magnet_data)).await;
-
-        info(format!("magnet data: {:?}", magnet_data), &tx_tui).await;
 
         //TODO: here it is supposed to do the get_metadata from the peers we get from dht nodes
         todo!();
     };
 
-    let bencode_data = Decoder::new(&res).start().unwrap();
-    let torrent_data = Torrent::new(bencode_data, peer_id).unwrap();
     let torrent_data1 = torrent_data.clone();
     let torrent_data2 = torrent_data.clone();
-
-    let (tx_peers, rx_peers) = mpsc::channel::<Peer>(128);
-
     let download_dir2 = args.download_dir.clone();
     let tx_tui1 = tx_tui.clone();
 
-    //tokio::spawn(async move {
-    //    let _ = get_peers_from_tracker(torrent_data1, peer_id, tx_peers, tx_tui1.clone()).await;
-    //});
-    //
-    //tokio::spawn(async move {
-    //    let _ = download::start(torrent_data2, rx_peers, args.download_dir, &tx_tui).await;
-    //});
-    //
-    //tokio::spawn(async move {
-    //    loop {
-    //        tokio::time::sleep(Duration::from_millis(100)).await;
-    //    }
-    //});
-
-    // this being first will block the rest
-    // so we need to start everything below first maybe in a thread in another function
+    tokio::spawn(async move {
+        let _ = get_peers_from_tracker(torrent_data1, peer_id, tx_peers, tx_tui1.clone()).await;
+    });
+    tokio::spawn(async move {
+        let _ = download::start(torrent_data2, rx_peers, args.download_dir, &tx_tui).await;
+    });
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    });
     start_tui(rx_tui, torrent_data, download_dir2, peer_id);
 
     Ok(())
@@ -157,6 +121,8 @@ async fn get_peers_from_tracker(
             info(format!("tracker result: {:?}", peers), &tx_tui).await;
 
             for peer in peers.peers {
+                let _ = tx_tui.send(AppEvent::NewPeer(peer.clone())).await;
+
                 tx_peers.send(peer).await.unwrap();
             }
             tokio::time::sleep(Duration::from_secs(peers.interval)).await;
@@ -192,4 +158,15 @@ async fn get_peers_from_dht() -> Result<(), ()> {
     ////################################################################################
 
     Ok(())
+}
+
+fn read_file(path: &String) -> Vec<u8> {
+    let path = path;
+    let mut file = File::open(path).map_err(|e| e.to_string()).unwrap();
+    let mut buf = vec![];
+    file.read_to_end(&mut buf)
+        .map_err(|e| e.to_string())
+        .unwrap();
+
+    buf
 }
