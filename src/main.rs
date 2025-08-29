@@ -55,6 +55,12 @@ async fn main() -> std::io::Result<()> {
     let (tx_tui, rx_tui) = mpsc::channel::<AppEvent>(128);
     let peer_id = utils::new_peer_id();
 
+    info(
+        format!("you can use the standard iterator methods like .take_while() and .skip_while(). However, these are both lazy and don't share the same iterator, meaning you'd need to clone it (if it's cloneable) or consume it manually."),
+        &tx_tui,
+    )
+    .await;
+
     //* parsing args (main thread)
     let args = Args::parse();
     // download directory checking
@@ -115,19 +121,19 @@ async fn main() -> std::io::Result<()> {
     let download_dir2 = args.download_dir.clone();
     let tx_tui1 = tx_tui.clone();
 
-    tokio::spawn(async move {
-        let _ = get_peers_from_tracker(torrent_data1, peer_id, tx_peers, tx_tui1.clone()).await;
-    });
-
-    tokio::spawn(async move {
-        let _ = download::start(torrent_data2, rx_peers, args.download_dir, &tx_tui).await;
-    });
-
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-    });
+    //tokio::spawn(async move {
+    //    let _ = get_peers_from_tracker(torrent_data1, peer_id, tx_peers, tx_tui1.clone()).await;
+    //});
+    //
+    //tokio::spawn(async move {
+    //    let _ = download::start(torrent_data2, rx_peers, args.download_dir, &tx_tui).await;
+    //});
+    //
+    //tokio::spawn(async move {
+    //    loop {
+    //        tokio::time::sleep(Duration::from_millis(100)).await;
+    //    }
+    //});
 
     // this being first will block the rest
     // so we need to start everything below first maybe in a thread in another function

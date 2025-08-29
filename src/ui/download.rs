@@ -15,9 +15,6 @@ use crate::{
 };
 
 pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
-    let events_logs_widget = log_blocks(content_area, app, ActiveBlock::EventLog);
-    let download_logs_widget = log_blocks(content_area, app, ActiveBlock::DownloadLog);
-
     ////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////
@@ -30,6 +27,9 @@ pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
     let [info_area, download_area] = left_area.areas(left);
 
     draw_info(frame, info_area, app);
+
+    let events_logs_widget = log_blocks(right, app, ActiveBlock::EventLog);
+    let download_logs_widget = log_blocks(download_area, app, ActiveBlock::DownloadLog);
 
     frame.render_stateful_widget(
         download_logs_widget,
@@ -121,7 +121,8 @@ fn truncate_lines(
     let words: Vec<&str> = log_msg.split_whitespace().collect();
 
     for word in words.iter() {
-        if first_line.len() + word.len() > (widget_width as usize - log_prefix_len) as usize {
+        // -2 for the borders
+        if (first_line.len() + word.len()) >= (widget_width - log_prefix_len - 2) {
             break;
         }
         first_line.push_str(word);
@@ -130,13 +131,28 @@ fn truncate_lines(
     }
 
     for word in &words[used_words..] {
-        if line.len() + word.len() > widget_width {
-            lines.push(line.trim().to_string());
+        if line.len() + word.len() > widget_width - 2 {
+            lines.push(line.trim_end().to_string());
             line = String::new();
         }
         line.push_str(word);
         line.push(' ');
     }
+    // add last line which is shorter than full line
+    if line.len() > 0 {
+        lines.push(line.trim_end().to_string());
+    }
 
     (first_line, lines)
 }
+
+//fn wrrite_to_file(txt: String) {
+//    use std::io::Write;
+//    let path = "results.txt";
+//    let mut output = std::fs::OpenOptions::new()
+//        .create(true)
+//        .append(true)
+//        .open(path)
+//        .expect("Failed to open file");
+//    writeln!(output, "{txt}").expect("Failed to write to file");
+//}
