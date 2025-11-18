@@ -62,6 +62,8 @@ pub enum LogTarget {
     Download,
 }
 
+const DEBUG: bool = false;
+
 pub async fn info(msg: String, tx_tui: &Sender<AppEvent>) {
     log_message(msg, LogType::Info, tx_tui, LogTarget::Event).await;
 }
@@ -71,7 +73,9 @@ pub async fn info_download(msg: String, tx_tui: &Sender<AppEvent>) {
 }
 
 pub async fn debug(msg: String, tx_tui: &Sender<AppEvent>) {
-    log_message(msg, LogType::Debug, tx_tui, LogTarget::Event).await;
+    if DEBUG {
+        log_message(msg, LogType::Debug, tx_tui, LogTarget::Event).await;
+    }
 }
 
 pub async fn warning(msg: String, tx_tui: &Sender<AppEvent>) {

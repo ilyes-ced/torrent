@@ -26,8 +26,8 @@ pub struct PieceWork {
     pub hash: [u8; 20],
     pub length: usize,
 }
-#[derive(Debug)]
 
+#[derive(Debug)]
 pub struct PieceProgress<'a> {
     pub index: u32,
     pub buf: Vec<u8>,

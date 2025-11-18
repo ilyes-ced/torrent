@@ -12,7 +12,7 @@ pub fn draw_progress(frame: &mut Frame, progress_area: Rect, app: &mut App) {
     let chunks = Layout::vertical([Constraint::Length(1), Constraint::Length(1)])
         .margin(1)
         .split(progress_area);
-    let block = Block::bordered().title("Graphs");
+    let block = Block::bordered().title("Progress");
     frame.render_widget(block, progress_area);
 
     let label = format!(
@@ -40,13 +40,13 @@ pub fn draw_progress(frame: &mut Frame, progress_area: Rect, app: &mut App) {
     //TODO: make the spacing size dynamic
     let total_width = chunks[0].width as usize;
     let spacing =
-        total_width.saturating_sub(10 + 18 + downloaded_perc.len() + downloaded_pieces.len());
+        total_width.saturating_sub(10 + 18 + downloaded_perc.len() + downloaded_pieces.len()) - 1;
 
     let text = vec![text::Line::from(vec![
         Span::from("progress: "),
         Span::styled(downloaded_perc, Style::default().fg(Color::Blue)),
         Span::raw(" ".repeat(spacing)).into(),
-        Span::from("Pieces downloaded:"),
+        Span::from("Pieces downloaded: "),
         Span::styled(downloaded_pieces, Style::default().fg(Color::Blue)),
     ])];
 

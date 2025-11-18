@@ -23,7 +23,7 @@ pub fn draw_download_tab(frame: &mut Frame, content_area: Rect, app: &mut App) {
     let main_tabs = Layout::horizontal([Percentage(30), Percentage(70)]);
     let [left, right] = main_tabs.areas(content_area);
 
-    let left_area = Layout::vertical([Length(8), Fill(1)]);
+    let left_area = Layout::vertical([Length(7), Fill(1)]);
     let [info_area, download_area] = left_area.areas(left);
 
     draw_info(frame, info_area, app);
@@ -122,7 +122,7 @@ fn truncate_lines(
 
     for word in words.iter() {
         // -2 for the borders
-        if (first_line.len() + word.len()) >= (widget_width - log_prefix_len - 2) {
+        if (first_line.len() + word.len()) >= (widget_width - log_prefix_len - 6) {
             break;
         }
         first_line.push_str(word);

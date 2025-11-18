@@ -38,10 +38,10 @@ pub fn draw_info(frame: &mut Frame, title_area: Rect, app: &App) {
             // todo: make the MiB or GiB tranformations
             Span::styled(app.size.to_string(), Style::default().fg(Color::Green)),
         ]),
-        text::Line::from(vec![
-            Span::from("&app.torrent_type"),
-            Span::styled("&app.torrent_type_value", Style::default().fg(Color::Green)),
-        ]),
+        // text::Line::from(vec![
+        //     Span::from("&app.torrent_type"),
+        //     Span::styled("&app.torrent_type_value", Style::default().fg(Color::Green)),
+        // ]),
     ];
 
     let title = Paragraph::new(text)

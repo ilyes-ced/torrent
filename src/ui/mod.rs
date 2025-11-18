@@ -104,7 +104,7 @@ pub fn start_tui(
             Event::Mouse(mouse_event) => todo!(),
             Event::Paste(_) => todo!(),
             //todo: here we could choose which windowe are visible when window is too small
-            Event::Resize(_, _) => todo!(),
+            Event::Resize(_, _) => {}
         }
     }
 
