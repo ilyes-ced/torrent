@@ -51,9 +51,12 @@ Note: probably works only on linux
 ![flow_chart.png](flow_chart.png)
 
 
-## TUI 
-![TUI_mockup.png](TUI_mockup.png)
+## multithread 
+![multithread.png](multithread.png)
 
+
+## TUI 
+![TUI.png](TUI.png)
 
 
 ## extra features to implement
