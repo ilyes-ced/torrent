@@ -16,7 +16,7 @@ Refrences
 
 Note: probably works only on linux
 
-## features TODO
+## features
 
 - [x] bencode decoder
 - [x] parse torrent file
@@ -44,6 +44,17 @@ Note: probably works only on linux
 - [x] add peers periodically (using mpsc channels)
 - [ ] DHT
 - [x] async app (tokio)
+
+
+
+## diagram
+![flow_chart.png](flow_chart.png)
+
+
+## TUI 
+![TUI_mockup.png](TUI_mockup.png)
+
+
 
 ## extra features to implement
 
